@@ -77,6 +77,7 @@ function buildGitHubHeaders(token?: string, extra?: Record<string, string>): Rec
 
 export interface GitHubRepositoryStatus {
   configured: boolean;
+  liveTested?: boolean;
   hasToken: boolean;
   owner: string;
   repo: string;
@@ -94,6 +95,50 @@ export interface GitHubRepositoryStatus {
   setupInstructionsAr: string | null;
   error: string | null;
   vault?: VaultPublicStatus;
+}
+
+/**
+ * Returns saved cloud GitHub settings & token readiness WITHOUT making live external requests to api.github.com.
+ * Used when loading the admin page so UI renders never trigger unnecessary GitHub API traffic.
+ */
+export async function getSavedGitHubSettingsSummary(): Promise<GitHubRepositoryStatus> {
+  const cfg = await resolveGitHubConfig();
+  const fullName = cfg.owner && cfg.repo ? `${cfg.owner}/${cfg.repo}` : '';
+  const missingEnvVars: string[] = [];
+  if (!cfg.owner) missingEnvVars.push('GITHUB_OWNER');
+  if (!cfg.repo) missingEnvVars.push('GITHUB_REPO');
+  if (!cfg.hasToken) missingEnvVars.push('GITHUB_TOKEN');
+
+  const isReady = Boolean(cfg.owner && cfg.repo && cfg.hasToken);
+  return {
+    configured: isReady,
+    liveTested: false,
+    hasToken: cfg.hasToken,
+    owner: cfg.owner,
+    repo: cfg.repo,
+    fullName,
+    exists: Boolean(cfg.owner && cfg.repo),
+    isPrivate: null,
+    visibility: null,
+    defaultBranch: null,
+    canPublishReleases: isReady,
+    releasesReachable: isReady,
+    existingReleasesCount: 0,
+    rateLimitRemaining: null,
+    rateLimitResetAt: null,
+    missingEnvVars,
+    setupInstructionsAr: !cfg.owner || !cfg.repo
+      ? 'افتح قسم «⚙️ إعدادات GitHub Releases» وأدخل GITHUB_OWNER وGITHUB_REPO وGITHUB_TOKEN ثم اضغط «حفظ إعدادات GitHub».'
+      : !cfg.hasToken
+        ? `يرجى فتح قسم «⚙️ إعدادات GitHub Releases» وإدخال التوكن السري (GITHUB_TOKEN) بصلاحية Contents: Read and write للمستودع ${fullName} ثم حفظ الإعدادات.`
+        : null,
+    error: !cfg.owner || !cfg.repo
+      ? 'لم يتم تحديد اسم المالك أو اسم المستودع في إعدادات GitHub Releases بعد.'
+      : !cfg.hasToken
+        ? 'التوكن السري (GITHUB_TOKEN) غير محفوظ بعد.'
+        : null,
+    vault: cfg.vault,
+  };
 }
 
 export async function checkGitHubRepositoryStatus(override?: {
@@ -165,6 +210,7 @@ export async function checkGitHubRepositoryStatus(override?: {
       {
         method: 'GET',
         headers: buildGitHubHeaders(cfg.hasToken ? cfg.token : undefined),
+        signal: AbortSignal.timeout(15_000),
       }
     );
 
@@ -227,6 +273,7 @@ export async function checkGitHubRepositoryStatus(override?: {
             {
               method: 'GET',
               headers: buildGitHubHeaders(cfg.hasToken ? cfg.token : undefined),
+              signal: AbortSignal.timeout(8_000),
             }
           );
           if (swappedCheck.ok) {
@@ -297,20 +344,55 @@ export async function checkGitHubRepositoryStatus(override?: {
       {
         method: 'GET',
         headers: buildGitHubHeaders(cfg.hasToken ? cfg.token : undefined),
+        signal: AbortSignal.timeout(12_000),
       }
     );
     const releasesReachable = relRes.ok;
     const relList: any[] = relRes.ok ? await relRes.json().catch(() => []) : [];
 
-    // Check push/contents write capability when authenticated
-    const hasPushPerm = cfg.hasToken
+    // Check push/contents write capability when authenticated (including Fine-Grained PATs where repoData.permissions reflects user role rather than token scope)
+    let hasPushPerm = cfg.hasToken
       ? repoData.permissions
         ? Boolean(repoData.permissions.push || repoData.permissions.admin || repoData.permissions.maintain)
         : releasesReachable
       : false;
+    let fineGrainedScopeMissing = false;
+
+    if (cfg.hasToken && hasPushPerm) {
+      const oauthScopes = repoRes.headers.get('x-oauth-scopes');
+      if (oauthScopes !== null) {
+        // Classic PAT: must include `repo` (or `public_repo` for public repositories)
+        const scopes = oauthScopes.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+        hasPushPerm = scopes.includes('repo') || (!isPrivate && scopes.includes('public_repo'));
+      } else {
+        // Fine-Grained PAT (`github_pat_...`): non-destructively probe `POST /releases` with `{"tag_name":""}`.
+        // GitHub evaluates Fine-Grained PAT `Contents: write` authorization (403) BEFORE rejecting empty `tag_name` (422), so zero release or tag is ever created.
+        try {
+          const writeProbe = await fetch(
+            `${GITHUB_API_BASE}/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases`,
+            {
+              method: 'POST',
+              headers: {
+                ...buildGitHubHeaders(cfg.token),
+                'Content-Type': 'application/json',
+              },
+              body: '{"tag_name":""}',
+              signal: AbortSignal.timeout(10_000),
+            }
+          );
+          if (writeProbe.status === 403 || writeProbe.status === 401) {
+            hasPushPerm = false;
+            fineGrainedScopeMissing = true;
+          }
+        } catch {
+          // Keep repoData.permissions result on transient network issue
+        }
+      }
+    }
 
     return {
       configured: cfg.hasToken && releasesReachable && hasPushPerm,
+      liveTested: true,
       hasToken: cfg.hasToken,
       owner: cfg.owner,
       repo: cfg.repo,
@@ -328,12 +410,16 @@ export async function checkGitHubRepositoryStatus(override?: {
       setupInstructionsAr: !cfg.hasToken
         ? baseInstructions
         : !hasPushPerm
-          ? `رمز GITHUB_TOKEN الحالي لا يملك صلاحية الكتابة على الإصدارات في ${fullName}. يرجى منح صلاحية Contents: Read and write للرمز.`
+          ? fineGrainedScopeMissing
+            ? `التوكن المحفوظ يتصل بحسابك وبالمستودع ${fullName} بنجاح، لكنه من نوع Fine-grained PAT بصلاحية قراءة فقط. لنشر ملفات APK في GitHub Releases، افتح إعدادات التوكن في GitHub وحدّد المستودع ${fullName} وفعّل صلاحية Repository permissions → Contents: Read and write.`
+            : `رمز GITHUB_TOKEN الحالي لا يملك صلاحية الكتابة على الإصدارات في ${fullName}. يرجى منح صلاحية Contents: Read and write للرمز.`
           : null,
       error: !cfg.hasToken
         ? 'لم يتم حفظ GITHUB_TOKEN في إعدادات الخادم بعد؛ القراءة العامة متاحة لكن الرفع والنشر يتطلبان حفظ التوكن.'
         : !hasPushPerm
-          ? 'رمز GITHUB_TOKEN لا يملك صلاحية إنشاء الإصدارات (Contents: Write)'
+          ? fineGrainedScopeMissing
+            ? `التوكن متصل بالمستودع ${fullName} لكن ينقصه إذن Contents: Read and write لإنشاء Releases ورفع APK`
+            : 'رمز GITHUB_TOKEN لا يملك صلاحية إنشاء الإصدارات (Contents: Write)'
           : null,
       vault: cfg.vault,
     };
@@ -884,6 +970,7 @@ export async function verifyExistingGitHubReleaseAsset(params: {
         method: 'GET',
         headers: { Range: 'bytes=0-0', 'User-Agent': 'Sami-Cloud-Update-Server/1.3' },
         redirect: 'follow',
+        signal: AbortSignal.timeout(12_000),
       });
       try {
         await probe.body?.cancel();
@@ -903,6 +990,7 @@ export async function verifyExistingGitHubReleaseAsset(params: {
         {
           method: 'GET',
           headers: buildGitHubHeaders(sameConfiguredRepo ? cfg.token : undefined),
+          signal: AbortSignal.timeout(12_000),
         }
       );
       if (!relRes.ok) {

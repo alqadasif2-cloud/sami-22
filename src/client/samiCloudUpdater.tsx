@@ -12,7 +12,9 @@ import JSZip from 'jszip';
 export const SAMI_EXPECTED_APP_ID = 'com.sami.tradingchallengetracker';
 export const SAMI_FALLBACK_VERSION_CODE = 15;
 export const SAMI_FALLBACK_VERSION_NAME = '1.3.1';
-const DEFAULT_CLOUD_RUN_BASE = 'https://ais-pre-imthno3wu25qands27nuna-27831794049.europe-west2.run.app';
+
+const SHARED_FIRESTORE_LATEST_DOC_URL =
+  'https://firestore.googleapis.com/v1/projects/majestic-interface-ksmzh/databases/ai-studio-c1d1b606-9578-42a6-b7b2-17faaec47f72/documents/app_updates/latest';
 
 export interface CloudAppUpdateConfig {
   id?: string;
@@ -42,6 +44,11 @@ export interface CloudAppUpdateConfig {
   publishedBy?: string;
   isActive: boolean;
   isHidden?: boolean;
+  configuredGithubOwner?: string;
+  configuredGithubRepo?: string;
+  configuredSettingsUpdatedAt?: number;
+  configuredSettingsUpdatedBy?: string;
+  configuredApiServerUrl?: string;
 }
 
 export interface InstalledAppInfo {
@@ -81,7 +88,8 @@ interface ClientApkInspection {
 }
 
 // ============================================================================
-// ENVIRONMENT, SERVER URL & AUTH HELPERS
+// ENVIRONMENT, PRODUCTION HTTPS SERVER URL & AUTH HELPERS
+// (Strictly rejects localhost & Google AI Studio preview URLs!)
 // ============================================================================
 
 export function isAndroidLocalAssetOrigin(): boolean {
@@ -95,18 +103,280 @@ export function isAndroidLocalAssetOrigin(): boolean {
   }
 }
 
+export function sanitizeProductionServerUrl(rawUrl: string | undefined | null): string {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed || trimmed === 'MY_APP_URL') return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'https:') return '';
+    const host = parsed.hostname.toLowerCase();
+    if (
+      !host ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host === 'appassets.androidplatform.net' ||
+      host.startsWith('ais-dev-') ||
+      host.startsWith('ais-pre-') ||
+      host.endsWith('.usercontent.goog')
+    ) {
+      return '';
+    }
+    return parsed.origin.replace(/\/+$/, '');
+  } catch {
+    return '';
+  }
+}
+
+function persistProductionServerUrlLocally(rawUrl: string | undefined | null): string {
+  const valid = sanitizeProductionServerUrl(rawUrl);
+  if (!valid) return '';
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sami_push_server_url', valid);
+    }
+    if (typeof window !== 'undefined') {
+      const w = window as any;
+      w.__samiConfiguredServerBase = valid;
+      if (w.SamiBridge && typeof w.SamiBridge.setRemoteServerUrl === 'function') {
+        w.SamiBridge.setRemoteServerUrl(valid);
+      }
+    }
+  } catch {}
+  return valid;
+}
+
 export function getSamiServerBaseUrl(): string {
   try {
     if (!isAndroidLocalAssetOrigin()) {
+      // Running directly on web server (deployed Cloud Run HTTPS or active host): use relative same-origin routes
       return '';
     }
-    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('sami_push_server_url') : null;
-    if (stored && stored.trim().startsWith('http')) {
-      return stored.trim().replace(/\/+$/, '');
+    if (typeof window !== 'undefined') {
+      const w = window as any;
+      const winCached = sanitizeProductionServerUrl(w.__samiConfiguredServerBase);
+      if (winCached) return winCached;
     }
-    return DEFAULT_CLOUD_RUN_BASE;
+    if (typeof localStorage !== 'undefined') {
+      const rawStored = localStorage.getItem('sami_push_server_url');
+      if (rawStored) {
+        const cleanStored = sanitizeProductionServerUrl(rawStored);
+        if (cleanStored) {
+          return cleanStored;
+        }
+        // Purge stale preview (`ais-pre-*` / `ais-dev-*`) or `localhost` URLs immediately
+        localStorage.removeItem('sami_push_server_url');
+      }
+    }
+    return '';
   } catch {
-    return DEFAULT_CLOUD_RUN_BASE;
+    return '';
+  }
+}
+
+interface CloudFirestoreDirectSnapshot {
+  configuredGithubOwner: string;
+  configuredGithubRepo: string;
+  configuredApiServerUrl: string;
+  configuredSettingsUpdatedAt: number | null;
+  latestUpdate: CloudAppUpdateConfig | null;
+}
+
+async function discoverCloudStateFromFirestore(parentSignal?: AbortSignal): Promise<CloudFirestoreDirectSnapshot | null> {
+  const ctrl = new AbortController();
+  const onParentAbort = () => ctrl.abort();
+  if (parentSignal) {
+    if (parentSignal.aborted) return null;
+    parentSignal.addEventListener('abort', onParentAbort, { once: true });
+  }
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+
+  try {
+    const res = await fetch(SHARED_FIRESTORE_LATEST_DOC_URL, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return null;
+    const json: any = await res.json().catch(() => null);
+    const f = json?.fields;
+    if (!f || typeof f !== 'object') return null;
+
+    const readVal = (v: any): any => {
+      if (!v || typeof v !== 'object') return undefined;
+      if ('stringValue' in v) return v.stringValue;
+      if ('booleanValue' in v) return Boolean(v.booleanValue);
+      if ('integerValue' in v) return Number(v.integerValue);
+      if ('doubleValue' in v) return Number(v.doubleValue);
+      return undefined;
+    };
+
+    const raw: Record<string, any> = {};
+    for (const k of Object.keys(f)) {
+      raw[k] = readVal(f[k]);
+    }
+
+    const discoveredServerUrl = persistProductionServerUrlLocally(raw.configuredApiServerUrl);
+    const isActive = raw.status === 'published' ? raw.isActive !== false && raw.isHidden !== true : raw.isActive === true && raw.isHidden !== true;
+
+    const latestUpdate: CloudAppUpdateConfig = {
+      id: String(raw.id || 'latest'),
+      versionName: String(raw.versionName || SAMI_FALLBACK_VERSION_NAME),
+      versionCode: Number(raw.versionCode) || SAMI_FALLBACK_VERSION_CODE,
+      description: String(raw.description || ''),
+      fileSize: raw.fileSize ? Number(raw.fileSize) : undefined,
+      fileName: raw.fileName ? String(raw.fileName) : undefined,
+      applicationId: raw.applicationId ? String(raw.applicationId) : SAMI_EXPECTED_APP_ID,
+      storageSource:
+        raw.storageSource === 'github_releases' || Boolean(raw.githubReleaseId) || Boolean(raw.githubAssetId)
+          ? 'github_releases'
+          : 'legacy',
+      githubOwner: raw.githubOwner ? String(raw.githubOwner) : undefined,
+      githubRepo: raw.githubRepo ? String(raw.githubRepo) : undefined,
+      githubReleaseId: raw.githubReleaseId ? Number(raw.githubReleaseId) : undefined,
+      releaseTag: raw.releaseTag ? String(raw.releaseTag) : undefined,
+      githubAssetId: raw.githubAssetId ? Number(raw.githubAssetId) : undefined,
+      isRepoPrivate: typeof raw.isRepoPrivate === 'boolean' ? raw.isRepoPrivate : undefined,
+      downloadUrl: String(raw.downloadUrl || ''),
+      secureDownloadPath: raw.secureDownloadPath ? String(raw.secureDownloadPath) : undefined,
+      sha256: raw.sha256 ? String(raw.sha256) : undefined,
+      signingCertSha256: raw.signingCertSha256 ? String(raw.signingCertSha256) : undefined,
+      status: isActive ? 'published' : 'paused',
+      isMandatory: Boolean(raw.isMandatory),
+      isActive,
+      isHidden: !isActive,
+      configuredGithubOwner: raw.configuredGithubOwner ? String(raw.configuredGithubOwner).trim() : '',
+      configuredGithubRepo: raw.configuredGithubRepo ? String(raw.configuredGithubRepo).trim() : '',
+      configuredApiServerUrl: discoveredServerUrl,
+    };
+
+    return {
+      configuredGithubOwner: String(raw.configuredGithubOwner || '').trim(),
+      configuredGithubRepo: String(raw.configuredGithubRepo || '').trim(),
+      configuredApiServerUrl: discoveredServerUrl,
+      configuredSettingsUpdatedAt: raw.configuredSettingsUpdatedAt ? Number(raw.configuredSettingsUpdatedAt) : null,
+      latestUpdate,
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    if (parentSignal) {
+      parentSignal.removeEventListener('abort', onParentAbort);
+    }
+  }
+}
+
+class CancelledRequestError extends Error {
+  isCancelled = true;
+  constructor() {
+    super('تم إلغاء الطلب عند مغادرة الصفحة');
+  }
+}
+
+function translateNetworkOrHttpErrorAr(err: any, httpStatus?: number, serverErrorText?: string): string {
+  const cleanServerErr = String(serverErrorText || '').trim();
+  if (httpStatus === 401) {
+    return cleanServerErr || 'انتهت جلسة تسجيل الدخول أو يلزم الدخول بحساب مالك التطبيق.';
+  }
+  if (httpStatus === 403) {
+    return cleanServerErr || 'هذه العملية مخصصة حصرياً لمالك تطبيق Sami (Owner Only).';
+  }
+  if (httpStatus === 404) {
+    return cleanServerErr || 'لم يتم العثور على مسار خدمة التحديثات على الخادم المتصل به.';
+  }
+  if (httpStatus && httpStatus >= 500) {
+    return cleanServerErr || `واجه الخادم خطأً داخلياً مؤقتاً (HTTP ${httpStatus}). يرجى المحاولة مرة أخرى.`;
+  }
+  if (cleanServerErr) {
+    return cleanServerErr;
+  }
+
+  const rawMsg = String(err?.message || err || '').trim();
+  const lower = rawMsg.toLowerCase();
+  if (
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('load failed') ||
+    lower.includes('network request failed') ||
+    lower.includes('fetch')
+  ) {
+    return 'تعذر الاتصال بخادم التحديثات المنشور عبر HTTPS. يرجى التحقق من اتصال الإنترنت وعنوان الخادم ثم الضغط على «إعادة المحاولة».';
+  }
+  if (err?.name === 'TimeoutError' || lower.includes('timeout') || lower.includes('timed out')) {
+    return 'انتهت مهلة الاتصال بالخادم (15 ثانية). تحقق من استقرار الشبكة ثم اضغط «إعادة المحاولة».';
+  }
+  if (!rawMsg || /^[A-Za-z0-9_:\s.,()-]+$/.test(rawMsg)) {
+    return 'تعذر إتمام الاتصال بالخادم حالياً. يرجى المحاولة مرة أخرى.';
+  }
+  return rawMsg;
+}
+
+async function fetchJsonApi(
+  url: string,
+  options: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: any;
+    timeoutMs?: number;
+    parentSignal?: AbortSignal;
+  } = {}
+): Promise<{ status: number; ok: boolean; data: any }> {
+  const { method = 'GET', headers = {}, body, timeoutMs = 15_000, parentSignal } = options;
+  if (parentSignal?.aborted) {
+    throw new CancelledRequestError();
+  }
+
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const onParentAbort = () => ctrl.abort();
+  if (parentSignal) {
+    parentSignal.addEventListener('abort', onParentAbort, { once: true });
+  }
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        ...headers,
+      },
+      body,
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+
+    const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/json')) {
+      if (parentSignal?.aborted) throw new CancelledRequestError();
+      throw new Error(
+        'العنوان المتصل به لم يُرجع استجابة API صالحة (JSON). تأكد من الاتصال بالخادم الفعلي المنشور عبر HTTPS وليس عنوان معاينة.'
+      );
+    }
+
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, data };
+  } catch (err: any) {
+    if (parentSignal?.aborted || err instanceof CancelledRequestError) {
+      throw new CancelledRequestError();
+    }
+    if (timedOut) {
+      const timeoutErr = new Error(
+        'انتهت مهلة الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت ثم الضغط على «إعادة المحاولة».'
+      );
+      timeoutErr.name = 'TimeoutError';
+      throw timeoutErr;
+    }
+    throw new Error(translateNetworkOrHttpErrorAr(err));
+  } finally {
+    clearTimeout(timer);
+    if (parentSignal) {
+      parentSignal.removeEventListener('abort', onParentAbort);
+    }
   }
 }
 
@@ -554,13 +824,28 @@ async function runWebResumableDownloadAndVerify(config: CloudAppUpdateConfig, is
   });
 
   try {
-    const serverBase = getSamiServerBaseUrl();
+    let serverBase = getSamiServerBaseUrl();
+    if (isAndroidLocalAssetOrigin() && !serverBase) {
+      const cloudSnap = await discoverCloudStateFromFirestore(abortCtrl.signal);
+      if (cloudSnap?.configuredApiServerUrl) {
+        serverBase = cloudSnap.configuredApiServerUrl;
+      }
+    }
     const proxyPath = config.secureDownloadPath || `/api/app-updates/download/v_${config.versionCode}`;
-    const proxyUrl = `${serverBase}${proxyPath}`;
+    const canUseDirectPublicUrl =
+      isAndroidLocalAssetOrigin() &&
+      !serverBase &&
+      !config.isRepoPrivate &&
+      typeof config.downloadUrl === 'string' &&
+      config.downloadUrl.startsWith('https://github.com/');
+    if (isAndroidLocalAssetOrigin() && !serverBase && !canUseDirectPublicUrl) {
+      throw new Error('لم يتم تسجيل عنوان الخادم المنشور (HTTPS) لتنزيل التحديث حالياً.');
+    }
+    const proxyUrl = canUseDirectPublicUrl ? config.downloadUrl : `${serverBase}${proxyPath}`;
     const { headers: authHeaders } = getAuthCredentials();
 
     // Use server streaming proxy on Web (supports CORS + Range 206 + private & public GitHub Releases seamlessly)
-    const reqHeaders: Record<string, string> = { ...authHeaders };
+    const reqHeaders: Record<string, string> = canUseDirectPublicUrl ? {} : { ...authHeaders };
     if (existingOffset > 0 && (expectedTotal <= 0 || existingOffset < expectedTotal)) {
       reqHeaders.Range = `bytes=${existingOffset}-`;
     }
@@ -573,7 +858,7 @@ async function runWebResumableDownloadAndVerify(config: CloudAppUpdateConfig, is
 
     if (!res.ok && res.status !== 206) {
       const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody?.error || `تعذر تنزيل التحديث من الخادم (HTTP ${res.status})`);
+      throw new Error(translateNetworkOrHttpErrorAr(null, res.status, errBody?.error));
     }
 
     const isPartial = res.status === 206 && existingOffset > 0;
@@ -744,7 +1029,7 @@ async function runWebResumableDownloadAndVerify(config: CloudAppUpdateConfig, is
     emitWebUpdateState({
       phase: 'failed',
       statusTextAr: 'فشل التنزيل',
-      errorDetailAr: err?.message || 'حدث خطأ أثناء تنزيل التحديث أو التحقق منه',
+      errorDetailAr: translateNetworkOrHttpErrorAr(err),
       downloadedBytes: dl,
       totalBytes: expectedTotal,
       percent: pct,
@@ -1203,18 +1488,25 @@ export function SamiAdminUpdatePanel({
   currentUser: any;
   onToast?: (msg: string, isError?: boolean) => void;
 }) {
-  const notify = useCallback(
-    (msg: string, isError = false) => {
-      if (onToast) onToast(msg, isError);
-    },
-    [onToast]
-  );
+  // Stable toast callback via ref so parent toast state changes NEVER re-trigger useEffect loops!
+  const onToastRef = useRef(onToast);
+  onToastRef.current = onToast;
+  const notify = useCallback((msg: string, isError = false) => {
+    if (onToastRef.current) onToastRef.current(msg, isError);
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const activeXhrRef = useRef<XMLHttpRequest | null>(null);
   const pollTimerRef = useRef<any>(null);
+  const unmountAbortRef = useRef<AbortController | null>(null);
+  const inFlightBootstrapRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'needs_server_url' | 'error'>(
+    'connecting'
+  );
+  const [connectionErrorAr, setConnectionErrorAr] = useState<string | null>(null);
   const [githubStatus, setGithubStatus] = useState<any>(null);
   const [vaultInfo, setVaultInfo] = useState<any>(null);
   const [signingKeyInfo, setSigningKeyInfo] = useState<any>(null);
@@ -1222,12 +1514,13 @@ export function SamiAdminUpdatePanel({
   const [effectiveMinVersionCode, setEffectiveMinVersionCode] = useState<number>(SAMI_FALLBACK_VERSION_CODE);
   const [historyList, setHistoryList] = useState<CloudAppUpdateConfig[]>([]);
 
-  // Collapsible GitHub Releases Settings State (Never persisted in localStorage; token cleared after save)
+  // Collapsible GitHub Releases Settings State (Saved permanently in Cloud Firestore + Server Vault; token cleared from DOM after save)
   const settingsInitializedRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ownerInput, setOwnerInput] = useState('');
   const [repoInput, setRepoInput] = useState('');
   const [tokenInput, setTokenInput] = useState('');
+  const [serverUrlInput, setServerUrlInput] = useState(() => getSamiServerBaseUrl());
   const [showToken, setShowToken] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -1254,60 +1547,194 @@ export function SamiAdminUpdatePanel({
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const installedApp = getInstalledSamiAppInfo();
+  const isLocalAndroidOrigin = isAndroidLocalAssetOrigin();
 
-  const loadCloudStatusAndHistory = useCallback(async () => {
-    setLoadingStatus(true);
-    const serverBase = getSamiServerBaseUrl();
-    const { headers } = getAuthCredentials();
-    try {
-      const [statusRes, histRes] = await Promise.all([
-        fetch(`${serverBase}/api/app-updates/github-status?_t=${Date.now()}`, {
-          method: 'GET',
-          headers,
-          cache: 'no-store',
-        }),
-        fetch(`${serverBase}/api/app-updates/history?_t=${Date.now()}`, {
-          method: 'GET',
-          headers,
-          cache: 'no-store',
-        }),
-      ]);
+  const resolveCallableServerBase = useCallback(
+    async (explicitCandidate?: string, signal?: AbortSignal): Promise<{
+      serverBase: string | null;
+      cloudSnap: CloudFirestoreDirectSnapshot | null;
+    }> => {
+      if (!isAndroidLocalAssetOrigin()) {
+        // Web browser connected directly to server host: use relative `/api/...` routes
+        return { serverBase: '', cloudSnap: null };
+      }
 
-      const statusData = await statusRes.json().catch(() => ({}));
-      if (statusRes.ok && statusData.success) {
-        const gh = statusData.github || null;
+      const explicitValid = sanitizeProductionServerUrl(explicitCandidate);
+      if (explicitValid) {
+        return { serverBase: explicitValid, cloudSnap: null };
+      }
+
+      const cloudSnap = await discoverCloudStateFromFirestore(signal);
+      if (cloudSnap?.configuredApiServerUrl) {
+        return { serverBase: cloudSnap.configuredApiServerUrl, cloudSnap };
+      }
+
+      const cachedValid = getSamiServerBaseUrl();
+      if (cachedValid) {
+        return { serverBase: cachedValid, cloudSnap };
+      }
+
+      return { serverBase: null, cloudSnap };
+    },
+    []
+  );
+
+  const loadCloudStatusAndHistory = useCallback(
+    async (opts?: { showToastOnError?: boolean }) => {
+      if (inFlightBootstrapRef.current) return;
+      inFlightBootstrapRef.current = true;
+      setLoadingStatus(true);
+      setConnectionErrorAr(null);
+
+      const signal = unmountAbortRef.current?.signal;
+      try {
+        const { serverBase, cloudSnap } = await resolveCallableServerBase(undefined, signal);
+        if (!mountedRef.current || signal?.aborted) return;
+
+        // If running inside Android local APK and no deployed HTTPS server URL is registered yet,
+        // hydrate saved owner/repo/latest from Cloud Firestore WITHOUT firing doomed fetch requests!
+        if (serverBase === null) {
+          if (cloudSnap) {
+            if (cloudSnap.latestUpdate) {
+              setCurrentPublished(cloudSnap.latestUpdate);
+              setEffectiveMinVersionCode(
+                Math.max(cloudSnap.latestUpdate.versionCode || 0, SAMI_FALLBACK_VERSION_CODE)
+              );
+            }
+            const savedOwner = cloudSnap.configuredGithubOwner;
+            const savedRepo = cloudSnap.configuredGithubRepo;
+            if (savedOwner || savedRepo) {
+              setGithubStatus({
+                configured: false,
+                liveTested: false,
+                hasToken: false,
+                owner: savedOwner,
+                repo: savedRepo,
+                fullName: savedOwner && savedRepo ? `${savedOwner}/${savedRepo}` : '',
+                exists: Boolean(savedOwner && savedRepo),
+                canPublishReleases: false,
+              });
+              if (!settingsInitializedRef.current) {
+                settingsInitializedRef.current = true;
+                setOwnerInput(savedOwner);
+                setRepoInput(savedRepo);
+              }
+            }
+          }
+          setConnectionState('needs_server_url');
+          setSettingsOpen(true);
+          setConnectionErrorAr(
+            'التطبيق يعمل محلياً من حزمة Android ولم يتم تسجيل عنوان الخادم المنشور (HTTPS) بعد. أدخل عنوان الخادم المنشور في الإعدادات أدناه لربط لوحة التحديثات بالخادم الفعلي.'
+          );
+          return;
+        }
+
+        if (serverBase) {
+          setServerUrlInput(serverBase);
+        }
+
+        const { headers } = getAuthCredentials();
+        const { ok, status, data } = await fetchJsonApi(
+          `${serverBase}/api/app-updates/admin-bootstrap?_t=${Date.now()}`,
+          {
+            method: 'GET',
+            headers,
+            timeoutMs: 15_000,
+            parentSignal: signal,
+          }
+        );
+
+        if (!mountedRef.current || signal?.aborted) return;
+
+        if (!ok || !data?.success) {
+          const errText = translateNetworkOrHttpErrorAr(null, status, data?.error);
+          setConnectionState('error');
+          setConnectionErrorAr(errText);
+          if (opts?.showToastOnError) {
+            notify(errText, true);
+          }
+          return;
+        }
+
+        const gh = data.github || null;
+        const vInfo = data.vault || gh?.vault || null;
         setGithubStatus(gh);
-        setVaultInfo(statusData.vault || gh?.vault || null);
-        setSigningKeyInfo(statusData.signingKey || null);
-        setCurrentPublished(statusData.currentPublished || null);
-        setEffectiveMinVersionCode(Number(statusData.effectiveMinVersionCode) || SAMI_FALLBACK_VERSION_CODE);
+        setVaultInfo(vInfo);
+        setSigningKeyInfo(data.signingKey || null);
+        setCurrentPublished(data.currentPublished || null);
+        setEffectiveMinVersionCode(Number(data.effectiveMinVersionCode) || SAMI_FALLBACK_VERSION_CODE);
+        if (Array.isArray(data.updates)) {
+          setHistoryList(data.updates);
+        }
+
+        if (vInfo?.apiServerUrl) {
+          const syncedUrl = persistProductionServerUrlLocally(vInfo.apiServerUrl);
+          if (syncedUrl) setServerUrlInput(syncedUrl);
+        }
 
         if (!settingsInitializedRef.current) {
           settingsInitializedRef.current = true;
           setOwnerInput(gh?.owner || '');
           setRepoInput(gh?.repo || '');
-          if (!gh?.canPublishReleases) {
+          if (!gh?.configured) {
             setSettingsOpen(true);
           }
         }
-      }
 
-      const histData = await histRes.json().catch(() => ({}));
-      if (histRes.ok && Array.isArray(histData.updates)) {
-        setHistoryList(histData.updates);
+        setConnectionState('connected');
+        setConnectionErrorAr(null);
+      } catch (err: any) {
+        if (err?.isCancelled || !mountedRef.current || signal?.aborted) {
+          return;
+        }
+        const errText = translateNetworkOrHttpErrorAr(err);
+        setConnectionState('error');
+        setConnectionErrorAr(errText);
+        if (opts?.showToastOnError) {
+          notify(errText, true);
+        }
+      } finally {
+        inFlightBootstrapRef.current = false;
+        if (mountedRef.current) {
+          setLoadingStatus(false);
+        }
       }
-    } catch (err: any) {
-      notify(err?.message || 'تعذر جلب حالة نظام التحديثات السحابي', true);
-    } finally {
-      setLoadingStatus(false);
-    }
-  }, [notify]);
+    },
+    [notify, resolveCallableServerBase]
+  );
 
+  // Run once on mount; abort all in-flight HTTP/XHR/polling immediately on unmount or page close!
   useEffect(() => {
-    loadCloudStatusAndHistory();
+    mountedRef.current = true;
+    const ctrl = new AbortController();
+    unmountAbortRef.current = ctrl;
+
+    const abortAllOnLeave = () => {
+      ctrl.abort();
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      if (activeXhrRef.current) {
+        activeXhrRef.current.abort();
+        activeXhrRef.current = null;
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', abortAllOnLeave);
+      window.addEventListener('beforeunload', abortAllOnLeave);
+    }
+
+    loadCloudStatusAndHistory({ showToastOnError: false });
+
     return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-      if (activeXhrRef.current) activeXhrRef.current.abort();
+      mountedRef.current = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pagehide', abortAllOnLeave);
+        window.removeEventListener('beforeunload', abortAllOnLeave);
+      }
+      abortAllOnLeave();
     };
   }, [loadCloudStatusAndHistory]);
 
@@ -1316,6 +1743,7 @@ export function SamiAdminUpdatePanel({
     const cleanOwner = ownerInput.trim();
     const cleanRepo = repoInput.trim();
     const cleanTok = tokenInput.trim();
+    const rawServerCandidate = serverUrlInput.trim();
     const hasExistingServerToken = Boolean(githubStatus?.hasToken || vaultInfo?.hasSavedToken);
 
     if (!cleanOwner) {
@@ -1330,7 +1758,25 @@ export function SamiAdminUpdatePanel({
       notify(msg, true);
       return;
     }
-    if (!cleanTok && !hasExistingServerToken) {
+
+    let validatedCustomServer = '';
+    if (rawServerCandidate) {
+      validatedCustomServer = sanitizeProductionServerUrl(rawServerCandidate);
+      if (!validatedCustomServer) {
+        const msg =
+          'عنوان الخادم المنشور غير صالح؛ يجب أن يبدأ بـ https:// وألا يكون عنوان معاينة (ais-pre / ais-dev) أو localhost.';
+        setSettingsFeedback({ ok: false, text: msg });
+        notify(msg, true);
+        return;
+      }
+    } else if (isLocalAndroidOrigin && !getSamiServerBaseUrl()) {
+      const msg = 'يرجى إدخال عنوان الخادم المنشور (HTTPS) أولاً لحفظ إعدادات GitHub بأمان على الخادم.';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+
+    if (!cleanTok && !hasExistingServerToken && !isLocalAndroidOrigin) {
       const msg = 'يرجى إدخال التوكن السري في حقل GITHUB_TOKEN لحفظ الإعدادات لأول مرة';
       setSettingsFeedback({ ok: false, text: msg });
       notify(msg, true);
@@ -1339,10 +1785,22 @@ export function SamiAdminUpdatePanel({
 
     setSavingSettings(true);
     setSettingsFeedback(null);
+    const signal = unmountAbortRef.current?.signal;
     try {
-      const serverBase = getSamiServerBaseUrl();
+      const { serverBase } = await resolveCallableServerBase(validatedCustomServer || undefined, signal);
+      if (serverBase === null) {
+        throw new Error('لم يتم تحديد عنوان الخادم المنشور (HTTPS) للاتصال به.');
+      }
+
+      // Detect public HTTPS origin when running on deployed web server so Android clients also learn it
+      const autoDetectedWebOrigin =
+        !isLocalAndroidOrigin && typeof window !== 'undefined'
+          ? sanitizeProductionServerUrl(window.location.origin)
+          : '';
+      const effectiveApiServerUrl = validatedCustomServer || serverBase || autoDetectedWebOrigin;
+
       const { headers } = getAuthCredentials();
-      const res = await fetch(`${serverBase}/api/app-updates/github-settings`, {
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/github-settings`, {
         method: 'POST',
         headers: {
           ...headers,
@@ -1352,14 +1810,24 @@ export function SamiAdminUpdatePanel({
           githubOwner: cleanOwner,
           githubRepo: cleanRepo,
           ...(cleanTok ? { githubToken: cleanTok } : {}),
+          ...(effectiveApiServerUrl ? { apiServerUrl: effectiveApiServerUrl } : {}),
         }),
+        timeoutMs: 18_000,
+        parentSignal: signal,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'تعذر حفظ إعدادات GitHub Releases');
+
+      if (!mountedRef.current || signal?.aborted) return;
+
+      if (!ok || !data?.success) {
+        throw new Error(translateNetworkOrHttpErrorAr(null, status, data?.error || 'تعذر حفظ إعدادات GitHub Releases'));
       }
 
-      // Immediately purge token from UI memory/DOM after server save
+      if (effectiveApiServerUrl) {
+        persistProductionServerUrlLocally(effectiveApiServerUrl);
+        setServerUrlInput(effectiveApiServerUrl);
+      }
+
+      // Immediately purge token from UI memory/DOM after permanent server save
       setTokenInput('');
       setShowToken(false);
 
@@ -1372,20 +1840,22 @@ export function SamiAdminUpdatePanel({
         setVaultInfo(data.vault || data.github?.vault);
       }
 
-      const ready = Boolean(data.github?.canPublishReleases);
+      setConnectionState('connected');
+      setConnectionErrorAr(null);
+
       const feedbackMsg =
-        data.message ||
-        (ready
-          ? `تم حفظ الإعدادات والاتصال بالمستودع ${data.github?.fullName} بنجاح`
-          : 'تم حفظ الإعدادات على الخادم');
-      setSettingsFeedback({ ok: ready, text: feedbackMsg });
-      notify(feedbackMsg, !ready);
+        data.message || `تم حفظ إعدادات GitHub Releases (${cleanOwner}/${cleanRepo}) في السحابة بشكل دائم بنجاح.`;
+      setSettingsFeedback({ ok: true, text: feedbackMsg });
+      notify(feedbackMsg, false);
     } catch (err: any) {
-      const msg = err?.message || 'فشل حفظ إعدادات GitHub Releases';
+      if (err?.isCancelled || !mountedRef.current) return;
+      const msg = translateNetworkOrHttpErrorAr(err);
       setSettingsFeedback({ ok: false, text: msg });
       notify(msg, true);
     } finally {
-      setSavingSettings(false);
+      if (mountedRef.current) {
+        setSavingSettings(false);
+      }
     }
   };
 
@@ -1394,6 +1864,7 @@ export function SamiAdminUpdatePanel({
     const cleanOwner = ownerInput.trim();
     const cleanRepo = repoInput.trim();
     const cleanTok = tokenInput.trim();
+    const rawServerCandidate = serverUrlInput.trim();
 
     if (!cleanOwner || !cleanRepo) {
       const msg = 'يرجى إدخال GITHUB_OWNER وGITHUB_REPO أولاً لاختبار الاتصال';
@@ -1402,12 +1873,29 @@ export function SamiAdminUpdatePanel({
       return;
     }
 
+    let validatedCustomServer = '';
+    if (rawServerCandidate) {
+      validatedCustomServer = sanitizeProductionServerUrl(rawServerCandidate);
+      if (!validatedCustomServer) {
+        const msg =
+          'عنوان الخادم المنشور غير صالح؛ يجب أن يبدأ بـ https:// وألا يكون عنوان معاينة (ais-pre / ais-dev) أو localhost.';
+        setSettingsFeedback({ ok: false, text: msg });
+        notify(msg, true);
+        return;
+      }
+    }
+
     setTestingConnection(true);
     setSettingsFeedback(null);
+    const signal = unmountAbortRef.current?.signal;
     try {
-      const serverBase = getSamiServerBaseUrl();
+      const { serverBase } = await resolveCallableServerBase(validatedCustomServer || undefined, signal);
+      if (serverBase === null) {
+        throw new Error('يرجى إدخال عنوان الخادم المنشور (HTTPS) أولاً لاختبار اتصال GitHub.');
+      }
+
       const { headers } = getAuthCredentials();
-      const res = await fetch(`${serverBase}/api/app-updates/github-test`, {
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/github-test`, {
         method: 'POST',
         headers: {
           ...headers,
@@ -1418,8 +1906,18 @@ export function SamiAdminUpdatePanel({
           githubRepo: cleanRepo,
           ...(cleanTok ? { githubToken: cleanTok } : {}),
         }),
+        timeoutMs: 20_000,
+        parentSignal: signal,
       });
-      const data = await res.json().catch(() => ({}));
+
+      if (!mountedRef.current || signal?.aborted) return;
+
+      if (validatedCustomServer) {
+        persistProductionServerUrlLocally(validatedCustomServer);
+      }
+      setConnectionState('connected');
+      setConnectionErrorAr(null);
+
       if (data.github) {
         setGithubStatus(data.github);
       }
@@ -1427,19 +1925,22 @@ export function SamiAdminUpdatePanel({
         setVaultInfo(data.vault || data.github?.vault);
       }
 
-      const ok = Boolean(res.ok && data.success && data.github?.canPublishReleases);
+      const testPassed = Boolean(ok && data.success && data.github?.canPublishReleases);
       const msg =
         data.message ||
-        data.error ||
-        (ok ? 'الاتصال بمستودع GitHub ناجح وجاهز للنشر' : 'فشل التحقق من الاتصال بمستودع GitHub');
-      setSettingsFeedback({ ok, text: msg });
-      notify(msg, !ok);
+        translateNetworkOrHttpErrorAr(null, status, data.error) ||
+        (testPassed ? 'الاتصال بمستودع GitHub ناجح وجاهز للنشر ✓' : 'فشل التحقق من الاتصال بمستودع GitHub');
+      setSettingsFeedback({ ok: testPassed, text: msg });
+      notify(msg, !testPassed);
     } catch (err: any) {
-      const msg = err?.message || 'فشل اختبار الاتصال بـ GitHub';
+      if (err?.isCancelled || !mountedRef.current) return;
+      const msg = translateNetworkOrHttpErrorAr(err);
       setSettingsFeedback({ ok: false, text: msg });
       notify(msg, true);
     } finally {
-      setTestingConnection(false);
+      if (mountedRef.current) {
+        setTestingConnection(false);
+      }
     }
   };
 
@@ -1470,15 +1971,18 @@ export function SamiAdminUpdatePanel({
     }
 
     setInspectingFile(true);
+    const signal = unmountAbortRef.current?.signal;
     try {
-      // 1. Read local binary & compute SHA-256 + quick AXML parse right on client
       const arrayBuf = await file.arrayBuffer();
       const localSha256 = await computeArrayBufferSha256Hex(arrayBuf);
 
-      // 2. Send binary to server `/api/app-updates/inspect-apk` for authoritative X.509 & AXML verification
-      const serverBase = getSamiServerBaseUrl();
+      const { serverBase } = await resolveCallableServerBase(undefined, signal);
+      if (serverBase === null) {
+        throw new Error('يرجى إدخال وحفظ عنوان الخادم المنشور (HTTPS) في إعدادات GitHub Releases أولاً لفحص ورفع ملف الـ APK.');
+      }
+
       const { headers } = getAuthCredentials();
-      const res = await fetch(`${serverBase}/api/app-updates/inspect-apk`, {
+      const { data, status } = await fetchJsonApi(`${serverBase}/api/app-updates/inspect-apk`, {
         method: 'POST',
         headers: {
           ...headers,
@@ -1486,9 +1990,12 @@ export function SamiAdminUpdatePanel({
           'X-File-Name': encodeURIComponent(file.name),
         },
         body: file,
+        timeoutMs: 60_000,
+        parentSignal: signal,
       });
 
-      const data = await res.json().catch(() => ({}));
+      if (!mountedRef.current || signal?.aborted) return;
+
       if (data?.inspection) {
         const srvInsp: ClientApkInspection = {
           ...data.inspection,
@@ -1505,16 +2012,19 @@ export function SamiAdminUpdatePanel({
           notify(`تم فحص حزمة APK (v${srvInsp.versionName} - كود ${srvInsp.versionCode}) بنجاح ✅`);
         }
       } else {
-        const errMsg = data?.error || 'تعذر قراءة بيانات ملف الـ APK المختار';
+        const errMsg = translateNetworkOrHttpErrorAr(null, status, data?.error || 'تعذر قراءة بيانات ملف الـ APK المختار');
         setLocalError(errMsg);
         notify(errMsg, true);
       }
     } catch (err: any) {
-      const msg = err?.message || 'حدث خطأ أثناء فحص ملف الـ APK';
+      if (err?.isCancelled || !mountedRef.current) return;
+      const msg = translateNetworkOrHttpErrorAr(err);
       setLocalError(msg);
       notify(msg, true);
     } finally {
-      setInspectingFile(false);
+      if (mountedRef.current) {
+        setInspectingFile(false);
+      }
     }
   };
 
@@ -1539,8 +2049,15 @@ export function SamiAdminUpdatePanel({
       return;
     }
 
-    const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const serverBase = getSamiServerBaseUrl();
+    if (isLocalAndroidOrigin && !serverBase) {
+      const msg = 'يرجى حفظ عنوان الخادم المنشور (HTTPS) في إعدادات GitHub Releases أولاً قبل النشر.';
+      setUploadError(msg);
+      notify(msg, true);
+      return;
+    }
+
+    const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const { headers } = getAuthCredentials();
 
     setUploading(true);
@@ -1560,15 +2077,19 @@ export function SamiAdminUpdatePanel({
 
     // Poll server-side GitHub Release Draft -> Asset Upload -> SHA-256 Verify -> Undraft stages once bytes arrive
     pollTimerRef.current = setInterval(async () => {
+      if (!mountedRef.current) return;
       try {
-        const r = await fetch(`${serverBase}/api/app-updates/upload-status/${encodeURIComponent(uploadId)}`, {
-          method: 'GET',
-          headers,
-          cache: 'no-store',
-        });
-        if (!r.ok) return;
-        const d = await r.json();
-        const job = d?.job;
+        const { ok, data } = await fetchJsonApi(
+          `${serverBase}/api/app-updates/upload-status/${encodeURIComponent(uploadId)}`,
+          {
+            method: 'GET',
+            headers,
+            timeoutMs: 8_000,
+            parentSignal: unmountAbortRef.current?.signal,
+          }
+        );
+        if (!ok || !mountedRef.current) return;
+        const job = data?.job;
         if (!job) return;
         if (job.phase !== 'receiving_apk' && typeof job.percent === 'number') {
           const mappedPct = Math.max(50, Math.min(99, Math.round(50 + (job.percent / 100) * 50)));
@@ -1578,10 +2099,10 @@ export function SamiAdminUpdatePanel({
           }
         }
       } catch {}
-    }, 900);
+    }, 1000);
 
     xhr.upload.onprogress = (ev) => {
-      if (!ev.lengthComputable) return;
+      if (!ev.lengthComputable || !mountedRef.current) return;
       setUploadedBytes(ev.loaded);
       setUploadTotalBytes(ev.total);
 
@@ -1593,7 +2114,6 @@ export function SamiAdminUpdatePanel({
         speedStartBytes = ev.loaded;
       }
 
-      // Client -> Server transfer maps cleanly across 0%..50%; Server -> GitHub Releases + Verification maps 50%..100%
       const transferRatio = ev.total > 0 ? ev.loaded / ev.total : 0;
       const uiPct = Math.min(50, Math.round(transferRatio * 50));
       setUploadPercent(uiPct);
@@ -1611,6 +2131,7 @@ export function SamiAdminUpdatePanel({
         pollTimerRef.current = null;
       }
       activeXhrRef.current = null;
+      if (!mountedRef.current) return;
       setUploading(false);
       setUploadSpeedBps(0);
 
@@ -1628,9 +2149,9 @@ export function SamiAdminUpdatePanel({
         setSelectedFile(null);
         setInspection(null);
         notify(resp.message || 'تم نشر التحديث بنجاح 🚀');
-        loadCloudStatusAndHistory();
+        loadCloudStatusAndHistory({ showToastOnError: false });
       } else {
-        const msg = resp?.error || `فشل رفع ونشر التحديث (HTTP ${xhr.status})`;
+        const msg = translateNetworkOrHttpErrorAr(null, xhr.status, resp?.error);
         setUploadError(msg);
         setUploadPhaseText('توقف النشر بسبب خطأ');
         notify(msg, true);
@@ -1643,9 +2164,11 @@ export function SamiAdminUpdatePanel({
         pollTimerRef.current = null;
       }
       activeXhrRef.current = null;
+      if (!mountedRef.current) return;
       setUploading(false);
       setUploadSpeedBps(0);
-      const msg = 'انقطع الاتصال بالشبكة أثناء رفع ملف الـ APK. يمكنك الضغط على «إعادة المحاولة» دون إعادة اختيار الملف.';
+      const msg =
+        'انقطع الاتصال بالشبكة أثناء رفع ملف الـ APK عبر HTTPS. يمكنك الضغط على «إعادة المحاولة» دون إعادة اختيار الملف.';
       setUploadError(msg);
       setUploadPhaseText('فشل الاتصال أثناء الرفع');
       notify(msg, true);
@@ -1657,6 +2180,7 @@ export function SamiAdminUpdatePanel({
         pollTimerRef.current = null;
       }
       activeXhrRef.current = null;
+      if (!mountedRef.current) return;
       setUploading(false);
       setUploadSpeedBps(0);
       setUploadPercent(0);
@@ -1687,54 +2211,72 @@ export function SamiAdminUpdatePanel({
   const handleToggleVisibility = async () => {
     if (!currentPublished || actionBusy) return;
     setActionBusy(true);
+    const signal = unmountAbortRef.current?.signal;
     try {
-      const serverBase = getSamiServerBaseUrl();
+      const { serverBase } = await resolveCallableServerBase(undefined, signal);
+      if (serverBase === null) {
+        throw new Error('يرجى حفظ عنوان الخادم المنشور (HTTPS) في الإعدادات أولاً.');
+      }
       const { headers } = getAuthCredentials();
       const nextActive = !(currentPublished.isActive === true && !currentPublished.isHidden);
-      const res = await fetch(`${serverBase}/api/app-updates/toggle`, {
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/toggle`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isActive: nextActive,
           versionCode: currentPublished.versionCode,
         }),
+        timeoutMs: 15_000,
+        parentSignal: signal,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'تعذر تغيير حالة ظهور الإصدار');
+      if (!mountedRef.current || signal?.aborted) return;
+      if (!ok || !data.success) {
+        throw new Error(translateNetworkOrHttpErrorAr(null, status, data.error || 'تعذر تغيير حالة ظهور الإصدار'));
       }
       setCurrentPublished(data.update);
       notify(data.message || 'تم تحديث حالة الإصدار بنجاح');
-      loadCloudStatusAndHistory();
+      loadCloudStatusAndHistory({ showToastOnError: false });
     } catch (err: any) {
-      notify(err?.message || 'فشل تغيير حالة الإصدار', true);
+      if (err?.isCancelled || !mountedRef.current) return;
+      notify(translateNetworkOrHttpErrorAr(err), true);
     } finally {
-      setActionBusy(false);
+      if (mountedRef.current) {
+        setActionBusy(false);
+      }
     }
   };
 
   const handleRollbackToVersion = async (targetVersionCode: number) => {
     if (actionBusy) return;
     setActionBusy(true);
+    const signal = unmountAbortRef.current?.signal;
     try {
-      const serverBase = getSamiServerBaseUrl();
+      const { serverBase } = await resolveCallableServerBase(undefined, signal);
+      if (serverBase === null) {
+        throw new Error('يرجى حفظ عنوان الخادم المنشور (HTTPS) في الإعدادات أولاً.');
+      }
       const { headers } = getAuthCredentials();
-      const res = await fetch(`${serverBase}/api/app-updates/rollback`, {
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/rollback`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ versionCode: targetVersionCode }),
+        timeoutMs: 20_000,
+        parentSignal: signal,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'تعذر الرجوع إلى الإصدار المحدد');
+      if (!mountedRef.current || signal?.aborted) return;
+      if (!ok || !data.success) {
+        throw new Error(translateNetworkOrHttpErrorAr(null, status, data.error || 'تعذر الرجوع إلى الإصدار المحدد'));
       }
       setCurrentPublished(data.update);
       notify(data.message || 'تم الرجوع إلى الإصدار السابق بنجاح');
-      loadCloudStatusAndHistory();
+      loadCloudStatusAndHistory({ showToastOnError: false });
     } catch (err: any) {
-      notify(err?.message || 'فشل الرجوع إلى الإصدار السابق', true);
+      if (err?.isCancelled || !mountedRef.current) return;
+      notify(translateNetworkOrHttpErrorAr(err), true);
     } finally {
-      setActionBusy(false);
+      if (mountedRef.current) {
+        setActionBusy(false);
+      }
     }
   };
 
@@ -1745,9 +2287,12 @@ export function SamiAdminUpdatePanel({
       currentPublished.storageSource === 'github_releases'
   );
 
+  const hasSavedServerToken = Boolean(githubStatus?.hasToken || vaultInfo?.hasSavedToken);
+  const isGitHubReady = Boolean(githubStatus?.canPublishReleases || (githubStatus?.configured && hasSavedServerToken));
+
   return (
     <div dir="rtl" className="space-y-4 text-right">
-      {/* 1. System Overview & GitHub Releases Connection Card */}
+      {/* 1. System Overview & Cloud Connection Card */}
       <div className="bg-[#121824] border border-amber-500/40 rounded-2xl p-5 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -1761,12 +2306,40 @@ export function SamiAdminUpdatePanel({
           <button
             type="button"
             disabled={loadingStatus}
-            onClick={loadCloudStatusAndHistory}
-            className="px-3 py-1.5 rounded-lg bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-amber-300 transition cursor-pointer"
+            onClick={() => loadCloudStatusAndHistory({ showToastOnError: true })}
+            className="px-3 py-1.5 rounded-lg bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-amber-300 transition cursor-pointer disabled:opacity-50"
           >
-            {loadingStatus ? 'جارٍ الفحص...' : 'تحديث الحالة'}
+            {loadingStatus ? 'جارٍ التحديث...' : 'تحديث الحالة'}
           </button>
         </div>
+
+        {/* Clear Non-Repeating Connection Status Banner + Manual Retry Button */}
+        {(connectionState === 'error' || connectionState === 'needs_server_url') && connectionErrorAr && (
+          <div
+            className={`rounded-xl p-3.5 border text-xs space-y-2.5 ${
+              connectionState === 'needs_server_url'
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
+                : 'bg-rose-500/10 border-rose-500/40 text-rose-200'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-black">
+                {connectionState === 'needs_server_url'
+                  ? 'مطلوب تحديد عنوان الخادم المنشور (HTTPS)'
+                  : 'تنبيه اتصال بالخادم'}
+              </span>
+              <button
+                type="button"
+                disabled={loadingStatus}
+                onClick={() => loadCloudStatusAndHistory({ showToastOnError: true })}
+                className="shrink-0 px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] transition cursor-pointer disabled:opacity-50"
+              >
+                {loadingStatus ? 'جارٍ الاتصال...' : 'إعادة المحاولة'}
+              </button>
+            </div>
+            <p className="text-[11px] leading-relaxed">{connectionErrorAr}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
@@ -1782,17 +2355,19 @@ export function SamiAdminUpdatePanel({
           </div>
 
           <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-            <span className="text-slate-400">حالة اتصال GitHub API:</span>
-            {githubStatus?.canPublishReleases ? (
+            <span className="text-slate-400">حالة إعدادات GitHub:</span>
+            {loadingStatus && connectionState === 'connecting' ? (
+              <span className="font-black text-amber-300">جارٍ قراءة الإعدادات السحابية...</span>
+            ) : githubStatus?.liveTested && githubStatus?.canPublishReleases ? (
               <span className="font-black text-emerald-400">
-                متصل وجاهز للنشر ({githubStatus.isPrivate ? 'خاص' : 'عام'})
+                متصل وجاهز للنشر ({githubStatus.isPrivate ? 'خاص' : 'عام'}) ✓
               </span>
+            ) : isGitHubReady ? (
+              <span className="font-black text-emerald-400">الإعدادات والتوكن محفوظان ✓</span>
             ) : githubStatus?.exists ? (
-              <span className="font-black text-amber-400">
-                قراءة متاحة — يلزم التوكن أو صلاحية الكتابة
-              </span>
+              <span className="font-black text-amber-400">يلزم حفظ التوكن أو اختبار الصلاحية</span>
             ) : (
-              <span className="font-black text-rose-400">غير متصل</span>
+              <span className="font-black text-rose-400">غير مكتمل</span>
             )}
           </div>
 
@@ -1834,11 +2409,9 @@ export function SamiAdminUpdatePanel({
         )}
 
         {/* Clear Honest Warning When GitHub Connection Needs Setup */}
-        {githubStatus && !githubStatus.canPublishReleases && (
+        {githubStatus && !isGitHubReady && (githubStatus.setupInstructionsAr || githubStatus.error) && (
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 text-xs space-y-1.5">
-            <div className="font-black text-amber-300">
-              تنبيه إعداد GitHub Releases:
-            </div>
+            <div className="font-black text-amber-300">تنبيه إعداد GitHub Releases:</div>
             <p className="text-slate-300 leading-relaxed text-[11px]">
               {githubStatus.setupInstructionsAr || githubStatus.error}
             </p>
@@ -1865,20 +2438,8 @@ export function SamiAdminUpdatePanel({
                 </strong>
               </span>
               <span aria-hidden="true">·</span>
-              <span
-                className={
-                  githubStatus?.canPublishReleases
-                    ? 'text-emerald-400 font-bold'
-                    : githubStatus?.exists
-                      ? 'text-amber-400 font-bold'
-                      : 'text-rose-400 font-bold'
-                }
-              >
-                {githubStatus?.canPublishReleases
-                  ? 'متصل وجاهز للنشر'
-                  : githubStatus?.exists
-                    ? 'يتطلب صلاحية كتابة / توكن'
-                    : 'غير متصل'}
+              <span className={hasSavedServerToken ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                {hasSavedServerToken ? 'التوكن محفوظ ✓' : 'التوكن غير محفوظ'}
               </span>
             </div>
           </div>
@@ -1890,10 +2451,10 @@ export function SamiAdminUpdatePanel({
 
         {settingsOpen && (
           <div className="p-4 sm:p-5 border-t border-slate-800/80 space-y-4 text-xs">
-            {/* Active Repository & Connection Live Summary */}
+            {/* Active Repository & Cloud Persistence Summary */}
             <div className="bg-[#0b0f17] border border-slate-800 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
               <div>
-                <span className="block text-slate-400">المستودع المستخدم حالياً</span>
+                <span className="block text-slate-400">المستودع المحفوظ في السحابة</span>
                 <span
                   dir="ltr"
                   className="block mt-0.5 font-black text-slate-100 font-['JetBrains_Mono',monospace] break-all"
@@ -1905,33 +2466,52 @@ export function SamiAdminUpdatePanel({
                 <span className="block text-slate-400">حالة الاتصال بـ GitHub</span>
                 <span
                   className={`block mt-0.5 font-black ${
-                    githubStatus?.canPublishReleases
+                    githubStatus?.liveTested && githubStatus?.canPublishReleases
                       ? 'text-emerald-400'
-                      : githubStatus?.exists
-                        ? 'text-amber-400'
+                      : isGitHubReady
+                        ? 'text-amber-300'
                         : 'text-rose-400'
                   }`}
                 >
-                  {githubStatus?.canPublishReleases
+                  {githubStatus?.liveTested && githubStatus?.canPublishReleases
                     ? `متصل (${githubStatus.isPrivate ? 'مستودع خاص' : 'مستودع عام'}) ✓`
-                    : githubStatus?.exists
-                      ? 'المستودع موجود — ينقص التوكن أو صلاحية الكتابة'
+                    : isGitHubReady
+                      ? 'محفوظ سحابياً — اضغط «اختبار اتصال GitHub» للتحقق الحي'
                       : 'غير متصل'}
                 </span>
               </div>
               <div>
-                <span className="block text-slate-400">حالة التوكن على الخادم</span>
+                <span className="block text-slate-400">حالة التوكن السري</span>
                 <span
-                  className={`block mt-0.5 font-black ${
-                    githubStatus?.hasToken || vaultInfo?.hasSavedToken ? 'text-emerald-400' : 'text-amber-400'
-                  }`}
+                  className={`block mt-0.5 font-black ${hasSavedServerToken ? 'text-emerald-400' : 'text-amber-400'}`}
                 >
-                  {githubStatus?.hasToken || vaultInfo?.hasSavedToken
-                    ? 'محفوظ ومؤمّن على الخادم ✓'
-                    : 'غير محفوظ بعد'}
+                  {hasSavedServerToken ? 'التوكن محفوظ ✓' : 'غير محفوظ بعد'}
                 </span>
               </div>
             </div>
+
+            {/* Production HTTPS Server URL Input (Shown automatically on Android APK or if already configured) */}
+            {(isLocalAndroidOrigin || Boolean(serverUrlInput)) && (
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5">
+                  عنوان خادم التحديثات المنشور (<span dir="ltr" className="text-amber-300 font-['JetBrains_Mono',monospace]">HTTPS</span>)
+                </label>
+                <input
+                  type="url"
+                  dir="ltr"
+                  disabled={savingSettings || uploading}
+                  value={serverUrlInput}
+                  onChange={(e) => setServerUrlInput(e.target.value)}
+                  placeholder="https://your-deployed-sami-server.run.app"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+                />
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  يُستخدم للاتصال المباشر بالخادم الفعلي المنشور عبر HTTPS من تطبيق الهاتف (يرفض عناوين localhost ومعاينة AI Studio تلقائياً).
+                </p>
+              </div>
+            )}
 
             {/* 3 Editable Inputs: GITHUB_OWNER, GITHUB_REPO, GITHUB_TOKEN */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1985,8 +2565,8 @@ export function SamiAdminUpdatePanel({
                   value={tokenInput}
                   onChange={(e) => setTokenInput(e.target.value)}
                   placeholder={
-                    githubStatus?.hasToken || vaultInfo?.hasSavedToken
-                      ? 'محفوظ على الخادم — اتركه فارغاً للإبقاء عليه أو أدخل توكن جديداً لاستبداله'
+                    hasSavedServerToken
+                      ? 'التوكن محفوظ — اتركه فارغاً للإبقاء عليه أو أدخل توكن جديداً لاستبداله'
                       : 'github_pat_...'
                   }
                   autoComplete="new-password"
@@ -2003,7 +2583,7 @@ export function SamiAdminUpdatePanel({
                 </button>
               </div>
               <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-                يُرسل التوكن عبر اتصال مشفر إلى الخادم فقط ولا يُعاد إرساله للواجهة أو حفظه في المتصفح أو قاعدة البيانات.
+                يُحفظ اسما المالك والمستودع بشكل دائم في السحابة (Firestore)، بينما يُحفظ التوكن في مخزن الأسرار السحابي للخادم فقط ولا يُعاد للواجهة أبداً.
               </p>
             </div>
 
@@ -2035,7 +2615,7 @@ export function SamiAdminUpdatePanel({
                 onClick={handleSaveGitHubSettings}
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer"
               >
-                {savingSettings ? 'جارٍ حفظ الإعدادات...' : 'حفظ إعدادات GitHub'}
+                {savingSettings ? 'جارٍ الحفظ السحابي الدائم...' : 'حفظ إعدادات GitHub'}
               </button>
 
               <button

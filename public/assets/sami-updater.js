@@ -1,5 +1,6210 @@
-var ye=Object.create;var ae=Object.defineProperty;var xe=Object.getOwnPropertyDescriptor;var we=Object.getOwnPropertyNames;var ke=Object.getPrototypeOf,Se=Object.prototype.hasOwnProperty;var Pt=(r=>typeof require<"u"?require:typeof Proxy<"u"?new Proxy(r,{get:(w,u)=>(typeof require<"u"?require:w)[u]}):r)(function(r){if(typeof require<"u")return require.apply(this,arguments);throw Error('Dynamic require of "'+r+'" is not supported')});var Kt=(r,w)=>()=>(w||r((w={exports:{}}).exports,w),w.exports);var Ce=(r,w,u,o)=>{if(w&&typeof w=="object"||typeof w=="function")for(let i of we(w))!Se.call(r,i)&&i!==u&&ae(r,i,{get:()=>w[i],enumerable:!(o=xe(w,i))||o.enumerable});return r};var Xt=(r,w,u)=>(u=r!=null?ye(ke(r)):{},Ce(w||!r||!r.__esModule?ae(u,"default",{value:r,enumerable:!0}):u,r));var oe=Kt((ie,Qt)=>{(function(r){typeof ie=="object"&&typeof Qt<"u"?Qt.exports=r():typeof define=="function"&&define.amd?define([],r):(typeof window<"u"?window:typeof global<"u"?global:typeof self<"u"?self:this).JSZip=r()})(function(){return(function r(w,u,o){function i(y,_){if(!u[y]){if(!w[y]){var v=typeof Pt=="function"&&Pt;if(!_&&v)return v(y,!0);if(n)return n(y,!0);var g=new Error("Cannot find module '"+y+"'");throw g.code="MODULE_NOT_FOUND",g}var s=u[y]={exports:{}};w[y][0].call(s.exports,function(h){var a=w[y][1][h];return i(a||h)},s,s.exports,r,w,u,o)}return u[y].exports}for(var n=typeof Pt=="function"&&Pt,c=0;c<o.length;c++)i(o[c]);return i})({1:[function(r,w,u){"use strict";var o=r("./utils"),i=r("./support"),n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";u.encode=function(c){for(var y,_,v,g,s,h,a,d=[],l=0,m=c.length,k=m,N=o.getTypeOf(c)!=="string";l<c.length;)k=m-l,v=N?(y=c[l++],_=l<m?c[l++]:0,l<m?c[l++]:0):(y=c.charCodeAt(l++),_=l<m?c.charCodeAt(l++):0,l<m?c.charCodeAt(l++):0),g=y>>2,s=(3&y)<<4|_>>4,h=1<k?(15&_)<<2|v>>6:64,a=2<k?63&v:64,d.push(n.charAt(g)+n.charAt(s)+n.charAt(h)+n.charAt(a));return d.join("")},u.decode=function(c){var y,_,v,g,s,h,a=0,d=0,l="data:";if(c.substr(0,l.length)===l)throw new Error("Invalid base64 input, it looks like a data url.");var m,k=3*(c=c.replace(/[^A-Za-z0-9+/=]/g,"")).length/4;if(c.charAt(c.length-1)===n.charAt(64)&&k--,c.charAt(c.length-2)===n.charAt(64)&&k--,k%1!=0)throw new Error("Invalid base64 input, bad content length.");for(m=i.uint8array?new Uint8Array(0|k):new Array(0|k);a<c.length;)y=n.indexOf(c.charAt(a++))<<2|(g=n.indexOf(c.charAt(a++)))>>4,_=(15&g)<<4|(s=n.indexOf(c.charAt(a++)))>>2,v=(3&s)<<6|(h=n.indexOf(c.charAt(a++))),m[d++]=y,s!==64&&(m[d++]=_),h!==64&&(m[d++]=v);return m}},{"./support":30,"./utils":32}],2:[function(r,w,u){"use strict";var o=r("./external"),i=r("./stream/DataWorker"),n=r("./stream/Crc32Probe"),c=r("./stream/DataLengthProbe");function y(_,v,g,s,h){this.compressedSize=_,this.uncompressedSize=v,this.crc32=g,this.compression=s,this.compressedContent=h}y.prototype={getContentWorker:function(){var _=new i(o.Promise.resolve(this.compressedContent)).pipe(this.compression.uncompressWorker()).pipe(new c("data_length")),v=this;return _.on("end",function(){if(this.streamInfo.data_length!==v.uncompressedSize)throw new Error("Bug : uncompressed data size mismatch")}),_},getCompressedWorker:function(){return new i(o.Promise.resolve(this.compressedContent)).withStreamInfo("compressedSize",this.compressedSize).withStreamInfo("uncompressedSize",this.uncompressedSize).withStreamInfo("crc32",this.crc32).withStreamInfo("compression",this.compression)}},y.createWorkerFrom=function(_,v,g){return _.pipe(new n).pipe(new c("uncompressedSize")).pipe(v.compressWorker(g)).pipe(new c("compressedSize")).withStreamInfo("compression",v)},w.exports=y},{"./external":6,"./stream/Crc32Probe":25,"./stream/DataLengthProbe":26,"./stream/DataWorker":27}],3:[function(r,w,u){"use strict";var o=r("./stream/GenericWorker");u.STORE={magic:"\0\0",compressWorker:function(){return new o("STORE compression")},uncompressWorker:function(){return new o("STORE decompression")}},u.DEFLATE=r("./flate")},{"./flate":7,"./stream/GenericWorker":28}],4:[function(r,w,u){"use strict";var o=r("./utils"),i=(function(){for(var n,c=[],y=0;y<256;y++){n=y;for(var _=0;_<8;_++)n=1&n?3988292384^n>>>1:n>>>1;c[y]=n}return c})();w.exports=function(n,c){return n!==void 0&&n.length?o.getTypeOf(n)!=="string"?(function(y,_,v,g){var s=i,h=g+v;y^=-1;for(var a=g;a<h;a++)y=y>>>8^s[255&(y^_[a])];return-1^y})(0|c,n,n.length,0):(function(y,_,v,g){var s=i,h=g+v;y^=-1;for(var a=g;a<h;a++)y=y>>>8^s[255&(y^_.charCodeAt(a))];return-1^y})(0|c,n,n.length,0):0}},{"./utils":32}],5:[function(r,w,u){"use strict";u.base64=!1,u.binary=!1,u.dir=!1,u.createFolders=!0,u.date=null,u.compression=null,u.compressionOptions=null,u.comment=null,u.unixPermissions=null,u.dosPermissions=null},{}],6:[function(r,w,u){"use strict";var o=null;o=typeof Promise<"u"?Promise:r("lie"),w.exports={Promise:o}},{lie:37}],7:[function(r,w,u){"use strict";var o=typeof Uint8Array<"u"&&typeof Uint16Array<"u"&&typeof Uint32Array<"u",i=r("pako"),n=r("./utils"),c=r("./stream/GenericWorker"),y=o?"uint8array":"array";function _(v,g){c.call(this,"FlateWorker/"+v),this._pako=null,this._pakoAction=v,this._pakoOptions=g,this.meta={}}u.magic="\b\0",n.inherits(_,c),_.prototype.processChunk=function(v){this.meta=v.meta,this._pako===null&&this._createPako(),this._pako.push(n.transformTo(y,v.data),!1)},_.prototype.flush=function(){c.prototype.flush.call(this),this._pako===null&&this._createPako(),this._pako.push([],!0)},_.prototype.cleanUp=function(){c.prototype.cleanUp.call(this),this._pako=null},_.prototype._createPako=function(){this._pako=new i[this._pakoAction]({raw:!0,level:this._pakoOptions.level||-1});var v=this;this._pako.onData=function(g){v.push({data:g,meta:v.meta})}},u.compressWorker=function(v){return new _("Deflate",v)},u.uncompressWorker=function(){return new _("Inflate",{})}},{"./stream/GenericWorker":28,"./utils":32,pako:38}],8:[function(r,w,u){"use strict";function o(s,h){var a,d="";for(a=0;a<h;a++)d+=String.fromCharCode(255&s),s>>>=8;return d}function i(s,h,a,d,l,m){var k,N,S=s.file,U=s.compression,I=m!==y.utf8encode,F=n.transformTo("string",m(S.name)),R=n.transformTo("string",y.utf8encode(S.name)),P=S.comment,$=n.transformTo("string",m(P)),b=n.transformTo("string",y.utf8encode(P)),z=R.length!==S.name.length,e=b.length!==P.length,D="",Q="",M="",nt=S.dir,H=S.date,rt={crc32:0,compressedSize:0,uncompressedSize:0};h&&!a||(rt.crc32=s.crc32,rt.compressedSize=s.compressedSize,rt.uncompressedSize=s.uncompressedSize);var E=0;h&&(E|=8),I||!z&&!e||(E|=2048);var A=0,q=0;nt&&(A|=16),l==="UNIX"?(q=798,A|=(function(G,bt){var et=G;return G||(et=bt?16893:33204),(65535&et)<<16})(S.unixPermissions,nt)):(q=20,A|=(function(G){return 63&(G||0)})(S.dosPermissions)),k=H.getUTCHours(),k<<=6,k|=H.getUTCMinutes(),k<<=5,k|=H.getUTCSeconds()/2,N=H.getUTCFullYear()-1980,N<<=4,N|=H.getUTCMonth()+1,N<<=5,N|=H.getUTCDate(),z&&(Q=o(1,1)+o(_(F),4)+R,D+="up"+o(Q.length,2)+Q),e&&(M=o(1,1)+o(_($),4)+b,D+="uc"+o(M.length,2)+M);var V="";return V+=`
-\0`,V+=o(E,2),V+=U.magic,V+=o(k,2),V+=o(N,2),V+=o(rt.crc32,4),V+=o(rt.compressedSize,4),V+=o(rt.uncompressedSize,4),V+=o(F.length,2),V+=o(D.length,2),{fileRecord:v.LOCAL_FILE_HEADER+V+F+D,dirRecord:v.CENTRAL_FILE_HEADER+o(q,2)+V+o($.length,2)+"\0\0\0\0"+o(A,4)+o(d,4)+F+D+$}}var n=r("../utils"),c=r("../stream/GenericWorker"),y=r("../utf8"),_=r("../crc32"),v=r("../signature");function g(s,h,a,d){c.call(this,"ZipFileWorker"),this.bytesWritten=0,this.zipComment=h,this.zipPlatform=a,this.encodeFileName=d,this.streamFiles=s,this.accumulate=!1,this.contentBuffer=[],this.dirRecords=[],this.currentSourceOffset=0,this.entriesCount=0,this.currentFile=null,this._sources=[]}n.inherits(g,c),g.prototype.push=function(s){var h=s.meta.percent||0,a=this.entriesCount,d=this._sources.length;this.accumulate?this.contentBuffer.push(s):(this.bytesWritten+=s.data.length,c.prototype.push.call(this,{data:s.data,meta:{currentFile:this.currentFile,percent:a?(h+100*(a-d-1))/a:100}}))},g.prototype.openedSource=function(s){this.currentSourceOffset=this.bytesWritten,this.currentFile=s.file.name;var h=this.streamFiles&&!s.file.dir;if(h){var a=i(s,h,!1,this.currentSourceOffset,this.zipPlatform,this.encodeFileName);this.push({data:a.fileRecord,meta:{percent:0}})}else this.accumulate=!0},g.prototype.closedSource=function(s){this.accumulate=!1;var h=this.streamFiles&&!s.file.dir,a=i(s,h,!0,this.currentSourceOffset,this.zipPlatform,this.encodeFileName);if(this.dirRecords.push(a.dirRecord),h)this.push({data:(function(d){return v.DATA_DESCRIPTOR+o(d.crc32,4)+o(d.compressedSize,4)+o(d.uncompressedSize,4)})(s),meta:{percent:100}});else for(this.push({data:a.fileRecord,meta:{percent:0}});this.contentBuffer.length;)this.push(this.contentBuffer.shift());this.currentFile=null},g.prototype.flush=function(){for(var s=this.bytesWritten,h=0;h<this.dirRecords.length;h++)this.push({data:this.dirRecords[h],meta:{percent:100}});var a=this.bytesWritten-s,d=(function(l,m,k,N,S){var U=n.transformTo("string",S(N));return v.CENTRAL_DIRECTORY_END+"\0\0\0\0"+o(l,2)+o(l,2)+o(m,4)+o(k,4)+o(U.length,2)+U})(this.dirRecords.length,a,s,this.zipComment,this.encodeFileName);this.push({data:d,meta:{percent:100}})},g.prototype.prepareNextSource=function(){this.previous=this._sources.shift(),this.openedSource(this.previous.streamInfo),this.isPaused?this.previous.pause():this.previous.resume()},g.prototype.registerPrevious=function(s){this._sources.push(s);var h=this;return s.on("data",function(a){h.processChunk(a)}),s.on("end",function(){h.closedSource(h.previous.streamInfo),h._sources.length?h.prepareNextSource():h.end()}),s.on("error",function(a){h.error(a)}),this},g.prototype.resume=function(){return!!c.prototype.resume.call(this)&&(!this.previous&&this._sources.length?(this.prepareNextSource(),!0):this.previous||this._sources.length||this.generatedError?void 0:(this.end(),!0))},g.prototype.error=function(s){var h=this._sources;if(!c.prototype.error.call(this,s))return!1;for(var a=0;a<h.length;a++)try{h[a].error(s)}catch{}return!0},g.prototype.lock=function(){c.prototype.lock.call(this);for(var s=this._sources,h=0;h<s.length;h++)s[h].lock()},w.exports=g},{"../crc32":4,"../signature":23,"../stream/GenericWorker":28,"../utf8":31,"../utils":32}],9:[function(r,w,u){"use strict";var o=r("../compressions"),i=r("./ZipFileWorker");u.generateWorker=function(n,c,y){var _=new i(c.streamFiles,y,c.platform,c.encodeFileName),v=0;try{n.forEach(function(g,s){v++;var h=(function(m,k){var N=m||k,S=o[N];if(!S)throw new Error(N+" is not a valid compression method !");return S})(s.options.compression,c.compression),a=s.options.compressionOptions||c.compressionOptions||{},d=s.dir,l=s.date;s._compressWorker(h,a).withStreamInfo("file",{name:g,dir:d,date:l,comment:s.comment||"",unixPermissions:s.unixPermissions,dosPermissions:s.dosPermissions}).pipe(_)}),_.entriesCount=v}catch(g){_.error(g)}return _}},{"../compressions":3,"./ZipFileWorker":8}],10:[function(r,w,u){"use strict";function o(){if(!(this instanceof o))return new o;if(arguments.length)throw new Error("The constructor with parameters has been removed in JSZip 3.0, please check the upgrade guide.");this.files=Object.create(null),this.comment=null,this.root="",this.clone=function(){var i=new o;for(var n in this)typeof this[n]!="function"&&(i[n]=this[n]);return i}}(o.prototype=r("./object")).loadAsync=r("./load"),o.support=r("./support"),o.defaults=r("./defaults"),o.version="3.10.2",o.loadAsync=function(i,n){return new o().loadAsync(i,n)},o.external=r("./external"),w.exports=o},{"./defaults":5,"./external":6,"./load":11,"./object":15,"./support":30}],11:[function(r,w,u){"use strict";var o=r("./utils"),i=r("./external"),n=r("./utf8"),c=r("./zipEntries"),y=r("./stream/Crc32Probe"),_=r("./nodejsUtils");function v(g){return new i.Promise(function(s,h){var a=g.decompressed.getContentWorker().pipe(new y);a.on("error",function(d){h(d)}).on("end",function(){a.streamInfo.crc32!==g.decompressed.crc32?h(new Error("Corrupted zip : CRC32 mismatch")):s()}).resume()})}w.exports=function(g,s){var h=this;return s=o.extend(s||{},{base64:!1,checkCRC32:!1,optimizedBinaryString:!1,createFolders:!1,decodeFileName:n.utf8decode}),_.isNode&&_.isStream(g)?i.Promise.reject(new Error("JSZip can't accept a stream when loading a zip file.")):o.prepareContent("the loaded zip file",g,!0,s.optimizedBinaryString,s.base64).then(function(a){var d=new c(s);return d.load(a),d}).then(function(a){var d=[i.Promise.resolve(a)],l=a.files;if(s.checkCRC32)for(var m=0;m<l.length;m++)d.push(v(l[m]));return i.Promise.all(d)}).then(function(a){for(var d=a.shift(),l=d.files,m=0;m<l.length;m++){var k=l[m],N=k.fileNameStr,S=o.resolve(k.fileNameStr);h.file(S,k.decompressed,{binary:!0,optimizedBinaryString:!0,date:k.date,dir:k.dir,comment:k.fileCommentStr.length?k.fileCommentStr:null,unixPermissions:k.unixPermissions,dosPermissions:k.dosPermissions,createFolders:s.createFolders}),k.dir||(h.file(S).unsafeOriginalName=N)}return d.zipComment.length&&(h.comment=d.zipComment),h})}},{"./external":6,"./nodejsUtils":14,"./stream/Crc32Probe":25,"./utf8":31,"./utils":32,"./zipEntries":33}],12:[function(r,w,u){"use strict";var o=r("../utils"),i=r("../stream/GenericWorker");function n(c,y){i.call(this,"Nodejs stream input adapter for "+c),this._upstreamEnded=!1,this._bindStream(y)}o.inherits(n,i),n.prototype._bindStream=function(c){var y=this;(this._stream=c).pause(),c.on("data",function(_){y.push({data:_,meta:{percent:0}})}).on("error",function(_){y.isPaused?this.generatedError=_:y.error(_)}).on("end",function(){y.isPaused?y._upstreamEnded=!0:y.end()})},n.prototype.pause=function(){return!!i.prototype.pause.call(this)&&(this._stream.pause(),!0)},n.prototype.resume=function(){return!!i.prototype.resume.call(this)&&(this._upstreamEnded?this.end():this._stream.resume(),!0)},w.exports=n},{"../stream/GenericWorker":28,"../utils":32}],13:[function(r,w,u){"use strict";var o=r("readable-stream").Readable;function i(n,c,y){o.call(this,c),this._helper=n;var _=this;n.on("data",function(v,g){_.push(v)||_._helper.pause(),y&&y(g)}).on("error",function(v){_.emit("error",v)}).on("end",function(){_.push(null)})}r("../utils").inherits(i,o),i.prototype._read=function(){this._helper.resume()},w.exports=i},{"../utils":32,"readable-stream":16}],14:[function(r,w,u){"use strict";w.exports={isNode:typeof Buffer<"u",newBufferFrom:function(o,i){if(Buffer.from&&Buffer.from!==Uint8Array.from)return Buffer.from(o,i);if(typeof o=="number")throw new Error('The "data" argument must not be a number');return new Buffer(o,i)},allocBuffer:function(o){if(Buffer.alloc)return Buffer.alloc(o);var i=new Buffer(o);return i.fill(0),i},isBuffer:function(o){return Buffer.isBuffer(o)},isStream:function(o){return o&&typeof o.on=="function"&&typeof o.pause=="function"&&typeof o.resume=="function"}}},{}],15:[function(r,w,u){"use strict";function o(S,U,I){var F,R=n.getTypeOf(U),P=n.extend(I||{},_);P.date=P.date||new Date,P.compression!==null&&(P.compression=P.compression.toUpperCase()),typeof P.unixPermissions=="string"&&(P.unixPermissions=parseInt(P.unixPermissions,8)),P.unixPermissions&&16384&P.unixPermissions&&(P.dir=!0),P.dosPermissions&&16&P.dosPermissions&&(P.dir=!0),P.dir&&(S=l(S)),P.createFolders&&(F=d(S))&&m.call(this,F,!0);var $=R==="string"&&P.binary===!1&&P.base64===!1;I&&I.binary!==void 0||(P.binary=!$),(U instanceof v&&U.uncompressedSize===0||P.dir||!U||U.length===0)&&(P.base64=!1,P.binary=!0,U="",P.compression="STORE",R="string");var b=null;b=U instanceof v||U instanceof c?U:h.isNode&&h.isStream(U)?new a(S,U):n.prepareContent(S,U,P.binary,P.optimizedBinaryString,P.base64);var z=new g(S,b,P);this.files[S]=z}var i=r("./utf8"),n=r("./utils"),c=r("./stream/GenericWorker"),y=r("./stream/StreamHelper"),_=r("./defaults"),v=r("./compressedObject"),g=r("./zipObject"),s=r("./generate"),h=r("./nodejsUtils"),a=r("./nodejs/NodejsStreamInputAdapter"),d=function(S){S.slice(-1)==="/"&&(S=S.substring(0,S.length-1));var U=S.lastIndexOf("/");return 0<U?S.substring(0,U):""},l=function(S){return S.slice(-1)!=="/"&&(S+="/"),S},m=function(S,U){return U=U!==void 0?U:_.createFolders,S=l(S),this.files[S]||o.call(this,S,null,{dir:!0,createFolders:U}),this.files[S]};function k(S){return Object.prototype.toString.call(S)==="[object RegExp]"}var N={load:function(){throw new Error("This method has been removed in JSZip 3.0, please check the upgrade guide.")},forEach:function(S){var U,I,F;for(U in this.files)F=this.files[U],(I=U.slice(this.root.length,U.length))&&U.slice(0,this.root.length)===this.root&&S(I,F)},filter:function(S){var U=[];return this.forEach(function(I,F){S(I,F)&&U.push(F)}),U},file:function(S,U,I){if(arguments.length!==1)return S=this.root+S,o.call(this,S,U,I),this;if(k(S)){var F=S;return this.filter(function(P,$){return!$.dir&&F.test(P)})}var R=this.files[this.root+S];return R&&!R.dir?R:null},folder:function(S){if(!S)return this;if(k(S))return this.filter(function(R,P){return P.dir&&S.test(R)});var U=this.root+S,I=m.call(this,U),F=this.clone();return F.root=I.name,F},remove:function(S){S=this.root+S;var U=this.files[S];if(U||(S.slice(-1)!=="/"&&(S+="/"),U=this.files[S]),U&&!U.dir)delete this.files[S];else for(var I=this.filter(function(R,P){return P.name.slice(0,S.length)===S}),F=0;F<I.length;F++)delete this.files[I[F].name];return this},generate:function(){throw new Error("This method has been removed in JSZip 3.0, please check the upgrade guide.")},generateInternalStream:function(S){var U,I={};try{if((I=n.extend(S||{},{streamFiles:!1,compression:"STORE",compressionOptions:null,type:"",platform:"DOS",comment:null,mimeType:"application/zip",encodeFileName:i.utf8encode})).type=I.type.toLowerCase(),I.compression=I.compression.toUpperCase(),I.type==="binarystring"&&(I.type="string"),!I.type)throw new Error("No output type specified.");n.checkSupport(I.type),I.platform!=="darwin"&&I.platform!=="freebsd"&&I.platform!=="linux"&&I.platform!=="sunos"||(I.platform="UNIX"),I.platform==="win32"&&(I.platform="DOS");var F=I.comment||this.comment||"";U=s.generateWorker(this,I,F)}catch(R){(U=new c("error")).error(R)}return new y(U,I.type||"string",I.mimeType)},generateAsync:function(S,U){return this.generateInternalStream(S).accumulate(U)},generateNodeStream:function(S,U){return(S=S||{}).type||(S.type="nodebuffer"),this.generateInternalStream(S).toNodejsStream(U)}};w.exports=N},{"./compressedObject":2,"./defaults":5,"./generate":9,"./nodejs/NodejsStreamInputAdapter":12,"./nodejsUtils":14,"./stream/GenericWorker":28,"./stream/StreamHelper":29,"./utf8":31,"./utils":32,"./zipObject":35}],16:[function(r,w,u){"use strict";w.exports=r("stream")},{stream:void 0}],17:[function(r,w,u){"use strict";var o=r("./DataReader");function i(n){o.call(this,n);for(var c=0;c<this.data.length;c++)n[c]=255&n[c]}r("../utils").inherits(i,o),i.prototype.byteAt=function(n){return this.data[this.zero+n]},i.prototype.lastIndexOfSignature=function(n){for(var c=n.charCodeAt(0),y=n.charCodeAt(1),_=n.charCodeAt(2),v=n.charCodeAt(3),g=this.length-4;0<=g;--g)if(this.data[g]===c&&this.data[g+1]===y&&this.data[g+2]===_&&this.data[g+3]===v)return g-this.zero;return-1},i.prototype.readAndCheckSignature=function(n){var c=n.charCodeAt(0),y=n.charCodeAt(1),_=n.charCodeAt(2),v=n.charCodeAt(3),g=this.readData(4);return c===g[0]&&y===g[1]&&_===g[2]&&v===g[3]},i.prototype.readData=function(n){if(this.checkOffset(n),n===0)return[];var c=this.data.slice(this.zero+this.index,this.zero+this.index+n);return this.index+=n,c},w.exports=i},{"../utils":32,"./DataReader":18}],18:[function(r,w,u){"use strict";var o=r("../utils");function i(n){this.data=n,this.length=n.length,this.index=0,this.zero=0}i.prototype={checkOffset:function(n){this.checkIndex(this.index+n)},checkIndex:function(n){if(this.length<this.zero+n||n<0)throw new Error("End of data reached (data length = "+this.length+", asked index = "+n+"). Corrupted zip ?")},setIndex:function(n){this.checkIndex(n),this.index=n},skip:function(n){this.setIndex(this.index+n)},byteAt:function(){},readInt:function(n){var c,y=0;for(this.checkOffset(n),c=this.index+n-1;c>=this.index;c--)y=(y<<8)+this.byteAt(c);return this.index+=n,y},readString:function(n){return o.transformTo("string",this.readData(n))},readData:function(){},lastIndexOfSignature:function(){},readAndCheckSignature:function(){},readDate:function(){var n=this.readInt(4);return new Date(Date.UTC(1980+(n>>25&127),(n>>21&15)-1,n>>16&31,n>>11&31,n>>5&63,(31&n)<<1))}},w.exports=i},{"../utils":32}],19:[function(r,w,u){"use strict";var o=r("./Uint8ArrayReader");function i(n){o.call(this,n)}r("../utils").inherits(i,o),i.prototype.readData=function(n){this.checkOffset(n);var c=this.data.slice(this.zero+this.index,this.zero+this.index+n);return this.index+=n,c},w.exports=i},{"../utils":32,"./Uint8ArrayReader":21}],20:[function(r,w,u){"use strict";var o=r("./DataReader");function i(n){o.call(this,n)}r("../utils").inherits(i,o),i.prototype.byteAt=function(n){return this.data.charCodeAt(this.zero+n)},i.prototype.lastIndexOfSignature=function(n){return this.data.lastIndexOf(n)-this.zero},i.prototype.readAndCheckSignature=function(n){return n===this.readData(4)},i.prototype.readData=function(n){this.checkOffset(n);var c=this.data.slice(this.zero+this.index,this.zero+this.index+n);return this.index+=n,c},w.exports=i},{"../utils":32,"./DataReader":18}],21:[function(r,w,u){"use strict";var o=r("./ArrayReader");function i(n){o.call(this,n)}r("../utils").inherits(i,o),i.prototype.readData=function(n){if(this.checkOffset(n),n===0)return new Uint8Array(0);var c=this.data.subarray(this.zero+this.index,this.zero+this.index+n);return this.index+=n,c},w.exports=i},{"../utils":32,"./ArrayReader":17}],22:[function(r,w,u){"use strict";var o=r("../utils"),i=r("../support"),n=r("./ArrayReader"),c=r("./StringReader"),y=r("./NodeBufferReader"),_=r("./Uint8ArrayReader");w.exports=function(v){var g=o.getTypeOf(v);return o.checkSupport(g),g!=="string"||i.uint8array?g==="nodebuffer"?new y(v):i.uint8array?new _(o.transformTo("uint8array",v)):new n(o.transformTo("array",v)):new c(v)}},{"../support":30,"../utils":32,"./ArrayReader":17,"./NodeBufferReader":19,"./StringReader":20,"./Uint8ArrayReader":21}],23:[function(r,w,u){"use strict";u.LOCAL_FILE_HEADER="PK",u.CENTRAL_FILE_HEADER="PK",u.CENTRAL_DIRECTORY_END="PK",u.ZIP64_CENTRAL_DIRECTORY_LOCATOR="PK\x07",u.ZIP64_CENTRAL_DIRECTORY_END="PK",u.DATA_DESCRIPTOR="PK\x07\b"},{}],24:[function(r,w,u){"use strict";var o=r("./GenericWorker"),i=r("../utils");function n(c){o.call(this,"ConvertWorker to "+c),this.destType=c}i.inherits(n,o),n.prototype.processChunk=function(c){this.push({data:i.transformTo(this.destType,c.data),meta:c.meta})},w.exports=n},{"../utils":32,"./GenericWorker":28}],25:[function(r,w,u){"use strict";var o=r("./GenericWorker"),i=r("../crc32");function n(){o.call(this,"Crc32Probe"),this.withStreamInfo("crc32",0)}r("../utils").inherits(n,o),n.prototype.processChunk=function(c){this.streamInfo.crc32=i(c.data,this.streamInfo.crc32||0),this.push(c)},w.exports=n},{"../crc32":4,"../utils":32,"./GenericWorker":28}],26:[function(r,w,u){"use strict";var o=r("../utils"),i=r("./GenericWorker");function n(c){i.call(this,"DataLengthProbe for "+c),this.propName=c,this.withStreamInfo(c,0)}o.inherits(n,i),n.prototype.processChunk=function(c){if(c){var y=this.streamInfo[this.propName]||0;this.streamInfo[this.propName]=y+c.data.length}i.prototype.processChunk.call(this,c)},w.exports=n},{"../utils":32,"./GenericWorker":28}],27:[function(r,w,u){"use strict";var o=r("../utils"),i=r("./GenericWorker");function n(c){i.call(this,"DataWorker");var y=this;this.dataIsReady=!1,this.index=0,this.max=0,this.data=null,this.type="",this._tickScheduled=!1,c.then(function(_){y.dataIsReady=!0,y.data=_,y.max=_&&_.length||0,y.type=o.getTypeOf(_),y.isPaused||y._tickAndRepeat()},function(_){y.error(_)})}o.inherits(n,i),n.prototype.cleanUp=function(){i.prototype.cleanUp.call(this),this.data=null},n.prototype.resume=function(){return!!i.prototype.resume.call(this)&&(!this._tickScheduled&&this.dataIsReady&&(this._tickScheduled=!0,o.delay(this._tickAndRepeat,[],this)),!0)},n.prototype._tickAndRepeat=function(){this._tickScheduled=!1,this.isPaused||this.isFinished||(this._tick(),this.isFinished||(o.delay(this._tickAndRepeat,[],this),this._tickScheduled=!0))},n.prototype._tick=function(){if(this.isPaused||this.isFinished)return!1;var c=null,y=Math.min(this.max,this.index+16384);if(this.index>=this.max)return this.end();switch(this.type){case"string":c=this.data.substring(this.index,y);break;case"uint8array":c=this.data.subarray(this.index,y);break;case"array":case"nodebuffer":c=this.data.slice(this.index,y)}return this.index=y,this.push({data:c,meta:{percent:this.max?this.index/this.max*100:0}})},w.exports=n},{"../utils":32,"./GenericWorker":28}],28:[function(r,w,u){"use strict";function o(i){this.name=i||"default",this.streamInfo={},this.generatedError=null,this.extraStreamInfo={},this.isPaused=!0,this.isFinished=!1,this.isLocked=!1,this._listeners={data:[],end:[],error:[]},this.previous=null}o.prototype={push:function(i){this.emit("data",i)},end:function(){if(this.isFinished)return!1;this.flush();try{this.emit("end"),this.cleanUp(),this.isFinished=!0}catch(i){this.emit("error",i)}return!0},error:function(i){return!this.isFinished&&(this.isPaused?this.generatedError=i:(this.isFinished=!0,this.emit("error",i),this.previous&&this.previous.error(i),this.cleanUp()),!0)},on:function(i,n){return this._listeners[i].push(n),this},cleanUp:function(){this.streamInfo=this.generatedError=this.extraStreamInfo=null,this._listeners=[]},emit:function(i,n){if(this._listeners[i])for(var c=0;c<this._listeners[i].length;c++)this._listeners[i][c].call(this,n)},pipe:function(i){return i.registerPrevious(this)},registerPrevious:function(i){if(this.isLocked)throw new Error("The stream '"+this+"' has already been used.");this.streamInfo=i.streamInfo,this.mergeStreamInfo(),this.previous=i;var n=this;return i.on("data",function(c){n.processChunk(c)}),i.on("end",function(){n.end()}),i.on("error",function(c){n.error(c)}),this},pause:function(){return!this.isPaused&&!this.isFinished&&(this.isPaused=!0,this.previous&&this.previous.pause(),!0)},resume:function(){if(!this.isPaused||this.isFinished)return!1;var i=this.isPaused=!1;return this.generatedError&&(this.error(this.generatedError),i=!0),this.previous&&this.previous.resume(),!i},flush:function(){},processChunk:function(i){this.push(i)},withStreamInfo:function(i,n){return this.extraStreamInfo[i]=n,this.mergeStreamInfo(),this},mergeStreamInfo:function(){for(var i in this.extraStreamInfo)Object.prototype.hasOwnProperty.call(this.extraStreamInfo,i)&&(this.streamInfo[i]=this.extraStreamInfo[i])},lock:function(){if(this.isLocked)throw new Error("The stream '"+this+"' has already been used.");this.isLocked=!0,this.previous&&this.previous.lock()},toString:function(){var i="Worker "+this.name;return this.previous?this.previous+" -> "+i:i}},w.exports=o},{}],29:[function(r,w,u){"use strict";var o=r("../utils"),i=r("./ConvertWorker"),n=r("./GenericWorker"),c=r("../base64"),y=r("../support"),_=r("../external"),v=null;if(y.nodestream)try{v=r("../nodejs/NodejsStreamOutputAdapter")}catch{}function g(h,a){return new _.Promise(function(d,l){var m=[],k=h._internalType,N=h._outputType,S=h._mimeType;h.on("data",function(U,I){m.push(U),a&&a(I)}).on("error",function(U){m=[],l(U)}).on("end",function(){try{var U=(function(I,F,R){switch(I){case"blob":return o.newBlob(o.transformTo("arraybuffer",F),R);case"base64":return c.encode(F);default:return o.transformTo(I,F)}})(N,(function(I,F){var R,P=0,$=null,b=0;for(R=0;R<F.length;R++)b+=F[R].length;switch(I){case"string":return F.join("");case"array":return Array.prototype.concat.apply([],F);case"uint8array":for($=new Uint8Array(b),R=0;R<F.length;R++)$.set(F[R],P),P+=F[R].length;return $;case"nodebuffer":return Buffer.concat(F);default:throw new Error("concat : unsupported type '"+I+"'")}})(k,m),S);d(U)}catch(I){l(I)}m=[]}).resume()})}function s(h,a,d){var l=a;switch(a){case"blob":case"arraybuffer":l="uint8array";break;case"base64":l="string"}try{this._internalType=l,this._outputType=a,this._mimeType=d,o.checkSupport(l),this._worker=h.pipe(new i(l)),h.lock()}catch(m){this._worker=new n("error"),this._worker.error(m)}}s.prototype={accumulate:function(h){return g(this,h)},on:function(h,a){var d=this;return h==="data"?this._worker.on(h,function(l){a.call(d,l.data,l.meta)}):this._worker.on(h,function(){o.delay(a,arguments,d)}),this},resume:function(){return o.delay(this._worker.resume,[],this._worker),this},pause:function(){return this._worker.pause(),this},toNodejsStream:function(h){if(o.checkSupport("nodestream"),this._outputType!=="nodebuffer")throw new Error(this._outputType+" is not supported by this method");return new v(this,{objectMode:this._outputType!=="nodebuffer"},h)}},w.exports=s},{"../base64":1,"../external":6,"../nodejs/NodejsStreamOutputAdapter":13,"../support":30,"../utils":32,"./ConvertWorker":24,"./GenericWorker":28}],30:[function(r,w,u){"use strict";if(u.base64=!0,u.array=!0,u.string=!0,u.arraybuffer=typeof ArrayBuffer<"u"&&typeof Uint8Array<"u",u.nodebuffer=typeof Buffer<"u",u.uint8array=typeof Uint8Array<"u",typeof ArrayBuffer>"u")u.blob=!1;else{var o=new ArrayBuffer(0);try{u.blob=new Blob([o],{type:"application/zip"}).size===0}catch{try{var i=new(self.BlobBuilder||self.WebKitBlobBuilder||self.MozBlobBuilder||self.MSBlobBuilder);i.append(o),u.blob=i.getBlob("application/zip").size===0}catch{u.blob=!1}}}try{u.nodestream=!!r("readable-stream").Readable}catch{u.nodestream=!1}},{"readable-stream":16}],31:[function(r,w,u){"use strict";for(var o=r("./utils"),i=r("./support"),n=r("./nodejsUtils"),c=r("./stream/GenericWorker"),y=new Array(256),_=0;_<256;_++)y[_]=252<=_?6:248<=_?5:240<=_?4:224<=_?3:192<=_?2:1;y[254]=y[254]=1;function v(){c.call(this,"utf-8 decode"),this.leftOver=null}function g(){c.call(this,"utf-8 encode")}u.utf8encode=function(s){return i.nodebuffer?n.newBufferFrom(s,"utf-8"):(function(h){var a,d,l,m,k,N=h.length,S=0;for(m=0;m<N;m++)(64512&(d=h.charCodeAt(m)))==55296&&m+1<N&&(64512&(l=h.charCodeAt(m+1)))==56320&&(d=65536+(d-55296<<10)+(l-56320),m++),S+=d<128?1:d<2048?2:d<65536?3:4;for(a=i.uint8array?new Uint8Array(S):new Array(S),m=k=0;k<S;m++)(64512&(d=h.charCodeAt(m)))==55296&&m+1<N&&(64512&(l=h.charCodeAt(m+1)))==56320&&(d=65536+(d-55296<<10)+(l-56320),m++),d<128?a[k++]=d:(d<2048?a[k++]=192|d>>>6:(d<65536?a[k++]=224|d>>>12:(a[k++]=240|d>>>18,a[k++]=128|d>>>12&63),a[k++]=128|d>>>6&63),a[k++]=128|63&d);return a})(s)},u.utf8decode=function(s){return i.nodebuffer?o.transformTo("nodebuffer",s).toString("utf-8"):(function(h){var a,d,l,m,k=h.length,N=new Array(2*k);for(a=d=0;a<k;)if((l=h[a++])<128)N[d++]=l;else if(4<(m=y[l]))N[d++]=65533,a+=m-1;else{for(l&=m===2?31:m===3?15:7;1<m&&a<k;)l=l<<6|63&h[a++],m--;1<m?N[d++]=65533:l<65536?N[d++]=l:(l-=65536,N[d++]=55296|l>>10&1023,N[d++]=56320|1023&l)}return N.length!==d&&(N.subarray?N=N.subarray(0,d):N.length=d),o.applyFromCharCode(N)})(s=o.transformTo(i.uint8array?"uint8array":"array",s))},o.inherits(v,c),v.prototype.processChunk=function(s){var h=o.transformTo(i.uint8array?"uint8array":"array",s.data);if(this.leftOver&&this.leftOver.length){if(i.uint8array){var a=h;(h=new Uint8Array(a.length+this.leftOver.length)).set(this.leftOver,0),h.set(a,this.leftOver.length)}else h=this.leftOver.concat(h);this.leftOver=null}var d=(function(m,k){var N;for((k=k||m.length)>m.length&&(k=m.length),N=k-1;0<=N&&(192&m[N])==128;)N--;return N<0||N===0?k:N+y[m[N]]>k?N:k})(h),l=h;d!==h.length&&(i.uint8array?(l=h.subarray(0,d),this.leftOver=h.subarray(d,h.length)):(l=h.slice(0,d),this.leftOver=h.slice(d,h.length))),this.push({data:u.utf8decode(l),meta:s.meta})},v.prototype.flush=function(){this.leftOver&&this.leftOver.length&&(this.push({data:u.utf8decode(this.leftOver),meta:{}}),this.leftOver=null)},u.Utf8DecodeWorker=v,o.inherits(g,c),g.prototype.processChunk=function(s){this.push({data:u.utf8encode(s.data),meta:s.meta})},u.Utf8EncodeWorker=g},{"./nodejsUtils":14,"./stream/GenericWorker":28,"./support":30,"./utils":32}],32:[function(r,w,u){"use strict";var o=r("./support"),i=r("./base64"),n=r("./nodejsUtils"),c=r("./external");function y(a){return a}function _(a,d){for(var l=0;l<a.length;++l)d[l]=255&a.charCodeAt(l);return d}r("setimmediate"),u.newBlob=function(a,d){u.checkSupport("blob");try{return new Blob([a],{type:d})}catch{try{var l=new(self.BlobBuilder||self.WebKitBlobBuilder||self.MozBlobBuilder||self.MSBlobBuilder);return l.append(a),l.getBlob(d)}catch{throw new Error("Bug : can't construct the Blob.")}}};var v={stringifyByChunk:function(a,d,l){var m=[],k=0,N=a.length;if(N<=l)return String.fromCharCode.apply(null,a);for(;k<N;)d==="array"||d==="nodebuffer"?m.push(String.fromCharCode.apply(null,a.slice(k,Math.min(k+l,N)))):m.push(String.fromCharCode.apply(null,a.subarray(k,Math.min(k+l,N)))),k+=l;return m.join("")},stringifyByChar:function(a){for(var d="",l=0;l<a.length;l++)d+=String.fromCharCode(a[l]);return d},applyCanBeUsed:{uint8array:(function(){try{return o.uint8array&&String.fromCharCode.apply(null,new Uint8Array(1)).length===1}catch{return!1}})(),nodebuffer:(function(){try{return o.nodebuffer&&String.fromCharCode.apply(null,n.allocBuffer(1)).length===1}catch{return!1}})()}};function g(a){var d=65536,l=u.getTypeOf(a),m=!0;if(l==="uint8array"?m=v.applyCanBeUsed.uint8array:l==="nodebuffer"&&(m=v.applyCanBeUsed.nodebuffer),m)for(;1<d;)try{return v.stringifyByChunk(a,l,d)}catch{d=Math.floor(d/2)}return v.stringifyByChar(a)}function s(a,d){for(var l=0;l<a.length;l++)d[l]=a[l];return d}u.applyFromCharCode=g;var h={};h.string={string:y,array:function(a){return _(a,new Array(a.length))},arraybuffer:function(a){return h.string.uint8array(a).buffer},uint8array:function(a){return _(a,new Uint8Array(a.length))},nodebuffer:function(a){return _(a,n.allocBuffer(a.length))}},h.array={string:g,array:y,arraybuffer:function(a){return new Uint8Array(a).buffer},uint8array:function(a){return new Uint8Array(a)},nodebuffer:function(a){return n.newBufferFrom(a)}},h.arraybuffer={string:function(a){return g(new Uint8Array(a))},array:function(a){return s(new Uint8Array(a),new Array(a.byteLength))},arraybuffer:y,uint8array:function(a){return new Uint8Array(a)},nodebuffer:function(a){return n.newBufferFrom(new Uint8Array(a))}},h.uint8array={string:g,array:function(a){return s(a,new Array(a.length))},arraybuffer:function(a){return a.buffer},uint8array:y,nodebuffer:function(a){return n.newBufferFrom(a)}},h.nodebuffer={string:g,array:function(a){return s(a,new Array(a.length))},arraybuffer:function(a){return h.nodebuffer.uint8array(a).buffer},uint8array:function(a){return s(a,new Uint8Array(a.length))},nodebuffer:y},u.transformTo=function(a,d){if(d=d||"",!a)return d;u.checkSupport(a);var l=u.getTypeOf(d);return h[l][a](d)},u.resolve=function(a){for(var d=a.split("/"),l=[],m=0;m<d.length;m++){var k=d[m];k==="."||k===""&&m!==0&&m!==d.length-1||(k===".."?l.pop():l.push(k))}return l.join("/")},u.getTypeOf=function(a){if(typeof a=="string")return"string";var d=Object.prototype.toString.call(a);return d==="[object Array]"?"array":o.nodebuffer&&n.isBuffer(a)?"nodebuffer":o.uint8array&&d==="[object Uint8Array]"?"uint8array":o.arraybuffer&&d==="[object ArrayBuffer]"?"arraybuffer":void 0},u.checkSupport=function(a){if(!o[a.toLowerCase()])throw new Error(a+" is not supported by this platform")},u.MAX_VALUE_16BITS=65535,u.MAX_VALUE_32BITS=-1,u.pretty=function(a){var d,l,m="";for(l=0;l<(a||"").length;l++)m+="\\x"+((d=a.charCodeAt(l))<16?"0":"")+d.toString(16).toUpperCase();return m},u.delay=function(a,d,l){setImmediate(function(){a.apply(l||null,d||[])})},u.inherits=function(a,d){function l(){}l.prototype=d.prototype,a.prototype=new l},u.extend=function(){var a,d,l={};for(a=0;a<arguments.length;a++)for(d in arguments[a])Object.prototype.hasOwnProperty.call(arguments[a],d)&&l[d]===void 0&&(l[d]=arguments[a][d]);return l},u.prepareContent=function(a,d,l,m,k){return c.Promise.resolve(d).then(function(N){return o.blob&&(N instanceof Blob||["[object File]","[object Blob]"].indexOf(Object.prototype.toString.call(N))!==-1)?Blob.prototype.arrayBuffer!==void 0?N.arrayBuffer():typeof FileReader<"u"?new c.Promise(function(S,U){var I=new FileReader;I.onload=function(F){S(F.target.result)},I.onerror=function(F){U(F.target.error)},I.readAsArrayBuffer(N)}):c.Promise.reject(new Error(a+" is a Blob, but we have no way of reading it.")):N}).then(function(N){var S=u.getTypeOf(N);return S?(S==="arraybuffer"?N=u.transformTo("uint8array",N):S==="string"&&(k?N=i.decode(N):l&&m!==!0&&(N=(function(U){return _(U,o.uint8array?new Uint8Array(U.length):new Array(U.length))})(N))),N):c.Promise.reject(new Error("Can't read the data of '"+a+"'. Is it in a supported JavaScript type (String, Blob, ArrayBuffer, etc) ?"))})}},{"./base64":1,"./external":6,"./nodejsUtils":14,"./support":30,setimmediate:54}],33:[function(r,w,u){"use strict";var o=r("./reader/readerFor"),i=r("./utils"),n=r("./signature"),c=r("./zipEntry"),y=r("./support");function _(v){this.files=[],this.loadOptions=v}_.prototype={checkSignature:function(v){if(!this.reader.readAndCheckSignature(v)){this.reader.index-=4;var g=this.reader.readString(4);throw new Error("Corrupted zip or bug: unexpected signature ("+i.pretty(g)+", expected "+i.pretty(v)+")")}},isSignature:function(v,g){var s=this.reader.index;this.reader.setIndex(v);var h=this.reader.readString(4)===g;return this.reader.setIndex(s),h},readBlockEndOfCentral:function(){this.diskNumber=this.reader.readInt(2),this.diskWithCentralDirStart=this.reader.readInt(2),this.centralDirRecordsOnThisDisk=this.reader.readInt(2),this.centralDirRecords=this.reader.readInt(2),this.centralDirSize=this.reader.readInt(4),this.centralDirOffset=this.reader.readInt(4),this.zipCommentLength=this.reader.readInt(2);var v=this.reader.readData(this.zipCommentLength),g=y.uint8array?"uint8array":"array",s=i.transformTo(g,v);this.zipComment=this.loadOptions.decodeFileName(s)},readBlockZip64EndOfCentral:function(){this.zip64EndOfCentralSize=this.reader.readInt(8),this.reader.skip(4),this.diskNumber=this.reader.readInt(4),this.diskWithCentralDirStart=this.reader.readInt(4),this.centralDirRecordsOnThisDisk=this.reader.readInt(8),this.centralDirRecords=this.reader.readInt(8),this.centralDirSize=this.reader.readInt(8),this.centralDirOffset=this.reader.readInt(8),this.zip64ExtensibleData={};for(var v,g,s,h=this.zip64EndOfCentralSize-44;0<h;)v=this.reader.readInt(2),g=this.reader.readInt(4),s=this.reader.readData(g),this.zip64ExtensibleData[v]={id:v,length:g,value:s}},readBlockZip64EndOfCentralLocator:function(){if(this.diskWithZip64CentralDirStart=this.reader.readInt(4),this.relativeOffsetEndOfZip64CentralDir=this.reader.readInt(8),this.disksCount=this.reader.readInt(4),1<this.disksCount)throw new Error("Multi-volumes zip are not supported")},readLocalFiles:function(){var v,g;for(v=0;v<this.files.length;v++)g=this.files[v],this.reader.setIndex(g.localHeaderOffset),this.checkSignature(n.LOCAL_FILE_HEADER),g.readLocalPart(this.reader),g.handleUTF8(),g.processAttributes()},readCentralDir:function(){var v;for(this.reader.setIndex(this.centralDirOffset);this.reader.readAndCheckSignature(n.CENTRAL_FILE_HEADER);)(v=new c({zip64:this.zip64},this.loadOptions)).readCentralPart(this.reader),this.files.push(v);if(this.centralDirRecords!==this.files.length&&this.centralDirRecords!==0&&this.files.length===0)throw new Error("Corrupted zip or bug: expected "+this.centralDirRecords+" records in central dir, got "+this.files.length)},readEndOfCentral:function(){var v=this.reader.lastIndexOfSignature(n.CENTRAL_DIRECTORY_END);if(v<0)throw this.isSignature(0,n.LOCAL_FILE_HEADER)?new Error("Corrupted zip: can't find end of central directory"):new Error("Can't find end of central directory : is this a zip file ? If it is, see https://stuk.github.io/jszip/documentation/howto/read_zip.html");this.reader.setIndex(v);var g=v;if(this.checkSignature(n.CENTRAL_DIRECTORY_END),this.readBlockEndOfCentral(),this.diskNumber===i.MAX_VALUE_16BITS||this.diskWithCentralDirStart===i.MAX_VALUE_16BITS||this.centralDirRecordsOnThisDisk===i.MAX_VALUE_16BITS||this.centralDirRecords===i.MAX_VALUE_16BITS||this.centralDirSize===i.MAX_VALUE_32BITS||this.centralDirOffset===i.MAX_VALUE_32BITS){if(this.zip64=!0,(v=this.reader.lastIndexOfSignature(n.ZIP64_CENTRAL_DIRECTORY_LOCATOR))<0)throw new Error("Corrupted zip: can't find the ZIP64 end of central directory locator");if(this.reader.setIndex(v),this.checkSignature(n.ZIP64_CENTRAL_DIRECTORY_LOCATOR),this.readBlockZip64EndOfCentralLocator(),!this.isSignature(this.relativeOffsetEndOfZip64CentralDir,n.ZIP64_CENTRAL_DIRECTORY_END)&&(this.relativeOffsetEndOfZip64CentralDir=this.reader.lastIndexOfSignature(n.ZIP64_CENTRAL_DIRECTORY_END),this.relativeOffsetEndOfZip64CentralDir<0))throw new Error("Corrupted zip: can't find the ZIP64 end of central directory");this.reader.setIndex(this.relativeOffsetEndOfZip64CentralDir),this.checkSignature(n.ZIP64_CENTRAL_DIRECTORY_END),this.readBlockZip64EndOfCentral()}var s=this.centralDirOffset+this.centralDirSize;this.zip64&&(s+=20,s+=12+this.zip64EndOfCentralSize);var h=g-s;if(0<h)this.isSignature(g,n.CENTRAL_FILE_HEADER)||(this.reader.zero=h);else if(h<0)throw new Error("Corrupted zip: missing "+Math.abs(h)+" bytes.")},prepareReader:function(v){this.reader=o(v)},load:function(v){this.prepareReader(v),this.readEndOfCentral(),this.readCentralDir(),this.readLocalFiles()}},w.exports=_},{"./reader/readerFor":22,"./signature":23,"./support":30,"./utils":32,"./zipEntry":34}],34:[function(r,w,u){"use strict";var o=r("./reader/readerFor"),i=r("./utils"),n=r("./compressedObject"),c=r("./crc32"),y=r("./utf8"),_=r("./compressions"),v=r("./support");function g(s,h){this.options=s,this.loadOptions=h}g.prototype={isEncrypted:function(){return(1&this.bitFlag)==1},useUTF8:function(){return(2048&this.bitFlag)==2048},readLocalPart:function(s){var h,a;if(s.skip(22),this.fileNameLength=s.readInt(2),a=s.readInt(2),this.fileName=s.readData(this.fileNameLength),s.skip(a),this.compressedSize===-1||this.uncompressedSize===-1)throw new Error("Bug or corrupted zip : didn't get enough information from the central directory (compressedSize === -1 || uncompressedSize === -1)");if((h=(function(d){for(var l in _)if(Object.prototype.hasOwnProperty.call(_,l)&&_[l].magic===d)return _[l];return null})(this.compressionMethod))===null)throw new Error("Corrupted zip : compression "+i.pretty(this.compressionMethod)+" unknown (inner file : "+i.transformTo("string",this.fileName)+")");this.decompressed=new n(this.compressedSize,this.uncompressedSize,this.crc32,h,s.readData(this.compressedSize))},readCentralPart:function(s){this.versionMadeBy=s.readInt(2),s.skip(2),this.bitFlag=s.readInt(2),this.compressionMethod=s.readString(2),this.date=s.readDate(),this.crc32=s.readInt(4),this.compressedSize=s.readInt(4),this.uncompressedSize=s.readInt(4);var h=s.readInt(2);if(this.extraFieldsLength=s.readInt(2),this.fileCommentLength=s.readInt(2),this.diskNumberStart=s.readInt(2),this.internalFileAttributes=s.readInt(2),this.externalFileAttributes=s.readInt(4),this.localHeaderOffset=s.readInt(4),this.isEncrypted())throw new Error("Encrypted zip are not supported");s.skip(h),this.readExtraFields(s),this.parseZIP64ExtraField(s),this.fileComment=s.readData(this.fileCommentLength)},processAttributes:function(){this.unixPermissions=null,this.dosPermissions=null;var s=this.versionMadeBy>>8;this.dir=!!(16&this.externalFileAttributes),s==0&&(this.dosPermissions=63&this.externalFileAttributes),s==3&&(this.unixPermissions=this.externalFileAttributes>>16&65535),this.dir||this.fileNameStr.slice(-1)!=="/"||(this.dir=!0)},parseZIP64ExtraField:function(){if(this.extraFields[1]){var s=o(this.extraFields[1].value);this.uncompressedSize===i.MAX_VALUE_32BITS&&(this.uncompressedSize=s.readInt(8)),this.compressedSize===i.MAX_VALUE_32BITS&&(this.compressedSize=s.readInt(8)),this.localHeaderOffset===i.MAX_VALUE_32BITS&&(this.localHeaderOffset=s.readInt(8)),this.diskNumberStart===i.MAX_VALUE_32BITS&&(this.diskNumberStart=s.readInt(4))}},readExtraFields:function(s){var h,a,d,l=s.index+this.extraFieldsLength;for(this.extraFields||(this.extraFields={});s.index+4<l;)h=s.readInt(2),a=s.readInt(2),d=s.readData(a),this.extraFields[h]={id:h,length:a,value:d};s.setIndex(l)},handleUTF8:function(){var s=v.uint8array?"uint8array":"array";if(this.useUTF8())this.fileNameStr=y.utf8decode(this.fileName),this.fileCommentStr=y.utf8decode(this.fileComment);else{var h=this.findExtraFieldUnicodePath();if(h!==null)this.fileNameStr=h;else{var a=i.transformTo(s,this.fileName);this.fileNameStr=this.loadOptions.decodeFileName(a)}var d=this.findExtraFieldUnicodeComment();if(d!==null)this.fileCommentStr=d;else{var l=i.transformTo(s,this.fileComment);this.fileCommentStr=this.loadOptions.decodeFileName(l)}}},findExtraFieldUnicodePath:function(){var s=this.extraFields[28789];if(s){var h=o(s.value);return h.readInt(1)!==1||c(this.fileName)!==h.readInt(4)?null:y.utf8decode(h.readData(s.length-5))}return null},findExtraFieldUnicodeComment:function(){var s=this.extraFields[25461];if(s){var h=o(s.value);return h.readInt(1)!==1||c(this.fileComment)!==h.readInt(4)?null:y.utf8decode(h.readData(s.length-5))}return null}},w.exports=g},{"./compressedObject":2,"./compressions":3,"./crc32":4,"./reader/readerFor":22,"./support":30,"./utf8":31,"./utils":32}],35:[function(r,w,u){"use strict";function o(h,a,d){this.name=h,this.dir=d.dir,this.date=d.date,this.comment=d.comment,this.unixPermissions=d.unixPermissions,this.dosPermissions=d.dosPermissions,this._data=a,this._dataBinary=d.binary,this.options={compression:d.compression,compressionOptions:d.compressionOptions}}var i=r("./stream/StreamHelper"),n=r("./stream/DataWorker"),c=r("./utf8"),y=r("./compressedObject"),_=r("./stream/GenericWorker");o.prototype={internalStream:function(h){var a=null,d="string";try{if(!h)throw new Error("No output type specified.");var l=(d=h.toLowerCase())==="string"||d==="text";d!=="binarystring"&&d!=="text"||(d="string"),a=this._decompressWorker();var m=!this._dataBinary;m&&!l&&(a=a.pipe(new c.Utf8EncodeWorker)),!m&&l&&(a=a.pipe(new c.Utf8DecodeWorker))}catch(k){(a=new _("error")).error(k)}return new i(a,d,"")},async:function(h,a){return this.internalStream(h).accumulate(a)},nodeStream:function(h,a){return this.internalStream(h||"nodebuffer").toNodejsStream(a)},_compressWorker:function(h,a){if(this._data instanceof y&&this._data.compression.magic===h.magic)return this._data.getCompressedWorker();var d=this._decompressWorker();return this._dataBinary||(d=d.pipe(new c.Utf8EncodeWorker)),y.createWorkerFrom(d,h,a)},_decompressWorker:function(){return this._data instanceof y?this._data.getContentWorker():this._data instanceof _?this._data:new n(this._data)}};for(var v=["asText","asBinary","asNodeBuffer","asUint8Array","asArrayBuffer"],g=function(){throw new Error("This method has been removed in JSZip 3.0, please check the upgrade guide.")},s=0;s<v.length;s++)o.prototype[v[s]]=g;w.exports=o},{"./compressedObject":2,"./stream/DataWorker":27,"./stream/GenericWorker":28,"./stream/StreamHelper":29,"./utf8":31}],36:[function(r,w,u){(function(o){"use strict";var i,n,c=o.MutationObserver||o.WebKitMutationObserver;if(c){var y=0,_=new c(h),v=o.document.createTextNode("");_.observe(v,{characterData:!0}),i=function(){v.data=y=++y%2}}else if(o.setImmediate||o.MessageChannel===void 0)i="document"in o&&"onreadystatechange"in o.document.createElement("script")?function(){var a=o.document.createElement("script");a.onreadystatechange=function(){h(),a.onreadystatechange=null,a.parentNode.removeChild(a),a=null},o.document.documentElement.appendChild(a)}:function(){setTimeout(h,0)};else{var g=new o.MessageChannel;g.port1.onmessage=h,i=function(){g.port2.postMessage(0)}}var s=[];function h(){var a,d;n=!0;for(var l=s.length;l;){for(d=s,s=[],a=-1;++a<l;)d[a]();l=s.length}n=!1}w.exports=function(a){s.push(a)!==1||n||i()}}).call(this,typeof global<"u"?global:typeof self<"u"?self:typeof window<"u"?window:{})},{}],37:[function(r,w,u){"use strict";var o=r("immediate");function i(){}var n={},c=["REJECTED"],y=["FULFILLED"],_=["PENDING"];function v(l){if(typeof l!="function")throw new TypeError("resolver must be a function");this.state=_,this.queue=[],this.outcome=void 0,l!==i&&a(this,l)}function g(l,m,k){this.promise=l,typeof m=="function"&&(this.onFulfilled=m,this.callFulfilled=this.otherCallFulfilled),typeof k=="function"&&(this.onRejected=k,this.callRejected=this.otherCallRejected)}function s(l,m,k){o(function(){var N;try{N=m(k)}catch(S){return n.reject(l,S)}N===l?n.reject(l,new TypeError("Cannot resolve promise with itself")):n.resolve(l,N)})}function h(l){var m=l&&l.then;if(l&&(typeof l=="object"||typeof l=="function")&&typeof m=="function")return function(){m.apply(l,arguments)}}function a(l,m){var k=!1;function N(I){k||(k=!0,n.reject(l,I))}function S(I){k||(k=!0,n.resolve(l,I))}var U=d(function(){m(S,N)});U.status==="error"&&N(U.value)}function d(l,m){var k={};try{k.value=l(m),k.status="success"}catch(N){k.status="error",k.value=N}return k}(w.exports=v).prototype.finally=function(l){if(typeof l!="function")return this;var m=this.constructor;return this.then(function(k){return m.resolve(l()).then(function(){return k})},function(k){return m.resolve(l()).then(function(){throw k})})},v.prototype.catch=function(l){return this.then(null,l)},v.prototype.then=function(l,m){if(typeof l!="function"&&this.state===y||typeof m!="function"&&this.state===c)return this;var k=new this.constructor(i);return this.state!==_?s(k,this.state===y?l:m,this.outcome):this.queue.push(new g(k,l,m)),k},g.prototype.callFulfilled=function(l){n.resolve(this.promise,l)},g.prototype.otherCallFulfilled=function(l){s(this.promise,this.onFulfilled,l)},g.prototype.callRejected=function(l){n.reject(this.promise,l)},g.prototype.otherCallRejected=function(l){s(this.promise,this.onRejected,l)},n.resolve=function(l,m){var k=d(h,m);if(k.status==="error")return n.reject(l,k.value);var N=k.value;if(N)a(l,N);else{l.state=y,l.outcome=m;for(var S=-1,U=l.queue.length;++S<U;)l.queue[S].callFulfilled(m)}return l},n.reject=function(l,m){l.state=c,l.outcome=m;for(var k=-1,N=l.queue.length;++k<N;)l.queue[k].callRejected(m);return l},v.resolve=function(l){return l instanceof this?l:n.resolve(new this(i),l)},v.reject=function(l){var m=new this(i);return n.reject(m,l)},v.all=function(l){var m=this;if(Object.prototype.toString.call(l)!=="[object Array]")return this.reject(new TypeError("must be an array"));var k=l.length,N=!1;if(!k)return this.resolve([]);for(var S=new Array(k),U=0,I=-1,F=new this(i);++I<k;)R(l[I],I);return F;function R(P,$){m.resolve(P).then(function(b){S[$]=b,++U!==k||N||(N=!0,n.resolve(F,S))},function(b){N||(N=!0,n.reject(F,b))})}},v.race=function(l){var m=this;if(Object.prototype.toString.call(l)!=="[object Array]")return this.reject(new TypeError("must be an array"));var k=l.length,N=!1;if(!k)return this.resolve([]);for(var S=-1,U=new this(i);++S<k;)I=l[S],m.resolve(I).then(function(F){N||(N=!0,n.resolve(U,F))},function(F){N||(N=!0,n.reject(U,F))});var I;return U}},{immediate:36}],38:[function(r,w,u){"use strict";var o={};(0,r("./lib/utils/common").assign)(o,r("./lib/deflate"),r("./lib/inflate"),r("./lib/zlib/constants")),w.exports=o},{"./lib/deflate":39,"./lib/inflate":40,"./lib/utils/common":41,"./lib/zlib/constants":44}],39:[function(r,w,u){"use strict";var o=r("./zlib/deflate"),i=r("./utils/common"),n=r("./utils/strings"),c=r("./zlib/messages"),y=r("./zlib/zstream"),_=Object.prototype.toString,v=0,g=-1,s=0,h=8;function a(l){if(!(this instanceof a))return new a(l);this.options=i.assign({level:g,method:h,chunkSize:16384,windowBits:15,memLevel:8,strategy:s,to:""},l||{});var m=this.options;m.raw&&0<m.windowBits?m.windowBits=-m.windowBits:m.gzip&&0<m.windowBits&&m.windowBits<16&&(m.windowBits+=16),this.err=0,this.msg="",this.ended=!1,this.chunks=[],this.strm=new y,this.strm.avail_out=0;var k=o.deflateInit2(this.strm,m.level,m.method,m.windowBits,m.memLevel,m.strategy);if(k!==v)throw new Error(c[k]);if(m.header&&o.deflateSetHeader(this.strm,m.header),m.dictionary){var N;if(N=typeof m.dictionary=="string"?n.string2buf(m.dictionary):_.call(m.dictionary)==="[object ArrayBuffer]"?new Uint8Array(m.dictionary):m.dictionary,(k=o.deflateSetDictionary(this.strm,N))!==v)throw new Error(c[k]);this._dict_set=!0}}function d(l,m){var k=new a(m);if(k.push(l,!0),k.err)throw k.msg||c[k.err];return k.result}a.prototype.push=function(l,m){var k,N,S=this.strm,U=this.options.chunkSize;if(this.ended)return!1;N=m===~~m?m:m===!0?4:0,typeof l=="string"?S.input=n.string2buf(l):_.call(l)==="[object ArrayBuffer]"?S.input=new Uint8Array(l):S.input=l,S.next_in=0,S.avail_in=S.input.length;do{if(S.avail_out===0&&(S.output=new i.Buf8(U),S.next_out=0,S.avail_out=U),(k=o.deflate(S,N))!==1&&k!==v)return this.onEnd(k),!(this.ended=!0);S.avail_out!==0&&(S.avail_in!==0||N!==4&&N!==2)||(this.options.to==="string"?this.onData(n.buf2binstring(i.shrinkBuf(S.output,S.next_out))):this.onData(i.shrinkBuf(S.output,S.next_out)))}while((0<S.avail_in||S.avail_out===0)&&k!==1);return N===4?(k=o.deflateEnd(this.strm),this.onEnd(k),this.ended=!0,k===v):N!==2||(this.onEnd(v),!(S.avail_out=0))},a.prototype.onData=function(l){this.chunks.push(l)},a.prototype.onEnd=function(l){l===v&&(this.options.to==="string"?this.result=this.chunks.join(""):this.result=i.flattenChunks(this.chunks)),this.chunks=[],this.err=l,this.msg=this.strm.msg},u.Deflate=a,u.deflate=d,u.deflateRaw=function(l,m){return(m=m||{}).raw=!0,d(l,m)},u.gzip=function(l,m){return(m=m||{}).gzip=!0,d(l,m)}},{"./utils/common":41,"./utils/strings":42,"./zlib/deflate":46,"./zlib/messages":51,"./zlib/zstream":53}],40:[function(r,w,u){"use strict";var o=r("./zlib/inflate"),i=r("./utils/common"),n=r("./utils/strings"),c=r("./zlib/constants"),y=r("./zlib/messages"),_=r("./zlib/zstream"),v=r("./zlib/gzheader"),g=Object.prototype.toString;function s(a){if(!(this instanceof s))return new s(a);this.options=i.assign({chunkSize:16384,windowBits:0,to:""},a||{});var d=this.options;d.raw&&0<=d.windowBits&&d.windowBits<16&&(d.windowBits=-d.windowBits,d.windowBits===0&&(d.windowBits=-15)),!(0<=d.windowBits&&d.windowBits<16)||a&&a.windowBits||(d.windowBits+=32),15<d.windowBits&&d.windowBits<48&&(15&d.windowBits)==0&&(d.windowBits|=15),this.err=0,this.msg="",this.ended=!1,this.chunks=[],this.strm=new _,this.strm.avail_out=0;var l=o.inflateInit2(this.strm,d.windowBits);if(l!==c.Z_OK)throw new Error(y[l]);this.header=new v,o.inflateGetHeader(this.strm,this.header)}function h(a,d){var l=new s(d);if(l.push(a,!0),l.err)throw l.msg||y[l.err];return l.result}s.prototype.push=function(a,d){var l,m,k,N,S,U,I=this.strm,F=this.options.chunkSize,R=this.options.dictionary,P=!1;if(this.ended)return!1;m=d===~~d?d:d===!0?c.Z_FINISH:c.Z_NO_FLUSH,typeof a=="string"?I.input=n.binstring2buf(a):g.call(a)==="[object ArrayBuffer]"?I.input=new Uint8Array(a):I.input=a,I.next_in=0,I.avail_in=I.input.length;do{if(I.avail_out===0&&(I.output=new i.Buf8(F),I.next_out=0,I.avail_out=F),(l=o.inflate(I,c.Z_NO_FLUSH))===c.Z_NEED_DICT&&R&&(U=typeof R=="string"?n.string2buf(R):g.call(R)==="[object ArrayBuffer]"?new Uint8Array(R):R,l=o.inflateSetDictionary(this.strm,U)),l===c.Z_BUF_ERROR&&P===!0&&(l=c.Z_OK,P=!1),l!==c.Z_STREAM_END&&l!==c.Z_OK)return this.onEnd(l),!(this.ended=!0);I.next_out&&(I.avail_out!==0&&l!==c.Z_STREAM_END&&(I.avail_in!==0||m!==c.Z_FINISH&&m!==c.Z_SYNC_FLUSH)||(this.options.to==="string"?(k=n.utf8border(I.output,I.next_out),N=I.next_out-k,S=n.buf2string(I.output,k),I.next_out=N,I.avail_out=F-N,N&&i.arraySet(I.output,I.output,k,N,0),this.onData(S)):this.onData(i.shrinkBuf(I.output,I.next_out)))),I.avail_in===0&&I.avail_out===0&&(P=!0)}while((0<I.avail_in||I.avail_out===0)&&l!==c.Z_STREAM_END);return l===c.Z_STREAM_END&&(m=c.Z_FINISH),m===c.Z_FINISH?(l=o.inflateEnd(this.strm),this.onEnd(l),this.ended=!0,l===c.Z_OK):m!==c.Z_SYNC_FLUSH||(this.onEnd(c.Z_OK),!(I.avail_out=0))},s.prototype.onData=function(a){this.chunks.push(a)},s.prototype.onEnd=function(a){a===c.Z_OK&&(this.options.to==="string"?this.result=this.chunks.join(""):this.result=i.flattenChunks(this.chunks)),this.chunks=[],this.err=a,this.msg=this.strm.msg},u.Inflate=s,u.inflate=h,u.inflateRaw=function(a,d){return(d=d||{}).raw=!0,h(a,d)},u.ungzip=h},{"./utils/common":41,"./utils/strings":42,"./zlib/constants":44,"./zlib/gzheader":47,"./zlib/inflate":49,"./zlib/messages":51,"./zlib/zstream":53}],41:[function(r,w,u){"use strict";var o=typeof Uint8Array<"u"&&typeof Uint16Array<"u"&&typeof Int32Array<"u";u.assign=function(c){for(var y=Array.prototype.slice.call(arguments,1);y.length;){var _=y.shift();if(_){if(typeof _!="object")throw new TypeError(_+"must be non-object");for(var v in _)_.hasOwnProperty(v)&&(c[v]=_[v])}}return c},u.shrinkBuf=function(c,y){return c.length===y?c:c.subarray?c.subarray(0,y):(c.length=y,c)};var i={arraySet:function(c,y,_,v,g){if(y.subarray&&c.subarray)c.set(y.subarray(_,_+v),g);else for(var s=0;s<v;s++)c[g+s]=y[_+s]},flattenChunks:function(c){var y,_,v,g,s,h;for(y=v=0,_=c.length;y<_;y++)v+=c[y].length;for(h=new Uint8Array(v),y=g=0,_=c.length;y<_;y++)s=c[y],h.set(s,g),g+=s.length;return h}},n={arraySet:function(c,y,_,v,g){for(var s=0;s<v;s++)c[g+s]=y[_+s]},flattenChunks:function(c){return[].concat.apply([],c)}};u.setTyped=function(c){c?(u.Buf8=Uint8Array,u.Buf16=Uint16Array,u.Buf32=Int32Array,u.assign(u,i)):(u.Buf8=Array,u.Buf16=Array,u.Buf32=Array,u.assign(u,n))},u.setTyped(o)},{}],42:[function(r,w,u){"use strict";var o=r("./common"),i=!0,n=!0;try{String.fromCharCode.apply(null,[0])}catch{i=!1}try{String.fromCharCode.apply(null,new Uint8Array(1))}catch{n=!1}for(var c=new o.Buf8(256),y=0;y<256;y++)c[y]=252<=y?6:248<=y?5:240<=y?4:224<=y?3:192<=y?2:1;function _(v,g){if(g<65537&&(v.subarray&&n||!v.subarray&&i))return String.fromCharCode.apply(null,o.shrinkBuf(v,g));for(var s="",h=0;h<g;h++)s+=String.fromCharCode(v[h]);return s}c[254]=c[254]=1,u.string2buf=function(v){var g,s,h,a,d,l=v.length,m=0;for(a=0;a<l;a++)(64512&(s=v.charCodeAt(a)))==55296&&a+1<l&&(64512&(h=v.charCodeAt(a+1)))==56320&&(s=65536+(s-55296<<10)+(h-56320),a++),m+=s<128?1:s<2048?2:s<65536?3:4;for(g=new o.Buf8(m),a=d=0;d<m;a++)(64512&(s=v.charCodeAt(a)))==55296&&a+1<l&&(64512&(h=v.charCodeAt(a+1)))==56320&&(s=65536+(s-55296<<10)+(h-56320),a++),s<128?g[d++]=s:(s<2048?g[d++]=192|s>>>6:(s<65536?g[d++]=224|s>>>12:(g[d++]=240|s>>>18,g[d++]=128|s>>>12&63),g[d++]=128|s>>>6&63),g[d++]=128|63&s);return g},u.buf2binstring=function(v){return _(v,v.length)},u.binstring2buf=function(v){for(var g=new o.Buf8(v.length),s=0,h=g.length;s<h;s++)g[s]=v.charCodeAt(s);return g},u.buf2string=function(v,g){var s,h,a,d,l=g||v.length,m=new Array(2*l);for(s=h=0;s<l;)if((a=v[s++])<128)m[h++]=a;else if(4<(d=c[a]))m[h++]=65533,s+=d-1;else{for(a&=d===2?31:d===3?15:7;1<d&&s<l;)a=a<<6|63&v[s++],d--;1<d?m[h++]=65533:a<65536?m[h++]=a:(a-=65536,m[h++]=55296|a>>10&1023,m[h++]=56320|1023&a)}return _(m,h)},u.utf8border=function(v,g){var s;for((g=g||v.length)>v.length&&(g=v.length),s=g-1;0<=s&&(192&v[s])==128;)s--;return s<0||s===0?g:s+c[v[s]]>g?s:g}},{"./common":41}],43:[function(r,w,u){"use strict";w.exports=function(o,i,n,c){for(var y=65535&o|0,_=o>>>16&65535|0,v=0;n!==0;){for(n-=v=2e3<n?2e3:n;_=_+(y=y+i[c++]|0)|0,--v;);y%=65521,_%=65521}return y|_<<16|0}},{}],44:[function(r,w,u){"use strict";w.exports={Z_NO_FLUSH:0,Z_PARTIAL_FLUSH:1,Z_SYNC_FLUSH:2,Z_FULL_FLUSH:3,Z_FINISH:4,Z_BLOCK:5,Z_TREES:6,Z_OK:0,Z_STREAM_END:1,Z_NEED_DICT:2,Z_ERRNO:-1,Z_STREAM_ERROR:-2,Z_DATA_ERROR:-3,Z_BUF_ERROR:-5,Z_NO_COMPRESSION:0,Z_BEST_SPEED:1,Z_BEST_COMPRESSION:9,Z_DEFAULT_COMPRESSION:-1,Z_FILTERED:1,Z_HUFFMAN_ONLY:2,Z_RLE:3,Z_FIXED:4,Z_DEFAULT_STRATEGY:0,Z_BINARY:0,Z_TEXT:1,Z_UNKNOWN:2,Z_DEFLATED:8}},{}],45:[function(r,w,u){"use strict";var o=(function(){for(var i,n=[],c=0;c<256;c++){i=c;for(var y=0;y<8;y++)i=1&i?3988292384^i>>>1:i>>>1;n[c]=i}return n})();w.exports=function(i,n,c,y){var _=o,v=y+c;i^=-1;for(var g=y;g<v;g++)i=i>>>8^_[255&(i^n[g])];return-1^i}},{}],46:[function(r,w,u){"use strict";var o,i=r("../utils/common"),n=r("./trees"),c=r("./adler32"),y=r("./crc32"),_=r("./messages"),v=0,g=4,s=0,h=-2,a=-1,d=4,l=2,m=8,k=9,N=286,S=30,U=19,I=2*N+1,F=15,R=3,P=258,$=P+R+1,b=42,z=113,e=1,D=2,Q=3,M=4;function nt(t,O){return t.msg=_[O],O}function H(t){return(t<<1)-(4<t?9:0)}function rt(t){for(var O=t.length;0<=--O;)t[O]=0}function E(t){var O=t.state,T=O.pending;T>t.avail_out&&(T=t.avail_out),T!==0&&(i.arraySet(t.output,O.pending_buf,O.pending_out,T,t.next_out),t.next_out+=T,O.pending_out+=T,t.total_out+=T,t.avail_out-=T,O.pending-=T,O.pending===0&&(O.pending_out=0))}function A(t,O){n._tr_flush_block(t,0<=t.block_start?t.block_start:-1,t.strstart-t.block_start,O),t.block_start=t.strstart,E(t.strm)}function q(t,O){t.pending_buf[t.pending++]=O}function V(t,O){t.pending_buf[t.pending++]=O>>>8&255,t.pending_buf[t.pending++]=255&O}function G(t,O){var T,p,f=t.max_chain_length,C=t.strstart,L=t.prev_length,j=t.nice_match,B=t.strstart>t.w_size-$?t.strstart-(t.w_size-$):0,W=t.window,J=t.w_mask,Z=t.prev,X=t.strstart+P,ft=W[C+L-1],at=W[C+L];t.prev_length>=t.good_match&&(f>>=2),j>t.lookahead&&(j=t.lookahead);do if(W[(T=O)+L]===at&&W[T+L-1]===ft&&W[T]===W[C]&&W[++T]===W[C+1]){C+=2,T++;do;while(W[++C]===W[++T]&&W[++C]===W[++T]&&W[++C]===W[++T]&&W[++C]===W[++T]&&W[++C]===W[++T]&&W[++C]===W[++T]&&W[++C]===W[++T]&&W[++C]===W[++T]&&C<X);if(p=P-(X-C),C=X-P,L<p){if(t.match_start=O,j<=(L=p))break;ft=W[C+L-1],at=W[C+L]}}while((O=Z[O&J])>B&&--f!=0);return L<=t.lookahead?L:t.lookahead}function bt(t){var O,T,p,f,C,L,j,B,W,J,Z=t.w_size;do{if(f=t.window_size-t.lookahead-t.strstart,t.strstart>=Z+(Z-$)){for(i.arraySet(t.window,t.window,Z,Z,0),t.match_start-=Z,t.strstart-=Z,t.block_start-=Z,O=T=t.hash_size;p=t.head[--O],t.head[O]=Z<=p?p-Z:0,--T;);for(O=T=Z;p=t.prev[--O],t.prev[O]=Z<=p?p-Z:0,--T;);f+=Z}if(t.strm.avail_in===0)break;if(L=t.strm,j=t.window,B=t.strstart+t.lookahead,W=f,J=void 0,J=L.avail_in,W<J&&(J=W),T=J===0?0:(L.avail_in-=J,i.arraySet(j,L.input,L.next_in,J,B),L.state.wrap===1?L.adler=c(L.adler,j,J,B):L.state.wrap===2&&(L.adler=y(L.adler,j,J,B)),L.next_in+=J,L.total_in+=J,J),t.lookahead+=T,t.lookahead+t.insert>=R)for(C=t.strstart-t.insert,t.ins_h=t.window[C],t.ins_h=(t.ins_h<<t.hash_shift^t.window[C+1])&t.hash_mask;t.insert&&(t.ins_h=(t.ins_h<<t.hash_shift^t.window[C+R-1])&t.hash_mask,t.prev[C&t.w_mask]=t.head[t.ins_h],t.head[t.ins_h]=C,C++,t.insert--,!(t.lookahead+t.insert<R)););}while(t.lookahead<$&&t.strm.avail_in!==0)}function et(t,O){for(var T,p;;){if(t.lookahead<$){if(bt(t),t.lookahead<$&&O===v)return e;if(t.lookahead===0)break}if(T=0,t.lookahead>=R&&(t.ins_h=(t.ins_h<<t.hash_shift^t.window[t.strstart+R-1])&t.hash_mask,T=t.prev[t.strstart&t.w_mask]=t.head[t.ins_h],t.head[t.ins_h]=t.strstart),T!==0&&t.strstart-T<=t.w_size-$&&(t.match_length=G(t,T)),t.match_length>=R)if(p=n._tr_tally(t,t.strstart-t.match_start,t.match_length-R),t.lookahead-=t.match_length,t.match_length<=t.max_lazy_match&&t.lookahead>=R){for(t.match_length--;t.strstart++,t.ins_h=(t.ins_h<<t.hash_shift^t.window[t.strstart+R-1])&t.hash_mask,T=t.prev[t.strstart&t.w_mask]=t.head[t.ins_h],t.head[t.ins_h]=t.strstart,--t.match_length!=0;);t.strstart++}else t.strstart+=t.match_length,t.match_length=0,t.ins_h=t.window[t.strstart],t.ins_h=(t.ins_h<<t.hash_shift^t.window[t.strstart+1])&t.hash_mask;else p=n._tr_tally(t,0,t.window[t.strstart]),t.lookahead--,t.strstart++;if(p&&(A(t,!1),t.strm.avail_out===0))return e}return t.insert=t.strstart<R-1?t.strstart:R-1,O===g?(A(t,!0),t.strm.avail_out===0?Q:M):t.last_lit&&(A(t,!1),t.strm.avail_out===0)?e:D}function lt(t,O){for(var T,p,f;;){if(t.lookahead<$){if(bt(t),t.lookahead<$&&O===v)return e;if(t.lookahead===0)break}if(T=0,t.lookahead>=R&&(t.ins_h=(t.ins_h<<t.hash_shift^t.window[t.strstart+R-1])&t.hash_mask,T=t.prev[t.strstart&t.w_mask]=t.head[t.ins_h],t.head[t.ins_h]=t.strstart),t.prev_length=t.match_length,t.prev_match=t.match_start,t.match_length=R-1,T!==0&&t.prev_length<t.max_lazy_match&&t.strstart-T<=t.w_size-$&&(t.match_length=G(t,T),t.match_length<=5&&(t.strategy===1||t.match_length===R&&4096<t.strstart-t.match_start)&&(t.match_length=R-1)),t.prev_length>=R&&t.match_length<=t.prev_length){for(f=t.strstart+t.lookahead-R,p=n._tr_tally(t,t.strstart-1-t.prev_match,t.prev_length-R),t.lookahead-=t.prev_length-1,t.prev_length-=2;++t.strstart<=f&&(t.ins_h=(t.ins_h<<t.hash_shift^t.window[t.strstart+R-1])&t.hash_mask,T=t.prev[t.strstart&t.w_mask]=t.head[t.ins_h],t.head[t.ins_h]=t.strstart),--t.prev_length!=0;);if(t.match_available=0,t.match_length=R-1,t.strstart++,p&&(A(t,!1),t.strm.avail_out===0))return e}else if(t.match_available){if((p=n._tr_tally(t,0,t.window[t.strstart-1]))&&A(t,!1),t.strstart++,t.lookahead--,t.strm.avail_out===0)return e}else t.match_available=1,t.strstart++,t.lookahead--}return t.match_available&&(p=n._tr_tally(t,0,t.window[t.strstart-1]),t.match_available=0),t.insert=t.strstart<R-1?t.strstart:R-1,O===g?(A(t,!0),t.strm.avail_out===0?Q:M):t.last_lit&&(A(t,!1),t.strm.avail_out===0)?e:D}function ut(t,O,T,p,f){this.good_length=t,this.max_lazy=O,this.nice_length=T,this.max_chain=p,this.func=f}function mt(){this.strm=null,this.status=0,this.pending_buf=null,this.pending_buf_size=0,this.pending_out=0,this.pending=0,this.wrap=0,this.gzhead=null,this.gzindex=0,this.method=m,this.last_flush=-1,this.w_size=0,this.w_bits=0,this.w_mask=0,this.window=null,this.window_size=0,this.prev=null,this.head=null,this.ins_h=0,this.hash_size=0,this.hash_bits=0,this.hash_mask=0,this.hash_shift=0,this.block_start=0,this.match_length=0,this.prev_match=0,this.match_available=0,this.strstart=0,this.match_start=0,this.lookahead=0,this.prev_length=0,this.max_chain_length=0,this.max_lazy_match=0,this.level=0,this.strategy=0,this.good_match=0,this.nice_match=0,this.dyn_ltree=new i.Buf16(2*I),this.dyn_dtree=new i.Buf16(2*(2*S+1)),this.bl_tree=new i.Buf16(2*(2*U+1)),rt(this.dyn_ltree),rt(this.dyn_dtree),rt(this.bl_tree),this.l_desc=null,this.d_desc=null,this.bl_desc=null,this.bl_count=new i.Buf16(F+1),this.heap=new i.Buf16(2*N+1),rt(this.heap),this.heap_len=0,this.heap_max=0,this.depth=new i.Buf16(2*N+1),rt(this.depth),this.l_buf=0,this.lit_bufsize=0,this.last_lit=0,this.d_buf=0,this.opt_len=0,this.static_len=0,this.matches=0,this.insert=0,this.bi_buf=0,this.bi_valid=0}function ht(t){var O;return t&&t.state?(t.total_in=t.total_out=0,t.data_type=l,(O=t.state).pending=0,O.pending_out=0,O.wrap<0&&(O.wrap=-O.wrap),O.status=O.wrap?b:z,t.adler=O.wrap===2?0:1,O.last_flush=v,n._tr_init(O),s):nt(t,h)}function St(t){var O=ht(t);return O===s&&(function(T){T.window_size=2*T.w_size,rt(T.head),T.max_lazy_match=o[T.level].max_lazy,T.good_match=o[T.level].good_length,T.nice_match=o[T.level].nice_length,T.max_chain_length=o[T.level].max_chain,T.strstart=0,T.block_start=0,T.lookahead=0,T.insert=0,T.match_length=T.prev_length=R-1,T.match_available=0,T.ins_h=0})(t.state),O}function _t(t,O,T,p,f,C){if(!t)return h;var L=1;if(O===a&&(O=6),p<0?(L=0,p=-p):15<p&&(L=2,p-=16),f<1||k<f||T!==m||p<8||15<p||O<0||9<O||C<0||d<C)return nt(t,h);p===8&&(p=9);var j=new mt;return(t.state=j).strm=t,j.wrap=L,j.gzhead=null,j.w_bits=p,j.w_size=1<<j.w_bits,j.w_mask=j.w_size-1,j.hash_bits=f+7,j.hash_size=1<<j.hash_bits,j.hash_mask=j.hash_size-1,j.hash_shift=~~((j.hash_bits+R-1)/R),j.window=new i.Buf8(2*j.w_size),j.head=new i.Buf16(j.hash_size),j.prev=new i.Buf16(j.w_size),j.lit_bufsize=1<<f+6,j.pending_buf_size=4*j.lit_bufsize,j.pending_buf=new i.Buf8(j.pending_buf_size),j.d_buf=1*j.lit_bufsize,j.l_buf=3*j.lit_bufsize,j.level=O,j.strategy=C,j.method=T,St(t)}o=[new ut(0,0,0,0,function(t,O){var T=65535;for(T>t.pending_buf_size-5&&(T=t.pending_buf_size-5);;){if(t.lookahead<=1){if(bt(t),t.lookahead===0&&O===v)return e;if(t.lookahead===0)break}t.strstart+=t.lookahead,t.lookahead=0;var p=t.block_start+T;if((t.strstart===0||t.strstart>=p)&&(t.lookahead=t.strstart-p,t.strstart=p,A(t,!1),t.strm.avail_out===0)||t.strstart-t.block_start>=t.w_size-$&&(A(t,!1),t.strm.avail_out===0))return e}return t.insert=0,O===g?(A(t,!0),t.strm.avail_out===0?Q:M):(t.strstart>t.block_start&&(A(t,!1),t.strm.avail_out),e)}),new ut(4,4,8,4,et),new ut(4,5,16,8,et),new ut(4,6,32,32,et),new ut(4,4,16,16,lt),new ut(8,16,32,32,lt),new ut(8,16,128,128,lt),new ut(8,32,128,256,lt),new ut(32,128,258,1024,lt),new ut(32,258,258,4096,lt)],u.deflateInit=function(t,O){return _t(t,O,m,15,8,0)},u.deflateInit2=_t,u.deflateReset=St,u.deflateResetKeep=ht,u.deflateSetHeader=function(t,O){return t&&t.state?t.state.wrap!==2?h:(t.state.gzhead=O,s):h},u.deflate=function(t,O){var T,p,f,C;if(!t||!t.state||5<O||O<0)return t?nt(t,h):h;if(p=t.state,!t.output||!t.input&&t.avail_in!==0||p.status===666&&O!==g)return nt(t,t.avail_out===0?-5:h);if(p.strm=t,T=p.last_flush,p.last_flush=O,p.status===b)if(p.wrap===2)t.adler=0,q(p,31),q(p,139),q(p,8),p.gzhead?(q(p,(p.gzhead.text?1:0)+(p.gzhead.hcrc?2:0)+(p.gzhead.extra?4:0)+(p.gzhead.name?8:0)+(p.gzhead.comment?16:0)),q(p,255&p.gzhead.time),q(p,p.gzhead.time>>8&255),q(p,p.gzhead.time>>16&255),q(p,p.gzhead.time>>24&255),q(p,p.level===9?2:2<=p.strategy||p.level<2?4:0),q(p,255&p.gzhead.os),p.gzhead.extra&&p.gzhead.extra.length&&(q(p,255&p.gzhead.extra.length),q(p,p.gzhead.extra.length>>8&255)),p.gzhead.hcrc&&(t.adler=y(t.adler,p.pending_buf,p.pending,0)),p.gzindex=0,p.status=69):(q(p,0),q(p,0),q(p,0),q(p,0),q(p,0),q(p,p.level===9?2:2<=p.strategy||p.level<2?4:0),q(p,3),p.status=z);else{var L=m+(p.w_bits-8<<4)<<8;L|=(2<=p.strategy||p.level<2?0:p.level<6?1:p.level===6?2:3)<<6,p.strstart!==0&&(L|=32),L+=31-L%31,p.status=z,V(p,L),p.strstart!==0&&(V(p,t.adler>>>16),V(p,65535&t.adler)),t.adler=1}if(p.status===69)if(p.gzhead.extra){for(f=p.pending;p.gzindex<(65535&p.gzhead.extra.length)&&(p.pending!==p.pending_buf_size||(p.gzhead.hcrc&&p.pending>f&&(t.adler=y(t.adler,p.pending_buf,p.pending-f,f)),E(t),f=p.pending,p.pending!==p.pending_buf_size));)q(p,255&p.gzhead.extra[p.gzindex]),p.gzindex++;p.gzhead.hcrc&&p.pending>f&&(t.adler=y(t.adler,p.pending_buf,p.pending-f,f)),p.gzindex===p.gzhead.extra.length&&(p.gzindex=0,p.status=73)}else p.status=73;if(p.status===73)if(p.gzhead.name){f=p.pending;do{if(p.pending===p.pending_buf_size&&(p.gzhead.hcrc&&p.pending>f&&(t.adler=y(t.adler,p.pending_buf,p.pending-f,f)),E(t),f=p.pending,p.pending===p.pending_buf_size)){C=1;break}C=p.gzindex<p.gzhead.name.length?255&p.gzhead.name.charCodeAt(p.gzindex++):0,q(p,C)}while(C!==0);p.gzhead.hcrc&&p.pending>f&&(t.adler=y(t.adler,p.pending_buf,p.pending-f,f)),C===0&&(p.gzindex=0,p.status=91)}else p.status=91;if(p.status===91)if(p.gzhead.comment){f=p.pending;do{if(p.pending===p.pending_buf_size&&(p.gzhead.hcrc&&p.pending>f&&(t.adler=y(t.adler,p.pending_buf,p.pending-f,f)),E(t),f=p.pending,p.pending===p.pending_buf_size)){C=1;break}C=p.gzindex<p.gzhead.comment.length?255&p.gzhead.comment.charCodeAt(p.gzindex++):0,q(p,C)}while(C!==0);p.gzhead.hcrc&&p.pending>f&&(t.adler=y(t.adler,p.pending_buf,p.pending-f,f)),C===0&&(p.status=103)}else p.status=103;if(p.status===103&&(p.gzhead.hcrc?(p.pending+2>p.pending_buf_size&&E(t),p.pending+2<=p.pending_buf_size&&(q(p,255&t.adler),q(p,t.adler>>8&255),t.adler=0,p.status=z)):p.status=z),p.pending!==0){if(E(t),t.avail_out===0)return p.last_flush=-1,s}else if(t.avail_in===0&&H(O)<=H(T)&&O!==g)return nt(t,-5);if(p.status===666&&t.avail_in!==0)return nt(t,-5);if(t.avail_in!==0||p.lookahead!==0||O!==v&&p.status!==666){var j=p.strategy===2?(function(B,W){for(var J;;){if(B.lookahead===0&&(bt(B),B.lookahead===0)){if(W===v)return e;break}if(B.match_length=0,J=n._tr_tally(B,0,B.window[B.strstart]),B.lookahead--,B.strstart++,J&&(A(B,!1),B.strm.avail_out===0))return e}return B.insert=0,W===g?(A(B,!0),B.strm.avail_out===0?Q:M):B.last_lit&&(A(B,!1),B.strm.avail_out===0)?e:D})(p,O):p.strategy===3?(function(B,W){for(var J,Z,X,ft,at=B.window;;){if(B.lookahead<=P){if(bt(B),B.lookahead<=P&&W===v)return e;if(B.lookahead===0)break}if(B.match_length=0,B.lookahead>=R&&0<B.strstart&&(Z=at[X=B.strstart-1])===at[++X]&&Z===at[++X]&&Z===at[++X]){ft=B.strstart+P;do;while(Z===at[++X]&&Z===at[++X]&&Z===at[++X]&&Z===at[++X]&&Z===at[++X]&&Z===at[++X]&&Z===at[++X]&&Z===at[++X]&&X<ft);B.match_length=P-(ft-X),B.match_length>B.lookahead&&(B.match_length=B.lookahead)}if(B.match_length>=R?(J=n._tr_tally(B,1,B.match_length-R),B.lookahead-=B.match_length,B.strstart+=B.match_length,B.match_length=0):(J=n._tr_tally(B,0,B.window[B.strstart]),B.lookahead--,B.strstart++),J&&(A(B,!1),B.strm.avail_out===0))return e}return B.insert=0,W===g?(A(B,!0),B.strm.avail_out===0?Q:M):B.last_lit&&(A(B,!1),B.strm.avail_out===0)?e:D})(p,O):o[p.level].func(p,O);if(j!==Q&&j!==M||(p.status=666),j===e||j===Q)return t.avail_out===0&&(p.last_flush=-1),s;if(j===D&&(O===1?n._tr_align(p):O!==5&&(n._tr_stored_block(p,0,0,!1),O===3&&(rt(p.head),p.lookahead===0&&(p.strstart=0,p.block_start=0,p.insert=0))),E(t),t.avail_out===0))return p.last_flush=-1,s}return O!==g?s:p.wrap<=0?1:(p.wrap===2?(q(p,255&t.adler),q(p,t.adler>>8&255),q(p,t.adler>>16&255),q(p,t.adler>>24&255),q(p,255&t.total_in),q(p,t.total_in>>8&255),q(p,t.total_in>>16&255),q(p,t.total_in>>24&255)):(V(p,t.adler>>>16),V(p,65535&t.adler)),E(t),0<p.wrap&&(p.wrap=-p.wrap),p.pending!==0?s:1)},u.deflateEnd=function(t){var O;return t&&t.state?(O=t.state.status)!==b&&O!==69&&O!==73&&O!==91&&O!==103&&O!==z&&O!==666?nt(t,h):(t.state=null,O===z?nt(t,-3):s):h},u.deflateSetDictionary=function(t,O){var T,p,f,C,L,j,B,W,J=O.length;if(!t||!t.state||(C=(T=t.state).wrap)===2||C===1&&T.status!==b||T.lookahead)return h;for(C===1&&(t.adler=c(t.adler,O,J,0)),T.wrap=0,J>=T.w_size&&(C===0&&(rt(T.head),T.strstart=0,T.block_start=0,T.insert=0),W=new i.Buf8(T.w_size),i.arraySet(W,O,J-T.w_size,T.w_size,0),O=W,J=T.w_size),L=t.avail_in,j=t.next_in,B=t.input,t.avail_in=J,t.next_in=0,t.input=O,bt(T);T.lookahead>=R;){for(p=T.strstart,f=T.lookahead-(R-1);T.ins_h=(T.ins_h<<T.hash_shift^T.window[p+R-1])&T.hash_mask,T.prev[p&T.w_mask]=T.head[T.ins_h],T.head[T.ins_h]=p,p++,--f;);T.strstart=p,T.lookahead=R-1,bt(T)}return T.strstart+=T.lookahead,T.block_start=T.strstart,T.insert=T.lookahead,T.lookahead=0,T.match_length=T.prev_length=R-1,T.match_available=0,t.next_in=j,t.input=B,t.avail_in=L,T.wrap=C,s},u.deflateInfo="pako deflate (from Nodeca project)"},{"../utils/common":41,"./adler32":43,"./crc32":45,"./messages":51,"./trees":52}],47:[function(r,w,u){"use strict";w.exports=function(){this.text=0,this.time=0,this.xflags=0,this.os=0,this.extra=null,this.extra_len=0,this.name="",this.comment="",this.hcrc=0,this.done=!1}},{}],48:[function(r,w,u){"use strict";w.exports=function(o,i){var n,c,y,_,v,g,s,h,a,d,l,m,k,N,S,U,I,F,R,P,$,b,z,e,D;n=o.state,c=o.next_in,e=o.input,y=c+(o.avail_in-5),_=o.next_out,D=o.output,v=_-(i-o.avail_out),g=_+(o.avail_out-257),s=n.dmax,h=n.wsize,a=n.whave,d=n.wnext,l=n.window,m=n.hold,k=n.bits,N=n.lencode,S=n.distcode,U=(1<<n.lenbits)-1,I=(1<<n.distbits)-1;t:do{k<15&&(m+=e[c++]<<k,k+=8,m+=e[c++]<<k,k+=8),F=N[m&U];e:for(;;){if(m>>>=R=F>>>24,k-=R,(R=F>>>16&255)===0)D[_++]=65535&F;else{if(!(16&R)){if((64&R)==0){F=N[(65535&F)+(m&(1<<R)-1)];continue e}if(32&R){n.mode=12;break t}o.msg="invalid literal/length code",n.mode=30;break t}P=65535&F,(R&=15)&&(k<R&&(m+=e[c++]<<k,k+=8),P+=m&(1<<R)-1,m>>>=R,k-=R),k<15&&(m+=e[c++]<<k,k+=8,m+=e[c++]<<k,k+=8),F=S[m&I];r:for(;;){if(m>>>=R=F>>>24,k-=R,!(16&(R=F>>>16&255))){if((64&R)==0){F=S[(65535&F)+(m&(1<<R)-1)];continue r}o.msg="invalid distance code",n.mode=30;break t}if($=65535&F,k<(R&=15)&&(m+=e[c++]<<k,(k+=8)<R&&(m+=e[c++]<<k,k+=8)),s<($+=m&(1<<R)-1)){o.msg="invalid distance too far back",n.mode=30;break t}if(m>>>=R,k-=R,(R=_-v)<$){if(a<(R=$-R)&&n.sane){o.msg="invalid distance too far back",n.mode=30;break t}if(z=l,(b=0)===d){if(b+=h-R,R<P){for(P-=R;D[_++]=l[b++],--R;);b=_-$,z=D}}else if(d<R){if(b+=h+d-R,(R-=d)<P){for(P-=R;D[_++]=l[b++],--R;);if(b=0,d<P){for(P-=R=d;D[_++]=l[b++],--R;);b=_-$,z=D}}}else if(b+=d-R,R<P){for(P-=R;D[_++]=l[b++],--R;);b=_-$,z=D}for(;2<P;)D[_++]=z[b++],D[_++]=z[b++],D[_++]=z[b++],P-=3;P&&(D[_++]=z[b++],1<P&&(D[_++]=z[b++]))}else{for(b=_-$;D[_++]=D[b++],D[_++]=D[b++],D[_++]=D[b++],2<(P-=3););P&&(D[_++]=D[b++],1<P&&(D[_++]=D[b++]))}break}}break}}while(c<y&&_<g);c-=P=k>>3,m&=(1<<(k-=P<<3))-1,o.next_in=c,o.next_out=_,o.avail_in=c<y?y-c+5:5-(c-y),o.avail_out=_<g?g-_+257:257-(_-g),n.hold=m,n.bits=k}},{}],49:[function(r,w,u){"use strict";var o=r("../utils/common"),i=r("./adler32"),n=r("./crc32"),c=r("./inffast"),y=r("./inftrees"),_=1,v=2,g=0,s=-2,h=1,a=852,d=592;function l(b){return(b>>>24&255)+(b>>>8&65280)+((65280&b)<<8)+((255&b)<<24)}function m(){this.mode=0,this.last=!1,this.wrap=0,this.havedict=!1,this.flags=0,this.dmax=0,this.check=0,this.total=0,this.head=null,this.wbits=0,this.wsize=0,this.whave=0,this.wnext=0,this.window=null,this.hold=0,this.bits=0,this.length=0,this.offset=0,this.extra=0,this.lencode=null,this.distcode=null,this.lenbits=0,this.distbits=0,this.ncode=0,this.nlen=0,this.ndist=0,this.have=0,this.next=null,this.lens=new o.Buf16(320),this.work=new o.Buf16(288),this.lendyn=null,this.distdyn=null,this.sane=0,this.back=0,this.was=0}function k(b){var z;return b&&b.state?(z=b.state,b.total_in=b.total_out=z.total=0,b.msg="",z.wrap&&(b.adler=1&z.wrap),z.mode=h,z.last=0,z.havedict=0,z.dmax=32768,z.head=null,z.hold=0,z.bits=0,z.lencode=z.lendyn=new o.Buf32(a),z.distcode=z.distdyn=new o.Buf32(d),z.sane=1,z.back=-1,g):s}function N(b){var z;return b&&b.state?((z=b.state).wsize=0,z.whave=0,z.wnext=0,k(b)):s}function S(b,z){var e,D;return b&&b.state?(D=b.state,z<0?(e=0,z=-z):(e=1+(z>>4),z<48&&(z&=15)),z&&(z<8||15<z)?s:(D.window!==null&&D.wbits!==z&&(D.window=null),D.wrap=e,D.wbits=z,N(b))):s}function U(b,z){var e,D;return b?(D=new m,(b.state=D).window=null,(e=S(b,z))!==g&&(b.state=null),e):s}var I,F,R=!0;function P(b){if(R){var z;for(I=new o.Buf32(512),F=new o.Buf32(32),z=0;z<144;)b.lens[z++]=8;for(;z<256;)b.lens[z++]=9;for(;z<280;)b.lens[z++]=7;for(;z<288;)b.lens[z++]=8;for(y(_,b.lens,0,288,I,0,b.work,{bits:9}),z=0;z<32;)b.lens[z++]=5;y(v,b.lens,0,32,F,0,b.work,{bits:5}),R=!1}b.lencode=I,b.lenbits=9,b.distcode=F,b.distbits=5}function $(b,z,e,D){var Q,M=b.state;return M.window===null&&(M.wsize=1<<M.wbits,M.wnext=0,M.whave=0,M.window=new o.Buf8(M.wsize)),D>=M.wsize?(o.arraySet(M.window,z,e-M.wsize,M.wsize,0),M.wnext=0,M.whave=M.wsize):(D<(Q=M.wsize-M.wnext)&&(Q=D),o.arraySet(M.window,z,e-D,Q,M.wnext),(D-=Q)?(o.arraySet(M.window,z,e-D,D,0),M.wnext=D,M.whave=M.wsize):(M.wnext+=Q,M.wnext===M.wsize&&(M.wnext=0),M.whave<M.wsize&&(M.whave+=Q))),0}u.inflateReset=N,u.inflateReset2=S,u.inflateResetKeep=k,u.inflateInit=function(b){return U(b,15)},u.inflateInit2=U,u.inflate=function(b,z){var e,D,Q,M,nt,H,rt,E,A,q,V,G,bt,et,lt,ut,mt,ht,St,_t,t,O,T,p,f=0,C=new o.Buf8(4),L=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];if(!b||!b.state||!b.output||!b.input&&b.avail_in!==0)return s;(e=b.state).mode===12&&(e.mode=13),nt=b.next_out,Q=b.output,rt=b.avail_out,M=b.next_in,D=b.input,H=b.avail_in,E=e.hold,A=e.bits,q=H,V=rt,O=g;t:for(;;)switch(e.mode){case h:if(e.wrap===0){e.mode=13;break}for(;A<16;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(2&e.wrap&&E===35615){C[e.check=0]=255&E,C[1]=E>>>8&255,e.check=n(e.check,C,2,0),A=E=0,e.mode=2;break}if(e.flags=0,e.head&&(e.head.done=!1),!(1&e.wrap)||(((255&E)<<8)+(E>>8))%31){b.msg="incorrect header check",e.mode=30;break}if((15&E)!=8){b.msg="unknown compression method",e.mode=30;break}if(A-=4,t=8+(15&(E>>>=4)),e.wbits===0)e.wbits=t;else if(t>e.wbits){b.msg="invalid window size",e.mode=30;break}e.dmax=1<<t,b.adler=e.check=1,e.mode=512&E?10:12,A=E=0;break;case 2:for(;A<16;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(e.flags=E,(255&e.flags)!=8){b.msg="unknown compression method",e.mode=30;break}if(57344&e.flags){b.msg="unknown header flags set",e.mode=30;break}e.head&&(e.head.text=E>>8&1),512&e.flags&&(C[0]=255&E,C[1]=E>>>8&255,e.check=n(e.check,C,2,0)),A=E=0,e.mode=3;case 3:for(;A<32;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}e.head&&(e.head.time=E),512&e.flags&&(C[0]=255&E,C[1]=E>>>8&255,C[2]=E>>>16&255,C[3]=E>>>24&255,e.check=n(e.check,C,4,0)),A=E=0,e.mode=4;case 4:for(;A<16;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}e.head&&(e.head.xflags=255&E,e.head.os=E>>8),512&e.flags&&(C[0]=255&E,C[1]=E>>>8&255,e.check=n(e.check,C,2,0)),A=E=0,e.mode=5;case 5:if(1024&e.flags){for(;A<16;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}e.length=E,e.head&&(e.head.extra_len=E),512&e.flags&&(C[0]=255&E,C[1]=E>>>8&255,e.check=n(e.check,C,2,0)),A=E=0}else e.head&&(e.head.extra=null);e.mode=6;case 6:if(1024&e.flags&&(H<(G=e.length)&&(G=H),G&&(e.head&&(t=e.head.extra_len-e.length,e.head.extra||(e.head.extra=new Array(e.head.extra_len)),o.arraySet(e.head.extra,D,M,G,t)),512&e.flags&&(e.check=n(e.check,D,G,M)),H-=G,M+=G,e.length-=G),e.length))break t;e.length=0,e.mode=7;case 7:if(2048&e.flags){if(H===0)break t;for(G=0;t=D[M+G++],e.head&&t&&e.length<65536&&(e.head.name+=String.fromCharCode(t)),t&&G<H;);if(512&e.flags&&(e.check=n(e.check,D,G,M)),H-=G,M+=G,t)break t}else e.head&&(e.head.name=null);e.length=0,e.mode=8;case 8:if(4096&e.flags){if(H===0)break t;for(G=0;t=D[M+G++],e.head&&t&&e.length<65536&&(e.head.comment+=String.fromCharCode(t)),t&&G<H;);if(512&e.flags&&(e.check=n(e.check,D,G,M)),H-=G,M+=G,t)break t}else e.head&&(e.head.comment=null);e.mode=9;case 9:if(512&e.flags){for(;A<16;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(E!==(65535&e.check)){b.msg="header crc mismatch",e.mode=30;break}A=E=0}e.head&&(e.head.hcrc=e.flags>>9&1,e.head.done=!0),b.adler=e.check=0,e.mode=12;break;case 10:for(;A<32;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}b.adler=e.check=l(E),A=E=0,e.mode=11;case 11:if(e.havedict===0)return b.next_out=nt,b.avail_out=rt,b.next_in=M,b.avail_in=H,e.hold=E,e.bits=A,2;b.adler=e.check=1,e.mode=12;case 12:if(z===5||z===6)break t;case 13:if(e.last){E>>>=7&A,A-=7&A,e.mode=27;break}for(;A<3;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}switch(e.last=1&E,A-=1,3&(E>>>=1)){case 0:e.mode=14;break;case 1:if(P(e),e.mode=20,z!==6)break;E>>>=2,A-=2;break t;case 2:e.mode=17;break;case 3:b.msg="invalid block type",e.mode=30}E>>>=2,A-=2;break;case 14:for(E>>>=7&A,A-=7&A;A<32;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if((65535&E)!=(E>>>16^65535)){b.msg="invalid stored block lengths",e.mode=30;break}if(e.length=65535&E,A=E=0,e.mode=15,z===6)break t;case 15:e.mode=16;case 16:if(G=e.length){if(H<G&&(G=H),rt<G&&(G=rt),G===0)break t;o.arraySet(Q,D,M,G,nt),H-=G,M+=G,rt-=G,nt+=G,e.length-=G;break}e.mode=12;break;case 17:for(;A<14;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(e.nlen=257+(31&E),E>>>=5,A-=5,e.ndist=1+(31&E),E>>>=5,A-=5,e.ncode=4+(15&E),E>>>=4,A-=4,286<e.nlen||30<e.ndist){b.msg="too many length or distance symbols",e.mode=30;break}e.have=0,e.mode=18;case 18:for(;e.have<e.ncode;){for(;A<3;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}e.lens[L[e.have++]]=7&E,E>>>=3,A-=3}for(;e.have<19;)e.lens[L[e.have++]]=0;if(e.lencode=e.lendyn,e.lenbits=7,T={bits:e.lenbits},O=y(0,e.lens,0,19,e.lencode,0,e.work,T),e.lenbits=T.bits,O){b.msg="invalid code lengths set",e.mode=30;break}e.have=0,e.mode=19;case 19:for(;e.have<e.nlen+e.ndist;){for(;ut=(f=e.lencode[E&(1<<e.lenbits)-1])>>>16&255,mt=65535&f,!((lt=f>>>24)<=A);){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(mt<16)E>>>=lt,A-=lt,e.lens[e.have++]=mt;else{if(mt===16){for(p=lt+2;A<p;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(E>>>=lt,A-=lt,e.have===0){b.msg="invalid bit length repeat",e.mode=30;break}t=e.lens[e.have-1],G=3+(3&E),E>>>=2,A-=2}else if(mt===17){for(p=lt+3;A<p;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}A-=lt,t=0,G=3+(7&(E>>>=lt)),E>>>=3,A-=3}else{for(p=lt+7;A<p;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}A-=lt,t=0,G=11+(127&(E>>>=lt)),E>>>=7,A-=7}if(e.have+G>e.nlen+e.ndist){b.msg="invalid bit length repeat",e.mode=30;break}for(;G--;)e.lens[e.have++]=t}}if(e.mode===30)break;if(e.lens[256]===0){b.msg="invalid code -- missing end-of-block",e.mode=30;break}if(e.lenbits=9,T={bits:e.lenbits},O=y(_,e.lens,0,e.nlen,e.lencode,0,e.work,T),e.lenbits=T.bits,O){b.msg="invalid literal/lengths set",e.mode=30;break}if(e.distbits=6,e.distcode=e.distdyn,T={bits:e.distbits},O=y(v,e.lens,e.nlen,e.ndist,e.distcode,0,e.work,T),e.distbits=T.bits,O){b.msg="invalid distances set",e.mode=30;break}if(e.mode=20,z===6)break t;case 20:e.mode=21;case 21:if(6<=H&&258<=rt){b.next_out=nt,b.avail_out=rt,b.next_in=M,b.avail_in=H,e.hold=E,e.bits=A,c(b,V),nt=b.next_out,Q=b.output,rt=b.avail_out,M=b.next_in,D=b.input,H=b.avail_in,E=e.hold,A=e.bits,e.mode===12&&(e.back=-1);break}for(e.back=0;ut=(f=e.lencode[E&(1<<e.lenbits)-1])>>>16&255,mt=65535&f,!((lt=f>>>24)<=A);){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(ut&&(240&ut)==0){for(ht=lt,St=ut,_t=mt;ut=(f=e.lencode[_t+((E&(1<<ht+St)-1)>>ht)])>>>16&255,mt=65535&f,!(ht+(lt=f>>>24)<=A);){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}E>>>=ht,A-=ht,e.back+=ht}if(E>>>=lt,A-=lt,e.back+=lt,e.length=mt,ut===0){e.mode=26;break}if(32&ut){e.back=-1,e.mode=12;break}if(64&ut){b.msg="invalid literal/length code",e.mode=30;break}e.extra=15&ut,e.mode=22;case 22:if(e.extra){for(p=e.extra;A<p;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}e.length+=E&(1<<e.extra)-1,E>>>=e.extra,A-=e.extra,e.back+=e.extra}e.was=e.length,e.mode=23;case 23:for(;ut=(f=e.distcode[E&(1<<e.distbits)-1])>>>16&255,mt=65535&f,!((lt=f>>>24)<=A);){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if((240&ut)==0){for(ht=lt,St=ut,_t=mt;ut=(f=e.distcode[_t+((E&(1<<ht+St)-1)>>ht)])>>>16&255,mt=65535&f,!(ht+(lt=f>>>24)<=A);){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}E>>>=ht,A-=ht,e.back+=ht}if(E>>>=lt,A-=lt,e.back+=lt,64&ut){b.msg="invalid distance code",e.mode=30;break}e.offset=mt,e.extra=15&ut,e.mode=24;case 24:if(e.extra){for(p=e.extra;A<p;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}e.offset+=E&(1<<e.extra)-1,E>>>=e.extra,A-=e.extra,e.back+=e.extra}if(e.offset>e.dmax){b.msg="invalid distance too far back",e.mode=30;break}e.mode=25;case 25:if(rt===0)break t;if(G=V-rt,e.offset>G){if((G=e.offset-G)>e.whave&&e.sane){b.msg="invalid distance too far back",e.mode=30;break}bt=G>e.wnext?(G-=e.wnext,e.wsize-G):e.wnext-G,G>e.length&&(G=e.length),et=e.window}else et=Q,bt=nt-e.offset,G=e.length;for(rt<G&&(G=rt),rt-=G,e.length-=G;Q[nt++]=et[bt++],--G;);e.length===0&&(e.mode=21);break;case 26:if(rt===0)break t;Q[nt++]=e.length,rt--,e.mode=21;break;case 27:if(e.wrap){for(;A<32;){if(H===0)break t;H--,E|=D[M++]<<A,A+=8}if(V-=rt,b.total_out+=V,e.total+=V,V&&(b.adler=e.check=e.flags?n(e.check,Q,V,nt-V):i(e.check,Q,V,nt-V)),V=rt,(e.flags?E:l(E))!==e.check){b.msg="incorrect data check",e.mode=30;break}A=E=0}e.mode=28;case 28:if(e.wrap&&e.flags){for(;A<32;){if(H===0)break t;H--,E+=D[M++]<<A,A+=8}if(E!==(4294967295&e.total)){b.msg="incorrect length check",e.mode=30;break}A=E=0}e.mode=29;case 29:O=1;break t;case 30:O=-3;break t;case 31:return-4;case 32:default:return s}return b.next_out=nt,b.avail_out=rt,b.next_in=M,b.avail_in=H,e.hold=E,e.bits=A,(e.wsize||V!==b.avail_out&&e.mode<30&&(e.mode<27||z!==4))&&$(b,b.output,b.next_out,V-b.avail_out)?(e.mode=31,-4):(q-=b.avail_in,V-=b.avail_out,b.total_in+=q,b.total_out+=V,e.total+=V,e.wrap&&V&&(b.adler=e.check=e.flags?n(e.check,Q,V,b.next_out-V):i(e.check,Q,V,b.next_out-V)),b.data_type=e.bits+(e.last?64:0)+(e.mode===12?128:0)+(e.mode===20||e.mode===15?256:0),(q==0&&V===0||z===4)&&O===g&&(O=-5),O)},u.inflateEnd=function(b){if(!b||!b.state)return s;var z=b.state;return z.window&&(z.window=null),b.state=null,g},u.inflateGetHeader=function(b,z){var e;return b&&b.state?(2&(e=b.state).wrap)==0?s:((e.head=z).done=!1,g):s},u.inflateSetDictionary=function(b,z){var e,D=z.length;return b&&b.state?(e=b.state).wrap!==0&&e.mode!==11?s:e.mode===11&&i(1,z,D,0)!==e.check?-3:$(b,z,D,D)?(e.mode=31,-4):(e.havedict=1,g):s},u.inflateInfo="pako inflate (from Nodeca project)"},{"../utils/common":41,"./adler32":43,"./crc32":45,"./inffast":48,"./inftrees":50}],50:[function(r,w,u){"use strict";var o=r("../utils/common"),i=[3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258,0,0],n=[16,16,16,16,16,16,16,16,17,17,17,17,18,18,18,18,19,19,19,19,20,20,20,20,21,21,21,21,16,72,78],c=[1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577,0,0],y=[16,16,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,64,64];w.exports=function(_,v,g,s,h,a,d,l){var m,k,N,S,U,I,F,R,P,$=l.bits,b=0,z=0,e=0,D=0,Q=0,M=0,nt=0,H=0,rt=0,E=0,A=null,q=0,V=new o.Buf16(16),G=new o.Buf16(16),bt=null,et=0;for(b=0;b<=15;b++)V[b]=0;for(z=0;z<s;z++)V[v[g+z]]++;for(Q=$,D=15;1<=D&&V[D]===0;D--);if(D<Q&&(Q=D),D===0)return h[a++]=20971520,h[a++]=20971520,l.bits=1,0;for(e=1;e<D&&V[e]===0;e++);for(Q<e&&(Q=e),b=H=1;b<=15;b++)if(H<<=1,(H-=V[b])<0)return-1;if(0<H&&(_===0||D!==1))return-1;for(G[1]=0,b=1;b<15;b++)G[b+1]=G[b]+V[b];for(z=0;z<s;z++)v[g+z]!==0&&(d[G[v[g+z]]++]=z);if(I=_===0?(A=bt=d,19):_===1?(A=i,q-=257,bt=n,et-=257,256):(A=c,bt=y,-1),b=e,U=a,nt=z=E=0,N=-1,S=(rt=1<<(M=Q))-1,_===1&&852<rt||_===2&&592<rt)return 1;for(;;){for(F=b-nt,P=d[z]<I?(R=0,d[z]):d[z]>I?(R=bt[et+d[z]],A[q+d[z]]):(R=96,0),m=1<<b-nt,e=k=1<<M;h[U+(E>>nt)+(k-=m)]=F<<24|R<<16|P|0,k!==0;);for(m=1<<b-1;E&m;)m>>=1;if(m!==0?(E&=m-1,E+=m):E=0,z++,--V[b]==0){if(b===D)break;b=v[g+d[z]]}if(Q<b&&(E&S)!==N){for(nt===0&&(nt=Q),U+=e,H=1<<(M=b-nt);M+nt<D&&!((H-=V[M+nt])<=0);)M++,H<<=1;if(rt+=1<<M,_===1&&852<rt||_===2&&592<rt)return 1;h[N=E&S]=Q<<24|M<<16|U-a|0}}return E!==0&&(h[U+E]=b-nt<<24|64<<16|0),l.bits=Q,0}},{"../utils/common":41}],51:[function(r,w,u){"use strict";w.exports={2:"need dictionary",1:"stream end",0:"","-1":"file error","-2":"stream error","-3":"data error","-4":"insufficient memory","-5":"buffer error","-6":"incompatible version"}},{}],52:[function(r,w,u){"use strict";var o=r("../utils/common"),i=0,n=1;function c(f){for(var C=f.length;0<=--C;)f[C]=0}var y=0,_=29,v=256,g=v+1+_,s=30,h=19,a=2*g+1,d=15,l=16,m=7,k=256,N=16,S=17,U=18,I=[0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0],F=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13],R=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,3,7],P=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15],$=new Array(2*(g+2));c($);var b=new Array(2*s);c(b);var z=new Array(512);c(z);var e=new Array(256);c(e);var D=new Array(_);c(D);var Q,M,nt,H=new Array(s);function rt(f,C,L,j,B){this.static_tree=f,this.extra_bits=C,this.extra_base=L,this.elems=j,this.max_length=B,this.has_stree=f&&f.length}function E(f,C){this.dyn_tree=f,this.max_code=0,this.stat_desc=C}function A(f){return f<256?z[f]:z[256+(f>>>7)]}function q(f,C){f.pending_buf[f.pending++]=255&C,f.pending_buf[f.pending++]=C>>>8&255}function V(f,C,L){f.bi_valid>l-L?(f.bi_buf|=C<<f.bi_valid&65535,q(f,f.bi_buf),f.bi_buf=C>>l-f.bi_valid,f.bi_valid+=L-l):(f.bi_buf|=C<<f.bi_valid&65535,f.bi_valid+=L)}function G(f,C,L){V(f,L[2*C],L[2*C+1])}function bt(f,C){for(var L=0;L|=1&f,f>>>=1,L<<=1,0<--C;);return L>>>1}function et(f,C,L){var j,B,W=new Array(d+1),J=0;for(j=1;j<=d;j++)W[j]=J=J+L[j-1]<<1;for(B=0;B<=C;B++){var Z=f[2*B+1];Z!==0&&(f[2*B]=bt(W[Z]++,Z))}}function lt(f){var C;for(C=0;C<g;C++)f.dyn_ltree[2*C]=0;for(C=0;C<s;C++)f.dyn_dtree[2*C]=0;for(C=0;C<h;C++)f.bl_tree[2*C]=0;f.dyn_ltree[2*k]=1,f.opt_len=f.static_len=0,f.last_lit=f.matches=0}function ut(f){8<f.bi_valid?q(f,f.bi_buf):0<f.bi_valid&&(f.pending_buf[f.pending++]=f.bi_buf),f.bi_buf=0,f.bi_valid=0}function mt(f,C,L,j){var B=2*C,W=2*L;return f[B]<f[W]||f[B]===f[W]&&j[C]<=j[L]}function ht(f,C,L){for(var j=f.heap[L],B=L<<1;B<=f.heap_len&&(B<f.heap_len&&mt(C,f.heap[B+1],f.heap[B],f.depth)&&B++,!mt(C,j,f.heap[B],f.depth));)f.heap[L]=f.heap[B],L=B,B<<=1;f.heap[L]=j}function St(f,C,L){var j,B,W,J,Z=0;if(f.last_lit!==0)for(;j=f.pending_buf[f.d_buf+2*Z]<<8|f.pending_buf[f.d_buf+2*Z+1],B=f.pending_buf[f.l_buf+Z],Z++,j===0?G(f,B,C):(G(f,(W=e[B])+v+1,C),(J=I[W])!==0&&V(f,B-=D[W],J),G(f,W=A(--j),L),(J=F[W])!==0&&V(f,j-=H[W],J)),Z<f.last_lit;);G(f,k,C)}function _t(f,C){var L,j,B,W=C.dyn_tree,J=C.stat_desc.static_tree,Z=C.stat_desc.has_stree,X=C.stat_desc.elems,ft=-1;for(f.heap_len=0,f.heap_max=a,L=0;L<X;L++)W[2*L]!==0?(f.heap[++f.heap_len]=ft=L,f.depth[L]=0):W[2*L+1]=0;for(;f.heap_len<2;)W[2*(B=f.heap[++f.heap_len]=ft<2?++ft:0)]=1,f.depth[B]=0,f.opt_len--,Z&&(f.static_len-=J[2*B+1]);for(C.max_code=ft,L=f.heap_len>>1;1<=L;L--)ht(f,W,L);for(B=X;L=f.heap[1],f.heap[1]=f.heap[f.heap_len--],ht(f,W,1),j=f.heap[1],f.heap[--f.heap_max]=L,f.heap[--f.heap_max]=j,W[2*B]=W[2*L]+W[2*j],f.depth[B]=(f.depth[L]>=f.depth[j]?f.depth[L]:f.depth[j])+1,W[2*L+1]=W[2*j+1]=B,f.heap[1]=B++,ht(f,W,1),2<=f.heap_len;);f.heap[--f.heap_max]=f.heap[1],(function(at,vt){var At,wt,Ct,gt,zt,Rt,yt=vt.dyn_tree,Mt=vt.max_code,$t=vt.stat_desc.static_tree,Gt=vt.stat_desc.has_stree,Jt=vt.stat_desc.extra_bits,jt=vt.stat_desc.extra_base,It=vt.stat_desc.max_length,Ot=0;for(gt=0;gt<=d;gt++)at.bl_count[gt]=0;for(yt[2*at.heap[at.heap_max]+1]=0,At=at.heap_max+1;At<a;At++)It<(gt=yt[2*yt[2*(wt=at.heap[At])+1]+1]+1)&&(gt=It,Ot++),yt[2*wt+1]=gt,Mt<wt||(at.bl_count[gt]++,zt=0,jt<=wt&&(zt=Jt[wt-jt]),Rt=yt[2*wt],at.opt_len+=Rt*(gt+zt),Gt&&(at.static_len+=Rt*($t[2*wt+1]+zt)));if(Ot!==0){do{for(gt=It-1;at.bl_count[gt]===0;)gt--;at.bl_count[gt]--,at.bl_count[gt+1]+=2,at.bl_count[It]--,Ot-=2}while(0<Ot);for(gt=It;gt!==0;gt--)for(wt=at.bl_count[gt];wt!==0;)Mt<(Ct=at.heap[--At])||(yt[2*Ct+1]!==gt&&(at.opt_len+=(gt-yt[2*Ct+1])*yt[2*Ct],yt[2*Ct+1]=gt),wt--)}})(f,C),et(W,ft,f.bl_count)}function t(f,C,L){var j,B,W=-1,J=C[1],Z=0,X=7,ft=4;for(J===0&&(X=138,ft=3),C[2*(L+1)+1]=65535,j=0;j<=L;j++)B=J,J=C[2*(j+1)+1],++Z<X&&B===J||(Z<ft?f.bl_tree[2*B]+=Z:B!==0?(B!==W&&f.bl_tree[2*B]++,f.bl_tree[2*N]++):Z<=10?f.bl_tree[2*S]++:f.bl_tree[2*U]++,W=B,ft=(Z=0)===J?(X=138,3):B===J?(X=6,3):(X=7,4))}function O(f,C,L){var j,B,W=-1,J=C[1],Z=0,X=7,ft=4;for(J===0&&(X=138,ft=3),j=0;j<=L;j++)if(B=J,J=C[2*(j+1)+1],!(++Z<X&&B===J)){if(Z<ft)for(;G(f,B,f.bl_tree),--Z!=0;);else B!==0?(B!==W&&(G(f,B,f.bl_tree),Z--),G(f,N,f.bl_tree),V(f,Z-3,2)):Z<=10?(G(f,S,f.bl_tree),V(f,Z-3,3)):(G(f,U,f.bl_tree),V(f,Z-11,7));W=B,ft=(Z=0)===J?(X=138,3):B===J?(X=6,3):(X=7,4)}}c(H);var T=!1;function p(f,C,L,j){V(f,(y<<1)+(j?1:0),3),(function(B,W,J,Z){ut(B),Z&&(q(B,J),q(B,~J)),o.arraySet(B.pending_buf,B.window,W,J,B.pending),B.pending+=J})(f,C,L,!0)}u._tr_init=function(f){T||((function(){var C,L,j,B,W,J=new Array(d+1);for(B=j=0;B<_-1;B++)for(D[B]=j,C=0;C<1<<I[B];C++)e[j++]=B;for(e[j-1]=B,B=W=0;B<16;B++)for(H[B]=W,C=0;C<1<<F[B];C++)z[W++]=B;for(W>>=7;B<s;B++)for(H[B]=W<<7,C=0;C<1<<F[B]-7;C++)z[256+W++]=B;for(L=0;L<=d;L++)J[L]=0;for(C=0;C<=143;)$[2*C+1]=8,C++,J[8]++;for(;C<=255;)$[2*C+1]=9,C++,J[9]++;for(;C<=279;)$[2*C+1]=7,C++,J[7]++;for(;C<=287;)$[2*C+1]=8,C++,J[8]++;for(et($,g+1,J),C=0;C<s;C++)b[2*C+1]=5,b[2*C]=bt(C,5);Q=new rt($,I,v+1,g,d),M=new rt(b,F,0,s,d),nt=new rt(new Array(0),R,0,h,m)})(),T=!0),f.l_desc=new E(f.dyn_ltree,Q),f.d_desc=new E(f.dyn_dtree,M),f.bl_desc=new E(f.bl_tree,nt),f.bi_buf=0,f.bi_valid=0,lt(f)},u._tr_stored_block=p,u._tr_flush_block=function(f,C,L,j){var B,W,J=0;0<f.level?(f.strm.data_type===2&&(f.strm.data_type=(function(Z){var X,ft=4093624447;for(X=0;X<=31;X++,ft>>>=1)if(1&ft&&Z.dyn_ltree[2*X]!==0)return i;if(Z.dyn_ltree[18]!==0||Z.dyn_ltree[20]!==0||Z.dyn_ltree[26]!==0)return n;for(X=32;X<v;X++)if(Z.dyn_ltree[2*X]!==0)return n;return i})(f)),_t(f,f.l_desc),_t(f,f.d_desc),J=(function(Z){var X;for(t(Z,Z.dyn_ltree,Z.l_desc.max_code),t(Z,Z.dyn_dtree,Z.d_desc.max_code),_t(Z,Z.bl_desc),X=h-1;3<=X&&Z.bl_tree[2*P[X]+1]===0;X--);return Z.opt_len+=3*(X+1)+5+5+4,X})(f),B=f.opt_len+3+7>>>3,(W=f.static_len+3+7>>>3)<=B&&(B=W)):B=W=L+5,L+4<=B&&C!==-1?p(f,C,L,j):f.strategy===4||W===B?(V(f,2+(j?1:0),3),St(f,$,b)):(V(f,4+(j?1:0),3),(function(Z,X,ft,at){var vt;for(V(Z,X-257,5),V(Z,ft-1,5),V(Z,at-4,4),vt=0;vt<at;vt++)V(Z,Z.bl_tree[2*P[vt]+1],3);O(Z,Z.dyn_ltree,X-1),O(Z,Z.dyn_dtree,ft-1)})(f,f.l_desc.max_code+1,f.d_desc.max_code+1,J+1),St(f,f.dyn_ltree,f.dyn_dtree)),lt(f),j&&ut(f)},u._tr_tally=function(f,C,L){return f.pending_buf[f.d_buf+2*f.last_lit]=C>>>8&255,f.pending_buf[f.d_buf+2*f.last_lit+1]=255&C,f.pending_buf[f.l_buf+f.last_lit]=255&L,f.last_lit++,C===0?f.dyn_ltree[2*L]++:(f.matches++,C--,f.dyn_ltree[2*(e[L]+v+1)]++,f.dyn_dtree[2*A(C)]++),f.last_lit===f.lit_bufsize-1},u._tr_align=function(f){V(f,2,3),G(f,k,$),(function(C){C.bi_valid===16?(q(C,C.bi_buf),C.bi_buf=0,C.bi_valid=0):8<=C.bi_valid&&(C.pending_buf[C.pending++]=255&C.bi_buf,C.bi_buf>>=8,C.bi_valid-=8)})(f)}},{"../utils/common":41}],53:[function(r,w,u){"use strict";w.exports=function(){this.input=null,this.next_in=0,this.avail_in=0,this.total_in=0,this.output=null,this.next_out=0,this.avail_out=0,this.total_out=0,this.msg="",this.state=null,this.data_type=2,this.adler=0}},{}],54:[function(r,w,u){(function(o){(function(i,n){"use strict";if(!i.setImmediate){var c,y,_,v,g=1,s={},h=!1,a=i.document,d=Object.getPrototypeOf&&Object.getPrototypeOf(i);d=d&&d.setTimeout?d:i,c={}.toString.call(i.process)==="[object process]"?function(N){process.nextTick(function(){m(N)})}:(function(){if(i.postMessage&&!i.importScripts){var N=!0,S=i.onmessage;return i.onmessage=function(){N=!1},i.postMessage("","*"),i.onmessage=S,N}})()?(v="setImmediate$"+Math.random()+"$",i.addEventListener?i.addEventListener("message",k,!1):i.attachEvent("onmessage",k),function(N){i.postMessage(v+N,"*")}):i.MessageChannel?((_=new MessageChannel).port1.onmessage=function(N){m(N.data)},function(N){_.port2.postMessage(N)}):a&&"onreadystatechange"in a.createElement("script")?(y=a.documentElement,function(N){var S=a.createElement("script");S.onreadystatechange=function(){m(N),S.onreadystatechange=null,y.removeChild(S),S=null},y.appendChild(S)}):function(N){setTimeout(m,0,N)},d.setImmediate=function(N){typeof N!="function"&&(N=new Function(""+N));for(var S=new Array(arguments.length-1),U=0;U<S.length;U++)S[U]=arguments[U+1];var I={callback:N,args:S};return s[g]=I,c(g),g++},d.clearImmediate=l}function l(N){delete s[N]}function m(N){if(h)setTimeout(m,0,N);else{var S=s[N];if(S){h=!0;try{(function(U){var I=U.callback,F=U.args;switch(F.length){case 0:I();break;case 1:I(F[0]);break;case 2:I(F[0],F[1]);break;case 3:I(F[0],F[1],F[2]);break;default:I.apply(n,F)}})(S)}finally{l(N),h=!1}}}}function k(N){N.source===i&&typeof N.data=="string"&&N.data.indexOf(v)===0&&m(+N.data.slice(v.length))}})(typeof self>"u"?o===void 0?this:o:self)}).call(this,typeof global<"u"?global:typeof self<"u"?self:typeof window<"u"?window:{})},{}]},{},[10])(10)})});var de=Kt(Zt=>{"use strict";var Ne=Symbol.for("react.transitional.element"),Ae=Symbol.for("react.fragment");function le(r,w,u){var o=null;if(u!==void 0&&(o=""+u),w.key!==void 0&&(o=""+w.key),"key"in w){u={};for(var i in w)i!=="key"&&(u[i]=w[i])}else u=w;return w=u.ref,{$$typeof:Ne,type:r,key:o,ref:w!==void 0?w:null,props:u}}Zt.Fragment=Ae;Zt.jsx=le;Zt.jsxs=le});var te=Kt((Me,ce)=>{"use strict";ce.exports=de()});var Wt=()=>{let r=typeof window<"u"?window:{};if(!r.__SamiReact)throw new Error("Sami host React instance is not initialized yet");return r.__SamiReact};var Pe=Symbol.for("react.fragment"),ct=r=>Wt().useState(r),qt=(r,w)=>Wt().useEffect(r,w),Dt=r=>Wt().useRef(r),Yt=(r,w)=>Wt().useCallback(r,w);var he=Xt(oe(),1),x=Xt(te(),1),Ft="com.sami.tradingchallengetracker",re=15,ee="1.3.1",ue="https://ais-pre-imthno3wu25qands27nuna-27831794049.europe-west2.run.app";function Be(){try{return typeof window<"u"&&(window.location.hostname==="appassets.androidplatform.net"||window.location.protocol==="file:")}catch{return!1}}function Nt(){try{if(!Be())return"";let r=typeof localStorage<"u"?localStorage.getItem("sami_push_server_url"):null;return r&&r.trim().startsWith("http")?r.trim().replace(/\/+$/,""):ue}catch{return ue}}function Bt(){let r="",w="";try{if(w=localStorage.getItem("sami_auth_user_session")||"",w){let i=JSON.parse(w);i&&i.token&&(r=String(i.token))}}catch{}let u=w?encodeURIComponent(w):"",o={};return r&&(o.Authorization=`Bearer ${r}`),u&&(o["X-Sami-Session"]=u),{token:r,encodedSession:u,headers:o}}function Lt(){let r=typeof window<"u"?window:{};try{if(r.SamiBridge&&typeof r.SamiBridge.getInstalledAppInfo=="function"){let w=r.SamiBridge.getInstalledAppInfo();if(w){let u=typeof w=="string"?JSON.parse(w):w;if(u&&Number(u.versionCode)>0)return r.__samiNativeAppInfo=u,{applicationId:String(u.applicationId||Ft),versionName:String(u.versionName||ee),versionCode:Number(u.versionCode),signingCertSha256:String(u.signingCertSha256||""),canInstallPackages:!!u.canInstallPackages,isAndroidNative:!0}}}if(r.__samiNativeAppInfo&&Number(r.__samiNativeAppInfo.versionCode)>0){let w=r.__samiNativeAppInfo;return{applicationId:String(w.applicationId||Ft),versionName:String(w.versionName||ee),versionCode:Number(w.versionCode),signingCertSha256:String(w.signingCertSha256||""),canInstallPackages:!!w.canInstallPackages,isAndroidNative:!0}}}catch{}return{applicationId:Ft,versionName:ee,versionCode:re,signingCertSha256:"",canInstallPackages:!1,isAndroidNative:!1}}function pe(r){if(!r||r.isActive!==!0||r.isHidden===!0||r.status&&r.status!=="published"||!(r.storageSource==="github_releases"||!!r.githubReleaseId||!!r.githubAssetId||typeof r.downloadUrl=="string"&&r.downloadUrl.includes("/releases/download/")))return!1;let u=Lt();return Number(r.versionCode)>u.versionCode}function Tt(r){let w=Number(r||0);return!w||w<=0?"0.00 MB":w<1024?`${w} B`:w<1024*1024?`${(w/1024).toFixed(1)} KB`:`${(w/(1024*1024)).toFixed(2)} MB`}function me(r){let w=Number(r||0);return!w||w<=0?"":w<1024*1024?`${(w/1024).toFixed(0)} KB/s`:`${(w/(1024*1024)).toFixed(2)} MB/s`}function Ie(r){try{let w=new TextEncoder().encode(r),u="";for(let o=0;o<w.length;o++)u+=String.fromCharCode(w[o]);return btoa(u)}catch{return""}}async function se(r){let w=await crypto.subtle.digest("SHA-256",r),u=new Uint8Array(w);return Array.from(u).map(o=>o.toString(16).padStart(2,"0")).join("")}function ne(r){return String(r||"").replace(/[^a-fA-F0-9]/g,"").toLowerCase()}function Ee(r){let w=ne(r).toUpperCase();return w.length!==64?w:w.match(/.{1,2}/g).join(":")}function ze(r){let w=new DataView(r.buffer,r.byteOffset,r.byteLength);if(r.byteLength<16||w.getUint16(0,!0)!==3)throw new Error("ملف AndroidManifest.xml داخل الحزمة ليس بصيغة Android Binary XML صالحة");let u=w.getUint16(2,!0),o=[],i=[],n="",c=0,y=0,_="";for(;u+8<=r.byteLength;){let g=w.getUint16(u,!0),s=w.getUint16(u+2,!0),h=w.getUint32(u+4,!0);if(h<8||u+h>r.byteLength)break;if(g===1){let a=w.getUint32(u+8,!0),d=w.getUint32(u+16,!0),l=w.getUint32(u+20,!0),m=(d&256)!==0,k=u+s,N=u+l;for(let S=0;S<a;S++){let U=N+w.getUint32(k+S*4,!0);if(U>=u+h){o.push("");continue}if(m){let I=U;I+=(r[I]&128)!==0?2:1;let F=r[I];(F&128)!==0?(F=(F&127)<<8|r[I+1],I+=2):I+=1,o.push(new TextDecoder("utf-8").decode(r.subarray(I,I+F)))}else{let I=U,F=w.getUint16(I,!0);(F&32768)!==0?(F=(F&32767)<<16|w.getUint16(I+2,!0),I+=4):I+=2,o.push(new TextDecoder("utf-16le").decode(r.subarray(I,I+F*2)))}}}else if(g===384){let a=Math.floor((h-s)/4);for(let d=0;d<a;d++)i.push(w.getUint32(u+s+d*4,!0))}else if(g===258){let a=w.getInt32(u+20,!0),d=w.getUint16(u+24,!0),l=w.getUint16(u+26,!0),m=w.getUint16(u+28,!0);if((a>=0&&a<o.length?o[a]:"")==="manifest"&&l>=20){let N=u+16+d;for(let S=0;S<m;S++){let U=N+S*l;if(U+20>u+h)break;let I=w.getInt32(U+4,!0),F=w.getInt32(U+8,!0),R=r[U+15],P=w.getUint32(U+16,!0),$=I>=0&&I<o.length?o[I]:"",b=I>=0&&I<i.length?i[I]:0,z=R===3&&P<o.length?o[P]:F>=0&&F<o.length?o[F]:"";$==="package"&&z?n=z:b===16843291||$==="versionCode"?c=P:b===16844150||$==="versionCodeMajor"?y=P:(b===16843292||$==="versionName")&&(_=z||String(P))}}}u+=h}let v=y>0?y*4294967296+c:c;return{applicationId:n,versionCode:v,versionName:_}}async function Te(r){try{let w=new Uint8Array(r),u=new DataView(r),o=Math.max(0,w.byteLength-65557),i=-1;for(let s=w.byteLength-22;s>=o;s--)if(u.getUint32(s,!0)===101010256){i=s;break}if(i<0)return null;let n=u.getUint32(i+16,!0);if(n<32||n>w.byteLength||new TextDecoder("ascii").decode(w.subarray(n-16,n))!=="APK Sig Block 42")return null;let y=Number(u.getBigUint64(n-24,!0)),_=n-y-8;if(_<0)return null;let v=_+8,g=n-24;for(;v+12<=g;){let s=Number(u.getBigUint64(v,!0));if(s<4||v+8+s>g)break;let h=u.getUint32(v+8,!0);if(h===1896449818||h===4031998144||h===462663009){let l=v+12+8+4,m=u.getUint32(l,!0),k=l+4+m,N=u.getUint32(k+4,!0),S=k+8;if(N>0&&S+N<=v+8+s){let U=w.slice(S,S+N),I=await se(U.buffer);return Ee(I)}}v+=8+s}return null}catch{return null}}function be({percent:r,variant:w="gold"}){let u=Math.max(0,Math.min(100,Math.round(r||0))),o=w==="emerald"?"fill-emerald-400":w==="rose"?"fill-rose-500":"fill-amber-400";return(0,x.jsx)("div",{dir:"ltr",className:"w-full rounded-lg overflow-hidden bg-[#070a12] border border-slate-800 p-0.5",children:(0,x.jsxs)("svg",{viewBox:"0 0 100 4",preserveAspectRatio:"none",className:"w-full h-2.5 block rounded",children:[(0,x.jsx)("rect",{x:"0",y:"0",width:"100",height:"4",className:"fill-slate-900"}),u>0&&(0,x.jsx)("rect",{x:"0",y:"0",width:u,height:"4",className:`${o} transition-all duration-150`})]})})}var Y={versionCode:0,chunks:[],downloadedBytes:0,totalBytes:0,verifiedBlob:null,abortCtrl:null,state:{phase:"idle",statusTextAr:"",errorDetailAr:null,targetVersionCode:0,targetVersionName:"",downloadedBytes:0,totalBytes:0,percent:0,speedBytesPerSec:0,canInstall:!1,canResume:!1,verifiedSha256:null,verifiedSigningCertSha256:null},listeners:new Set};function Et(r){Y.state={...Y.state,...r};for(let w of Y.listeners)try{w(Y.state)}catch{}}function Re(r,w){let u=new Uint8Array(w),o=0;for(let i of r)u.set(i,o),o+=i.byteLength;return u}async function fe(r,w){if(Y.abortCtrl)return;Y.versionCode!==r.versionCode&&(Y.versionCode=r.versionCode,Y.chunks=[],Y.downloadedBytes=0,Y.verifiedBlob=null);let u=new AbortController;Y.abortCtrl=u;let o=Y.downloadedBytes,i=Number(r.fileSize||0);Et({phase:w&&o>0?"resuming":"connecting",statusTextAr:w&&o>0?"جارٍ استئناف التنزيل":"جارٍ الاتصال بالخادم",errorDetailAr:null,targetVersionCode:r.versionCode,targetVersionName:r.versionName,downloadedBytes:o,totalBytes:i,percent:i>0?Math.min(99,Math.floor(o*99/i)):0,speedBytesPerSec:0,canInstall:!1,canResume:!1});try{let n=Nt(),c=r.secureDownloadPath||`/api/app-updates/download/v_${r.versionCode}`,y=`${n}${c}`,{headers:_}=Bt(),v={..._};o>0&&(i<=0||o<i)&&(v.Range=`bytes=${o}-`);let g=await fetch(y,{method:"GET",headers:v,signal:u.signal});if(!g.ok&&g.status!==206){let e=await g.json().catch(()=>({}));throw new Error(e?.error||`تعذر تنزيل التحديث من الخادم (HTTP ${g.status})`)}let s=g.status===206&&o>0;s||(Y.chunks=[],Y.downloadedBytes=0);let h=parseInt(g.headers.get("content-length")||"0",10)||0,a=i>0?i:s&&h>0?o+h:h;if(Y.totalBytes=a,Et({phase:"starting",statusTextAr:"جارٍ بدء التنزيل",totalBytes:a}),!g.body)throw new Error("لم يُرجع الخادم دفق بيانات قابل للقراءة");let d=g.body.getReader(),l=Date.now(),m=0,k=0,N=0;for(;;){let{done:e,value:D}=await d.read();if(e)break;if(D&&D.byteLength>0){Y.chunks.push(D),Y.downloadedBytes+=D.byteLength,m+=D.byteLength;let Q=Date.now();if(Q-l>=500&&(k=Math.round(m*1e3/(Q-l)),l=Q,m=0),Q-N>=120){N=Q;let M=Y.downloadedBytes,nt=a>0?Math.min(99,Math.floor(M*99/a)):0;Et({phase:"downloading",statusTextAr:"جارٍ تنزيل التحديث",downloadedBytes:M,totalBytes:a,percent:nt,speedBytesPerSec:k})}}}Y.abortCtrl=null;let S=Re(Y.chunks,Y.downloadedBytes);if(Et({phase:"verifying",statusTextAr:"اكتمل التنزيل — جارٍ التحقق من سلامة الملف وشهادة التوقيع...",downloadedBytes:S.byteLength,totalBytes:i||S.byteLength,percent:99,speedBytesPerSec:0}),i>0&&S.byteLength!==i)throw new Error(`حجم الملف المحمّل (${S.byteLength} بايت) لا يطابق الحجم الرسمي المعتمد (${i} بايت)`);let U=await se(S.buffer);if(r.sha256&&U.toLowerCase()!==r.sha256.toLowerCase())throw Y.chunks=[],Y.downloadedBytes=0,new Error("بصمة SHA-256 للملف المحمّل لا تطابق البصمة الرسمية المعتمدة؛ تم حذف الملف التالف.");let I;try{I=await he.default.loadAsync(S)}catch{throw Y.chunks=[],Y.downloadedBytes=0,new Error("الملف المحمّل تالف ولا يمثل حزمة Android APK صالحة.")}let F=I.file("AndroidManifest.xml"),R=I.file("classes.dex");if(!F||!R)throw Y.chunks=[],Y.downloadedBytes=0,new Error("الحزمة المحمّلة تفتقر إلى ملفات تطبيق Android الأساسية؛ تم رفض التثبيت.");let P=await F.async("uint8array"),$=ze(P);if($.applicationId!==Ft)throw Y.chunks=[],Y.downloadedBytes=0,new Error(`معرّف الحزمة داخل الملف (${$.applicationId}) لا يطابق تطبيق Sami (${Ft}).`);let b=Lt();if($.versionCode<=b.versionCode)throw Y.chunks=[],Y.downloadedBytes=0,new Error(`كود الإصدار داخل الحزمة (${$.versionCode}) ليس أحدث من النسخة المثبتة (${b.versionCode}).`);let z=await Te(S.buffer);if(r.signingCertSha256&&z&&ne(z)!==ne(r.signingCertSha256))throw Y.chunks=[],Y.downloadedBytes=0,new Error("شهادة توقيع التحديث لا تطابق شهادة توقيع تطبيق Sami الأصلية؛ تم حظر التثبيت.");Y.verifiedBlob=new Blob([S.buffer],{type:"application/vnd.android.package-archive"}),Et({phase:"verified",statusTextAr:"اكتمل التنزيل",errorDetailAr:null,downloadedBytes:S.byteLength,totalBytes:S.byteLength,percent:100,speedBytesPerSec:0,canInstall:!0,canResume:!1,verifiedSha256:U,verifiedSigningCertSha256:z||r.signingCertSha256||null})}catch(n){if(Y.abortCtrl=null,u.signal.aborted)return;let c=Y.downloadedBytes,y=i>0?Math.min(99,Math.floor(c*99/i)):0;Et({phase:"failed",statusTextAr:"فشل التنزيل",errorDetailAr:n?.message||"حدث خطأ أثناء تنزيل التحديث أو التحقق منه",downloadedBytes:c,totalBytes:i,percent:y,speedBytesPerSec:0,canInstall:!1,canResume:c>0})}}function ge({config:r,isOpen:w,onDismiss:u,isPreview:o=!1}){let i=Lt(),n=i.isAndroidNative,[c,y]=ct(()=>{let P=typeof window<"u"?window:{};if(n&&P.SamiBridge&&typeof P.SamiBridge.getUpdateState=="function")try{let $=JSON.parse(P.SamiBridge.getUpdateState());if($&&(!r||Number($.targetVersionCode)===Number(r.versionCode)))return $}catch{}return r&&Y.versionCode===Number(r.versionCode)?Y.state:{phase:"idle",statusTextAr:"",errorDetailAr:null,targetVersionCode:r?.versionCode||0,targetVersionName:r?.versionName||"",downloadedBytes:0,totalBytes:r?.fileSize||0,percent:0,speedBytesPerSec:0,canInstall:!1,canResume:!1,verifiedSha256:null,verifiedSigningCertSha256:null}}),[_,v]=ct(null);if(qt(()=>{if(!w||!r)return;let P=typeof window<"u"?window:{};if(n){let $=b=>{try{let z=b?.detail||(P.SamiBridge?.getUpdateState?JSON.parse(P.SamiBridge.getUpdateState()):null);z&&(z.targetVersionCode===0||Number(z.targetVersionCode)===Number(r.versionCode))&&y(z)}catch{}};return $(),window.addEventListener("sami_native_update_state",$),()=>{window.removeEventListener("sami_native_update_state",$)}}else{let $=b=>{(b.targetVersionCode===0||Number(b.targetVersionCode)===Number(r.versionCode))&&y({...b})};return Y.listeners.add($),Y.versionCode===Number(r.versionCode)&&y({...Y.state}),()=>{Y.listeners.delete($)}}},[w,r?.versionCode,n]),!w||!r||!o&&!pe(r))return null;let g=!!r.isMandatory,s=(c.phase||"idle").toLowerCase(),h=s==="connecting"||s==="starting"||s==="downloading"||s==="resuming"||s==="verifying",a=s==="paused",d=s==="failed",l=s==="verified"&&c.canInstall===!0,m=s==="needs_install_permission",k=s==="installing",N=()=>{if(v(null),o&&!r.downloadUrl&&!r.githubAssetId){y($=>({...$,phase:"failed",statusTextAr:"فشل التنزيل",errorDetailAr:"هذه معاينة تصميمية فقط؛ سيتم تفعيل التنزيل الفعلي فور رفع ملف الـ APK ونشره."}));return}let P=typeof window<"u"?window:{};if(n&&P.SamiBridge?.startAppUpdateDownload){let $=Nt(),{token:b,encodedSession:z}=Bt();P.SamiBridge.startAppUpdateDownload(JSON.stringify(r),$,JSON.stringify({token:b,session:z}))}else fe(r,!1)},S=()=>{let P=typeof window<"u"?window:{};if(n&&P.SamiBridge?.pauseAppUpdateDownload)try{y(JSON.parse(P.SamiBridge.pauseAppUpdateDownload()))}catch{}else Y.abortCtrl&&(Y.abortCtrl.abort(),Y.abortCtrl=null),Et({phase:"paused",statusTextAr:"تم إيقاف التنزيل مؤقتًا",speedBytesPerSec:0,canResume:Y.downloadedBytes>0})},U=()=>{let P=typeof window<"u"?window:{};if(n&&P.SamiBridge?.resumeAppUpdateDownload){let $=P.SamiBridge.resumeAppUpdateDownload();try{JSON.parse($)?.ok||N()}catch{N()}}else fe(r,!0)},I=()=>{let P=typeof window<"u"?window:{};if(n&&P.SamiBridge?.cancelAppUpdateDownload)try{y(JSON.parse(P.SamiBridge.cancelAppUpdateDownload()))}catch{}else Y.abortCtrl&&(Y.abortCtrl.abort(),Y.abortCtrl=null),Y.chunks=[],Y.downloadedBytes=0,Y.verifiedBlob=null,Et({phase:"idle",statusTextAr:"",errorDetailAr:null,downloadedBytes:0,percent:0,speedBytesPerSec:0,canInstall:!1,canResume:!1})},F=()=>{let P=typeof window<"u"?window:{};if(n&&P.SamiBridge?.installVerifiedAppUpdate){P.SamiBridge.installVerifiedAppUpdate();return}if(Y.verifiedBlob){let $=URL.createObjectURL(Y.verifiedBlob),b=document.createElement("a");b.href=$,b.download=r.fileName||`Sami-v${r.versionName}.apk`,document.body.appendChild(b),b.click(),document.body.removeChild(b),setTimeout(()=>URL.revokeObjectURL($),5e3),v("تم التحقق من سلامة الحزمة وشهادة التوقيع وحفظ ملف الـ APK المعتمد على جهازك. داخل تطبيق Sami على هاتف Android يفتح هذا الزر مثبّت النظام الرسمي مباشرة.")}},R=c.totalBytes>0?c.totalBytes:r.fileSize||0;return(0,x.jsx)("div",{dir:"rtl",className:"fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200",children:(0,x.jsxs)("div",{className:"relative w-full max-w-md bg-[#090d17] border border-amber-500/40 rounded-2xl p-6 shadow-2xl text-right space-y-4",children:[(0,x.jsxs)("div",{className:"flex items-start justify-between gap-3 border-b border-slate-800/80 pb-4",children:[(0,x.jsxs)("div",{className:"flex items-center gap-3",children:[(0,x.jsx)("div",{className:"w-12 h-12 rounded-xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0 font-black text-lg",children:g?"⚡":"✦"}),(0,x.jsxs)("div",{children:[(0,x.jsx)("h3",{className:"text-base font-black text-white",children:g?"تحديث إلزامي لتطبيق Sami":"تحديث جديد متاح لتطبيق Sami"}),(0,x.jsx)("p",{className:"text-xs font-bold mt-0.5 text-amber-300/90",children:g?"يلزم تثبيت هذا التحديث للمتابعة وضمان استقرار الحساب والبيانات":"إصدار محدث جاهز للتنزيل والتثبيت المباشر من داخل التطبيق"})]})]}),(0,x.jsx)("span",{className:`text-[10px] font-black px-2.5 py-1 rounded-md border shrink-0 ${g?"bg-rose-500/15 border-rose-500/40 text-rose-300":"bg-amber-400/10 border-amber-400/30 text-amber-300"}`,children:g?"إلزامي":"اختياري"})]}),(0,x.jsxs)("div",{className:"grid grid-cols-3 gap-2 bg-[#0d1322] border border-slate-800 rounded-xl p-3 text-center",children:[(0,x.jsxs)("div",{className:"border-l border-slate-800/80 pl-2",children:[(0,x.jsx)("span",{className:"block text-[10px] text-slate-400 font-bold",children:"الإصدار المثبت"}),(0,x.jsxs)("span",{dir:"ltr",className:"block text-xs font-black text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",children:["v",i.versionName]}),(0,x.jsxs)("span",{className:"block text-[10px] text-slate-500 font-['JetBrains_Mono',monospace] tabular-nums",children:["Build ",i.versionCode]})]}),(0,x.jsxs)("div",{className:"border-l border-slate-800/80 pl-2",children:[(0,x.jsx)("span",{className:"block text-[10px] text-amber-400 font-bold",children:"الإصدار الجديد"}),(0,x.jsxs)("span",{dir:"ltr",className:"block text-sm font-black text-amber-300 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",children:["v",r.versionName]}),(0,x.jsxs)("span",{className:"block text-[10px] text-amber-200/70 font-['JetBrains_Mono',monospace] tabular-nums",children:["Build ",r.versionCode]})]}),(0,x.jsxs)("div",{children:[(0,x.jsx)("span",{className:"block text-[10px] text-slate-400 font-bold",children:"حجم الحزمة"}),(0,x.jsx)("span",{dir:"ltr",className:"block text-xs font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",children:R>0?Tt(R):"APK رسمي"}),(0,x.jsx)("span",{className:"block text-[10px] text-emerald-400 font-bold",children:"موقّع وموثّق"})]})]}),r.description&&(0,x.jsxs)("div",{className:"bg-[#0b0f19] border border-slate-800/90 rounded-xl p-3.5",children:[(0,x.jsx)("span",{className:"block text-[11px] font-black text-amber-400 mb-1.5",children:"تفاصيل التحديث وما الجديد:"}),(0,x.jsx)("p",{className:"text-xs text-slate-300 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap",children:r.description})]}),s!=="idle"&&(0,x.jsxs)("div",{className:"bg-[#0b101d] border border-slate-800 rounded-xl p-3.5 space-y-2.5",children:[(0,x.jsxs)("div",{className:"flex items-center justify-between gap-2 text-xs",children:[(0,x.jsx)("span",{className:`font-black ${d?"text-rose-400":l?"text-emerald-400":"text-amber-300"}`,children:c.statusTextAr||"جارٍ معالجة التحديث"}),(0,x.jsxs)("span",{dir:"ltr",className:"font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums",children:[c.percent,"%"]})]}),(0,x.jsx)(be,{percent:c.percent,variant:d?"rose":l?"emerald":"gold"}),(0,x.jsxs)("div",{className:"flex items-center justify-between text-[11px] text-slate-400 font-['JetBrains_Mono',monospace] tabular-nums",children:[(0,x.jsxs)("span",{dir:"ltr",children:[Tt(c.downloadedBytes)," / ",Tt(R)]}),(0,x.jsx)("span",{dir:"ltr",className:"text-amber-300",children:h&&c.speedBytesPerSec>0?me(c.speedBytesPerSec):""})]}),l&&(0,x.jsx)("div",{className:"bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 text-[11px] text-emerald-300 font-bold",children:"✓ تم التحقق من اكتمال الحجم وبصمة SHA-256 ومطابقة شهادة توقيع Sami الأصلية بنجاح."}),m&&(0,x.jsx)("div",{className:"bg-amber-400/10 border border-amber-400/30 rounded-lg p-2.5 text-[11px] text-amber-200 font-bold",children:"يرجى تفعيل خيار «السماح من هذا المصدر» في شاشة إعدادات Android ثم العودة لإتمام التثبيت تلقائياً."}),c.errorDetailAr&&(0,x.jsx)("div",{className:"bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5 text-[11px] text-rose-300 leading-relaxed",children:c.errorDetailAr}),_&&(0,x.jsx)("div",{className:"bg-amber-400/10 border border-amber-400/30 rounded-lg p-2.5 text-[11px] text-amber-200 leading-relaxed",children:_})]}),(0,x.jsxs)("div",{className:"space-y-2 pt-1",children:[(l||m||k)&&(0,x.jsx)("button",{type:"button",onClick:F,className:"w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer",children:(0,x.jsx)("span",{children:"✅ تثبيت التحديث الآن"})}),s==="idle"&&(0,x.jsx)("button",{type:"button",onClick:N,className:"w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer",children:(0,x.jsx)("span",{children:"تحميل التحديث الآن"})}),h&&s!=="verifying"&&(0,x.jsxs)("div",{className:"flex items-center gap-2",children:[(0,x.jsx)("button",{type:"button",onClick:S,className:"flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-400/30 text-amber-300 font-black text-xs transition cursor-pointer",children:"إيقاف مؤقت"}),!g&&(0,x.jsx)("button",{type:"button",onClick:I,className:"py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer",children:"إلغاء"})]}),(a||d)&&(0,x.jsxs)("div",{className:"flex items-center gap-2",children:[(0,x.jsx)("button",{type:"button",onClick:c.canResume?U:N,className:"flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs transition cursor-pointer",children:c.canResume?"استئناف التنزيل":"إعادة المحاولة"}),(0,x.jsx)("button",{type:"button",onClick:I,className:"py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer",children:"إلغاء"})]}),(!g||o)&&u&&(0,x.jsx)("button",{type:"button",onClick:u,className:"w-full py-2.5 px-4 rounded-xl bg-[#0d121d] hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 font-bold text-xs border border-slate-800 transition cursor-pointer",children:o?"إغلاق المعاينة":"لاحقًا"})]})]})})}function Oe({currentUser:r,onToast:w}){let u=Yt((K,it=!1)=>{w&&w(K,it)},[w]),o=Dt(null),i=Dt(null),n=Dt(null),[c,y]=ct(!0),[_,v]=ct(null),[g,s]=ct(null),[h,a]=ct(null),[d,l]=ct(null),[m,k]=ct(re),[N,S]=ct([]),U=Dt(!1),[I,F]=ct(!1),[R,P]=ct(""),[$,b]=ct(""),[z,e]=ct(""),[D,Q]=ct(!1),[M,nt]=ct(!1),[H,rt]=ct(!1),[E,A]=ct(null),[q,V]=ct(null),[G,bt]=ct(!1),[et,lt]=ct(null),[ut,mt]=ct(null),[ht,St]=ct(""),[_t,t]=ct(!1),[O,T]=ct(!1),[p,f]=ct(0),[C,L]=ct(0),[j,B]=ct(0),[W,J]=ct(0),[Z,X]=ct(""),[ft,at]=ct(null),[vt,At]=ct(null),[wt,Ct]=ct(!1),[gt,zt]=ct(!1),Rt=Lt(),yt=Yt(async()=>{y(!0);let K=Nt(),{headers:it}=Bt();try{let[pt,dt]=await Promise.all([fetch(`${K}/api/app-updates/github-status?_t=${Date.now()}`,{method:"GET",headers:it,cache:"no-store"}),fetch(`${K}/api/app-updates/history?_t=${Date.now()}`,{method:"GET",headers:it,cache:"no-store"})]),st=await pt.json().catch(()=>({}));if(pt.ok&&st.success){let tt=st.github||null;v(tt),s(st.vault||tt?.vault||null),a(st.signingKey||null),l(st.currentPublished||null),k(Number(st.effectiveMinVersionCode)||re),U.current||(U.current=!0,P(tt?.owner||""),b(tt?.repo||""),tt?.canPublishReleases||F(!0))}let kt=await dt.json().catch(()=>({}));dt.ok&&Array.isArray(kt.updates)&&S(kt.updates)}catch(pt){u(pt?.message||"تعذر جلب حالة نظام التحديثات السحابي",!0)}finally{y(!1)}},[u]);qt(()=>(yt(),()=>{n.current&&clearInterval(n.current),i.current&&i.current.abort()}),[yt]);let Mt=async()=>{if(M||H||O)return;let K=R.trim(),it=$.trim(),pt=z.trim(),dt=!!(_?.hasToken||g?.hasSavedToken);if(!K){let st="يرجى إدخال اسم مالك المستودع في حقل GITHUB_OWNER";A({ok:!1,text:st}),u(st,!0);return}if(!it){let st="يرجى إدخال اسم المستودع في حقل GITHUB_REPO";A({ok:!1,text:st}),u(st,!0);return}if(!pt&&!dt){let st="يرجى إدخال التوكن السري في حقل GITHUB_TOKEN لحفظ الإعدادات لأول مرة";A({ok:!1,text:st}),u(st,!0);return}nt(!0),A(null);try{let st=Nt(),{headers:kt}=Bt(),tt=await fetch(`${st}/api/app-updates/github-settings`,{method:"POST",headers:{...kt,"Content-Type":"application/json"},body:JSON.stringify({githubOwner:K,githubRepo:it,...pt?{githubToken:pt}:{}})}),ot=await tt.json().catch(()=>({}));if(!tt.ok||!ot.success)throw new Error(ot.error||"تعذر حفظ إعدادات GitHub Releases");e(""),Q(!1),ot.github&&(v(ot.github),P(ot.github.owner||K),b(ot.github.repo||it)),(ot.vault||ot.github?.vault)&&s(ot.vault||ot.github?.vault);let xt=!!ot.github?.canPublishReleases,Ut=ot.message||(xt?`تم حفظ الإعدادات والاتصال بالمستودع ${ot.github?.fullName} بنجاح`:"تم حفظ الإعدادات على الخادم");A({ok:xt,text:Ut}),u(Ut,!xt)}catch(st){let kt=st?.message||"فشل حفظ إعدادات GitHub Releases";A({ok:!1,text:kt}),u(kt,!0)}finally{nt(!1)}},$t=async()=>{if(H||M||O)return;let K=R.trim(),it=$.trim(),pt=z.trim();if(!K||!it){let dt="يرجى إدخال GITHUB_OWNER وGITHUB_REPO أولاً لاختبار الاتصال";A({ok:!1,text:dt}),u(dt,!0);return}rt(!0),A(null);try{let dt=Nt(),{headers:st}=Bt(),kt=await fetch(`${dt}/api/app-updates/github-test`,{method:"POST",headers:{...st,"Content-Type":"application/json"},body:JSON.stringify({githubOwner:K,githubRepo:it,...pt?{githubToken:pt}:{}})}),tt=await kt.json().catch(()=>({}));tt.github&&v(tt.github),(tt.vault||tt.github?.vault)&&s(tt.vault||tt.github?.vault);let ot=!!(kt.ok&&tt.success&&tt.github?.canPublishReleases),xt=tt.message||tt.error||(ot?"الاتصال بمستودع GitHub ناجح وجاهز للنشر":"فشل التحقق من الاتصال بمستودع GitHub");A({ok:ot,text:xt}),u(xt,!ot)}catch(dt){let st=dt?.message||"فشل اختبار الاتصال بـ GitHub";A({ok:!1,text:st}),u(st,!0)}finally{rt(!1)}},Gt=()=>{O||o.current?.click()},Jt=async K=>{if(V(K),lt(null),mt(null),at(null),At(null),!K.name.toLowerCase().endsWith(".apk")){let it="يرجى اختيار ملف بصيغة .apk فقط. تم رفض الملف المختار.";mt(it),u(it,!0);return}if(K.size<=64){let it="ملف الـ APK المختار فارغ أو تالف.";mt(it),u(it,!0);return}bt(!0);try{let it=await K.arrayBuffer(),pt=await se(it),dt=Nt(),{headers:st}=Bt(),tt=await(await fetch(`${dt}/api/app-updates/inspect-apk`,{method:"POST",headers:{...st,"Content-Type":"application/vnd.android.package-archive","X-File-Name":encodeURIComponent(K.name)},body:K})).json().catch(()=>({}));if(tt?.inspection){let ot={...tt.inspection,sha256:tt.inspection.sha256||pt};lt(ot),!ot.canPublish&&ot.errors?.length>0?(mt(ot.errors[0]),u(ot.errors[0],!0)):(ht.trim()||St(`تحديث تطبيق Sami الإصدار ${ot.versionName} — تحسينات في الأداء والاستقرار.`),u(`تم فحص حزمة APK (v${ot.versionName} - كود ${ot.versionCode}) بنجاح ✅`))}else{let ot=tt?.error||"تعذر قراءة بيانات ملف الـ APK المختار";mt(ot),u(ot,!0)}}catch(it){let pt=it?.message||"حدث خطأ أثناء فحص ملف الـ APK";mt(pt),u(pt,!0)}finally{bt(!1)}},jt=K=>{let it=K.target?.files?.[0];K.target&&(K.target.value=""),it&&Jt(it)},It=()=>{if(!q||!et){u("يرجى اختيار ملف APK صالح أولاً",!0);return}if(!et.canPublish){u(et.errors[0]||"لا يمكن نشر هذا الملف لوجود تعارض في الإصدار أو التوقيع",!0);return}if(!ht.trim()){u("يرجى كتابة وصف مختصر للتحديث قبل النشر",!0);return}let K=`up_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,it=Nt(),{headers:pt}=Bt();T(!0),at(null),At(null),f(0),L(0),B(q.size),J(0),X("جارٍ رفع ملف الـ APK من جهازك إلى الخادم (0%)...");let dt=new XMLHttpRequest;i.current=dt;let st=Date.now(),kt=0;n.current=setInterval(async()=>{try{let tt=await fetch(`${it}/api/app-updates/upload-status/${encodeURIComponent(K)}`,{method:"GET",headers:pt,cache:"no-store"});if(!tt.ok)return;let xt=(await tt.json())?.job;if(!xt)return;if(xt.phase!=="receiving_apk"&&typeof xt.percent=="number"){let Ut=Math.max(50,Math.min(99,Math.round(50+xt.percent/100*50)));f(Vt=>Math.max(Vt,Ut)),xt.phaseLabelAr&&X(xt.phaseLabelAr)}}catch{}},900),dt.upload.onprogress=tt=>{if(!tt.lengthComputable)return;L(tt.loaded),B(tt.total);let ot=Date.now();if(ot-st>=400){let Vt=Math.round((tt.loaded-kt)*1e3/(ot-st));J(Math.max(0,Vt)),st=ot,kt=tt.loaded}let xt=tt.total>0?tt.loaded/tt.total:0,Ut=Math.min(50,Math.round(xt*50));f(Ut),tt.loaded<tt.total?X(`جارٍ رفع حزمة الـ APK (${Math.round(xt*100)}% من النقل)...`):(J(0),X("اكتمل إرسال الملف للخادم — جارٍ الرفع والتحقق على GitHub Releases..."))},dt.onload=()=>{n.current&&(clearInterval(n.current),n.current=null),i.current=null,T(!1),J(0);let tt={};try{tt=JSON.parse(dt.responseText||"{}")}catch{}if(dt.status>=200&&dt.status<300&&tt.success&&tt.update)f(100),L(q.size),X("اكتمل الرفع والتحقق ونشر الإصدار على GitHub Releases وFirestore بنجاح (100%)"),At(tt),l(tt.update),V(null),lt(null),u(tt.message||"تم نشر التحديث بنجاح 🚀"),yt();else{let ot=tt?.error||`فشل رفع ونشر التحديث (HTTP ${dt.status})`;at(ot),X("توقف النشر بسبب خطأ"),u(ot,!0)}},dt.onerror=()=>{n.current&&(clearInterval(n.current),n.current=null),i.current=null,T(!1),J(0);let tt="انقطع الاتصال بالشبكة أثناء رفع ملف الـ APK. يمكنك الضغط على «إعادة المحاولة» دون إعادة اختيار الملف.";at(tt),X("فشل الاتصال أثناء الرفع"),u(tt,!0)},dt.onabort=()=>{n.current&&(clearInterval(n.current),n.current=null),i.current=null,T(!1),J(0),f(0),L(0),X("تم إلغاء عملية الرفع بناءً على طلبك"),u("تم إلغاء رفع ملف الـ APK")},dt.open("POST",`${it}/api/app-updates/upload-release`,!0);for(let[tt,ot]of Object.entries(pt))dt.setRequestHeader(tt,ot);dt.setRequestHeader("Content-Type","application/vnd.android.package-archive"),dt.setRequestHeader("X-Upload-Id",K),dt.setRequestHeader("X-File-Name",encodeURIComponent(q.name)),dt.setRequestHeader("X-Expected-Sha256",et.sha256),dt.setRequestHeader("X-Description-B64",Ie(ht.trim())),dt.setRequestHeader("X-Is-Mandatory",_t?"true":"false"),dt.send(q)},Ot=()=>{i.current&&i.current.abort()},ve=async()=>{if(!(!d||wt)){Ct(!0);try{let K=Nt(),{headers:it}=Bt(),pt=!(d.isActive===!0&&!d.isHidden),dt=await fetch(`${K}/api/app-updates/toggle`,{method:"POST",headers:{...it,"Content-Type":"application/json"},body:JSON.stringify({isActive:pt,versionCode:d.versionCode})}),st=await dt.json().catch(()=>({}));if(!dt.ok||!st.success)throw new Error(st.error||"تعذر تغيير حالة ظهور الإصدار");l(st.update),u(st.message||"تم تحديث حالة الإصدار بنجاح"),yt()}catch(K){u(K?.message||"فشل تغيير حالة الإصدار",!0)}finally{Ct(!1)}}},_e=async K=>{if(!wt){Ct(!0);try{let it=Nt(),{headers:pt}=Bt(),dt=await fetch(`${it}/api/app-updates/rollback`,{method:"POST",headers:{...pt,"Content-Type":"application/json"},body:JSON.stringify({versionCode:K})}),st=await dt.json().catch(()=>({}));if(!dt.ok||!st.success)throw new Error(st.error||"تعذر الرجوع إلى الإصدار المحدد");l(st.update),u(st.message||"تم الرجوع إلى الإصدار السابق بنجاح"),yt()}catch(it){u(it?.message||"فشل الرجوع إلى الإصدار السابق",!0)}finally{Ct(!1)}}},Ht=!!(d&&d.isActive===!0&&!d.isHidden&&d.storageSource==="github_releases");return(0,x.jsxs)("div",{dir:"rtl",className:"space-y-4 text-right",children:[(0,x.jsxs)("div",{className:"bg-[#121824] border border-amber-500/40 rounded-2xl p-5 space-y-3",children:[(0,x.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,x.jsxs)("div",{children:[(0,x.jsx)("h3",{className:"text-sm font-black text-amber-300",children:"نظام التحديثات السحابي عبر GitHub Releases"}),(0,x.jsx)("p",{className:"text-xs text-slate-400 mt-0.5",children:"رفع مباشر لملف الـ APK، فحص آلي للتوقيع وSHA-256، وتثبيت داخلي دون روابط يدوية"})]}),(0,x.jsx)("button",{type:"button",disabled:c,onClick:yt,className:"px-3 py-1.5 rounded-lg bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-amber-300 transition cursor-pointer",children:c?"جارٍ الفحص...":"تحديث الحالة"})]}),(0,x.jsxs)("div",{className:"grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs",children:[(0,x.jsxs)("div",{className:"bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2",children:[(0,x.jsx)("span",{className:"text-slate-400",children:"المستودع المستخدم حالياً:"}),(0,x.jsx)("span",{dir:"ltr",className:`font-bold font-['JetBrains_Mono',monospace] truncate ${_?.fullName?"text-slate-100":"text-slate-500"}`,children:_?.fullName||"غير محدد بعد"})]}),(0,x.jsxs)("div",{className:"bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2",children:[(0,x.jsx)("span",{className:"text-slate-400",children:"حالة اتصال GitHub API:"}),_?.canPublishReleases?(0,x.jsxs)("span",{className:"font-black text-emerald-400",children:["متصل وجاهز للنشر (",_.isPrivate?"خاص":"عام",")"]}):_?.exists?(0,x.jsx)("span",{className:"font-black text-amber-400",children:"قراءة متاحة — يلزم التوكن أو صلاحية الكتابة"}):(0,x.jsx)("span",{className:"font-black text-rose-400",children:"غير متصل"})]}),(0,x.jsxs)("div",{className:"bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2",children:[(0,x.jsx)("span",{className:"text-slate-400",children:"النسخة المثبتة على هذا الجهاز:"}),(0,x.jsxs)("span",{dir:"ltr",className:"font-bold text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums",children:["v",Rt.versionName," (Code ",Rt.versionCode,")"]})]}),(0,x.jsxs)("div",{className:"bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2",children:[(0,x.jsx)("span",{className:"text-slate-400",children:"الإصدار النشط للمستخدمين:"}),(0,x.jsx)("span",{className:`font-black ${Ht?"text-emerald-400":"text-slate-400"}`,children:Ht&&d?`v${d.versionName} (Code ${d.versionCode})`:"لا يوجد تحديث نشط حالياً"})]})]}),h&&(0,x.jsxs)("div",{className:"bg-[#0b0f17] border border-slate-800 rounded-xl p-3 text-[11px] space-y-1",children:[(0,x.jsxs)("div",{className:"flex items-center justify-between",children:[(0,x.jsx)("span",{className:"text-slate-400 font-bold",children:"شهادة توقيع Sami المعتمدة:"}),(0,x.jsx)("span",{className:h.available?"text-emerald-400 font-black":"text-rose-400 font-black",children:h.available?"متوفرة ومطابقة ✓":"مفقودة ✗"})]}),h.sha256Fingerprint&&(0,x.jsxs)("div",{dir:"ltr",className:"text-[10px] text-slate-400 font-['JetBrains_Mono',monospace] break-all",children:["SHA-256: ",h.sha256Fingerprint]})]}),_&&!_.canPublishReleases&&(0,x.jsxs)("div",{className:"bg-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 text-xs space-y-1.5",children:[(0,x.jsx)("div",{className:"font-black text-amber-300",children:"تنبيه إعداد GitHub Releases:"}),(0,x.jsx)("p",{className:"text-slate-300 leading-relaxed text-[11px]",children:_.setupInstructionsAr||_.error})]})]}),(0,x.jsxs)("div",{className:"bg-[#121824] border border-amber-400/30 rounded-2xl overflow-hidden",children:[(0,x.jsxs)("button",{type:"button",onClick:()=>F(K=>!K),className:"w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-right hover:bg-slate-800/50 transition cursor-pointer",children:[(0,x.jsxs)("div",{className:"space-y-1 min-w-0",children:[(0,x.jsx)("div",{className:"text-xs sm:text-sm font-black text-amber-300",children:"⚙️ إعدادات GitHub Releases"}),(0,x.jsxs)("div",{className:"flex flex-wrap items-center gap-2 text-[11px] text-slate-400",children:[(0,x.jsxs)("span",{children:["المستودع الحالي:"," ",(0,x.jsx)("strong",{dir:"ltr",className:"text-slate-200 font-['JetBrains_Mono',monospace]",children:_?.fullName||"غير محدد"})]}),(0,x.jsx)("span",{"aria-hidden":"true",children:"·"}),(0,x.jsx)("span",{className:_?.canPublishReleases?"text-emerald-400 font-bold":_?.exists?"text-amber-400 font-bold":"text-rose-400 font-bold",children:_?.canPublishReleases?"متصل وجاهز للنشر":_?.exists?"يتطلب صلاحية كتابة / توكن":"غير متصل"})]})]}),(0,x.jsx)("span",{className:"shrink-0 px-3 py-1.5 rounded-lg bg-[#0b0f17] border border-slate-700 text-[11px] font-bold text-amber-300",children:I?"إخفاء ▲":"تعديل الإعدادات ▼"})]}),I&&(0,x.jsxs)("div",{className:"p-4 sm:p-5 border-t border-slate-800/80 space-y-4 text-xs",children:[(0,x.jsxs)("div",{className:"bg-[#0b0f17] border border-slate-800 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]",children:[(0,x.jsxs)("div",{children:[(0,x.jsx)("span",{className:"block text-slate-400",children:"المستودع المستخدم حالياً"}),(0,x.jsx)("span",{dir:"ltr",className:"block mt-0.5 font-black text-slate-100 font-['JetBrains_Mono',monospace] break-all",children:_?.fullName||"لم يتم الحفظ بعد"})]}),(0,x.jsxs)("div",{children:[(0,x.jsx)("span",{className:"block text-slate-400",children:"حالة الاتصال بـ GitHub"}),(0,x.jsx)("span",{className:`block mt-0.5 font-black ${_?.canPublishReleases?"text-emerald-400":_?.exists?"text-amber-400":"text-rose-400"}`,children:_?.canPublishReleases?`متصل (${_.isPrivate?"مستودع خاص":"مستودع عام"}) ✓`:_?.exists?"المستودع موجود — ينقص التوكن أو صلاحية الكتابة":"غير متصل"})]}),(0,x.jsxs)("div",{children:[(0,x.jsx)("span",{className:"block text-slate-400",children:"حالة التوكن على الخادم"}),(0,x.jsx)("span",{className:`block mt-0.5 font-black ${_?.hasToken||g?.hasSavedToken?"text-emerald-400":"text-amber-400"}`,children:_?.hasToken||g?.hasSavedToken?"محفوظ ومؤمّن على الخادم ✓":"غير محفوظ بعد"})]})]}),(0,x.jsxs)("div",{className:"grid grid-cols-1 sm:grid-cols-2 gap-3",children:[(0,x.jsxs)("div",{children:[(0,x.jsxs)("label",{className:"block text-slate-300 font-bold mb-1.5",children:["1. ",(0,x.jsx)("span",{dir:"ltr",className:"font-['JetBrains_Mono',monospace] text-amber-300",children:"GITHUB_OWNER"})," ","(اسم مالك المستودع)"]}),(0,x.jsx)("input",{type:"text",dir:"ltr",disabled:M||O,value:R,onChange:K=>P(K.target.value),placeholder:"owner-username",autoComplete:"off",spellCheck:!1,className:"w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"})]}),(0,x.jsxs)("div",{children:[(0,x.jsxs)("label",{className:"block text-slate-300 font-bold mb-1.5",children:["2. ",(0,x.jsx)("span",{dir:"ltr",className:"font-['JetBrains_Mono',monospace] text-amber-300",children:"GITHUB_REPO"})," ","(اسم المستودع)"]}),(0,x.jsx)("input",{type:"text",dir:"ltr",disabled:M||O,value:$,onChange:K=>b(K.target.value),placeholder:"repository-name",autoComplete:"off",spellCheck:!1,className:"w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"})]})]}),(0,x.jsxs)("div",{children:[(0,x.jsxs)("label",{className:"block text-slate-300 font-bold mb-1.5",children:["3. ",(0,x.jsx)("span",{dir:"ltr",className:"font-['JetBrains_Mono',monospace] text-amber-300",children:"GITHUB_TOKEN"})," ","(التوكن السري — صلاحية Contents: Read and write)"]}),(0,x.jsxs)("div",{className:"flex items-center gap-2",children:[(0,x.jsx)("input",{type:D?"text":"password",dir:"ltr",disabled:M||O,value:z,onChange:K=>e(K.target.value),placeholder:_?.hasToken||g?.hasSavedToken?"محفوظ على الخادم — اتركه فارغاً للإبقاء عليه أو أدخل توكن جديداً لاستبداله":"github_pat_...",autoComplete:"new-password",spellCheck:!1,className:"flex-1 min-w-0 bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"}),(0,x.jsx)("button",{type:"button",disabled:!z||M,onClick:()=>Q(K=>!K),className:"shrink-0 px-3.5 py-3 rounded-xl bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-amber-300 font-bold text-xs transition cursor-pointer disabled:opacity-40",children:D?"إخفاء":"إظهار"})]}),(0,x.jsx)("p",{className:"text-[11px] text-slate-400 mt-1.5 leading-relaxed",children:"يُرسل التوكن عبر اتصال مشفر إلى الخادم فقط ولا يُعاد إرساله للواجهة أو حفظه في المتصفح أو قاعدة البيانات."})]}),E&&(0,x.jsx)("div",{className:`rounded-xl p-3 border text-xs font-bold leading-relaxed ${E.ok?"bg-emerald-500/10 border-emerald-500/40 text-emerald-300":"bg-rose-500/10 border-rose-500/40 text-rose-300"}`,children:E.text}),g?.hostingVaultNoticeAr&&(0,x.jsx)("div",{className:"bg-[#0b0f17] border border-amber-500/30 rounded-xl p-3 text-[11px] text-amber-200 leading-relaxed",children:g.hostingVaultNoticeAr}),(0,x.jsxs)("div",{className:"grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1",children:[(0,x.jsx)("button",{type:"button",disabled:M||H||O,onClick:Mt,className:"w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer",children:M?"جارٍ حفظ الإعدادات...":"حفظ إعدادات GitHub"}),(0,x.jsx)("button",{type:"button",disabled:H||M||O,onClick:$t,className:"w-full py-3 px-4 rounded-xl bg-[#0b0f17] hover:bg-slate-800 disabled:opacity-40 border border-amber-400/40 text-amber-300 font-black text-xs transition cursor-pointer",children:H?"جارٍ اختبار الاتصال...":"اختبار اتصال GitHub"})]})]})]}),(0,x.jsxs)("div",{className:"bg-[#121824] border border-slate-800 rounded-2xl p-5 space-y-4",children:[(0,x.jsxs)("div",{className:"flex items-center justify-between",children:[(0,x.jsxs)("h4",{className:"text-xs font-black text-amber-400",children:["رفع ونشر إصدار APK جديد (يجب أن يكون كود الإصدار أكبر من ",m,")"]}),r?.displayName&&(0,x.jsxs)("span",{className:"text-[11px] text-slate-400",children:["المسؤول: ",r.displayName]})]}),(0,x.jsx)("input",{ref:o,type:"file",accept:".apk,application/vnd.android.package-archive",onChange:jt,className:"hidden"}),(0,x.jsx)("button",{type:"button",disabled:O||G,onClick:Gt,className:"w-full py-4 px-4 rounded-xl bg-[#0b101c] hover:bg-[#101829] border-2 border-dashed border-amber-400/50 hover:border-amber-400 text-amber-300 font-black text-sm flex items-center justify-center gap-2.5 transition cursor-pointer disabled:opacity-50",children:(0,x.jsx)("span",{children:"📦 اختيار ملف APK ورفعه"})}),G&&(0,x.jsx)("div",{className:"bg-[#0b0f17] border border-amber-400/30 rounded-xl p-3.5 text-xs text-amber-300 font-bold text-center",children:"جارٍ قراءة حزمة الـ APK واستخراج البيانات وشهادة التوقيع وحساب SHA-256..."}),ut&&!et&&(0,x.jsx)("div",{className:"bg-rose-500/10 border border-rose-500/40 rounded-xl p-3.5 text-xs text-rose-300 font-bold",children:ut}),et&&(0,x.jsxs)("div",{className:`rounded-xl p-4 border space-y-3 text-xs ${et.canPublish?"bg-[#0b111d] border-emerald-500/40":"bg-[#140c12] border-rose-500/40"}`,children:[(0,x.jsxs)("div",{className:"flex items-center justify-between border-b border-slate-800 pb-2.5",children:[(0,x.jsx)("span",{className:"font-black text-slate-100",children:"بيانات حزمة الـ APK المستخرجة:"}),(0,x.jsx)("span",{className:`text-[11px] font-black px-2.5 py-0.5 rounded-md border ${et.canPublish?"bg-emerald-500/15 border-emerald-500/40 text-emerald-300":"bg-rose-500/15 border-rose-500/40 text-rose-300"}`,children:et.canPublish?"جاهز ومطابق للنشر ✓":"مرفوض للنشر ✗"})]}),(0,x.jsxs)("div",{className:"grid grid-cols-2 gap-2.5",children:[(0,x.jsxs)("div",{className:"bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80",children:[(0,x.jsx)("span",{className:"block text-[10px] text-slate-400",children:"معرّف التطبيق (applicationId)"}),(0,x.jsx)("span",{dir:"ltr",className:`block font-bold font-['JetBrains_Mono',monospace] text-[11px] mt-0.5 break-all ${et.applicationIdMatchesSami?"text-emerald-400":"text-rose-400"}`,children:et.applicationId||"غير معروف"})]}),(0,x.jsxs)("div",{className:"bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80",children:[(0,x.jsx)("span",{className:"block text-[10px] text-slate-400",children:"الإصدار وكود البناء"}),(0,x.jsxs)("span",{dir:"ltr",className:`block font-black font-['JetBrains_Mono',monospace] tabular-nums mt-0.5 ${et.isHigherThanPublished?"text-amber-300":"text-rose-400"}`,children:["v",et.versionName||"?"," (Code ",et.versionCode||0,")"]})]}),(0,x.jsxs)("div",{className:"bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80",children:[(0,x.jsx)("span",{className:"block text-[10px] text-slate-400",children:"حجم ملف الـ APK"}),(0,x.jsxs)("span",{dir:"ltr",className:"block font-bold text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",children:[Tt(et.fileSize)," (",et.fileSize.toLocaleString()," B)"]})]}),(0,x.jsxs)("div",{className:"bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80",children:[(0,x.jsx)("span",{className:"block text-[10px] text-slate-400",children:"تطابق شهادة التوقيع"}),(0,x.jsx)("span",{className:`block font-black mt-0.5 ${et.signatureMatchesOriginal?"text-emerald-400":"text-rose-400"}`,children:et.signatureMatchesOriginal?`مطابق لشهادة Sami (${et.signingCertificate?.scheme.toUpperCase()}) ✓`:"غير مطابق أو غير موقّع ✗"})]})]}),(0,x.jsxs)("div",{className:"bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80 space-y-1 text-[10px]",children:[(0,x.jsx)("div",{className:"text-slate-400",children:"بصمة الملف (SHA-256):"}),(0,x.jsx)("div",{dir:"ltr",className:"text-slate-200 font-['JetBrains_Mono',monospace] break-all",children:et.sha256}),et.signingCertificate?.sha256Fingerprint&&(0,x.jsxs)(x.Fragment,{children:[(0,x.jsx)("div",{className:"text-slate-400 pt-1",children:"بصمة شهادة التوقيع (X.509 SHA-256):"}),(0,x.jsx)("div",{dir:"ltr",className:"text-amber-300 font-['JetBrains_Mono',monospace] break-all",children:et.signingCertificate.sha256Fingerprint})]})]}),et.errors?.length>0&&(0,x.jsx)("div",{className:"bg-rose-500/15 border border-rose-500/40 rounded-lg p-3 space-y-1 text-rose-200",children:et.errors.map((K,it)=>(0,x.jsxs)("div",{className:"font-bold",children:["• ",K]},it))})]}),(0,x.jsxs)("div",{className:"space-y-3 text-xs",children:[(0,x.jsxs)("div",{children:[(0,x.jsx)("label",{className:"block text-slate-300 font-bold mb-1.5",children:"نوع التحديث للمستخدمين:"}),(0,x.jsxs)("div",{className:"grid grid-cols-1 sm:grid-cols-2 gap-2",children:[(0,x.jsxs)("button",{type:"button",disabled:O,onClick:()=>t(!1),className:`p-3 rounded-xl border text-right transition cursor-pointer ${_t?"bg-[#0b0f17] border-slate-800 text-slate-400 hover:border-slate-700":"bg-amber-400/15 border-amber-400 text-amber-200"}`,children:[(0,x.jsx)("div",{className:"font-black text-xs",children:"تحديث اختياري مع إمكانية اختيار «لاحقًا»"}),(0,x.jsx)("div",{className:"text-[10px] opacity-80 mt-0.5",children:"يسمح للمستخدم بتأجيل التحديث ومتابعة التصفح"})]}),(0,x.jsxs)("button",{type:"button",disabled:O,onClick:()=>t(!0),className:`p-3 rounded-xl border text-right transition cursor-pointer ${_t?"bg-rose-500/15 border-rose-500 text-rose-200":"bg-[#0b0f17] border-slate-800 text-slate-400 hover:border-slate-700"}`,children:[(0,x.jsx)("div",{className:"font-black text-xs",children:"تحديث إلزامي"}),(0,x.jsx)("div",{className:"text-[10px] opacity-80 mt-0.5",children:"يلزم المستخدم بتحميل وتثبيت التحديث قبل المتابعة"})]})]})]}),(0,x.jsxs)("div",{children:[(0,x.jsx)("label",{className:"block text-slate-300 font-bold mb-1.5",children:"وصف التحديث وما الجديد:"}),(0,x.jsx)("textarea",{rows:3,disabled:O,value:ht,onChange:K=>St(K.target.value),placeholder:"اكتب ميزات وتحسينات هذا الإصدار التي ستظهر للمستخدمين داخل نافذة التحديث...",className:"w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs focus:outline-none focus:border-amber-400"})]})]}),(O||ft||vt)&&(0,x.jsxs)("div",{className:"bg-[#0b0f19] border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs",children:[(0,x.jsxs)("div",{className:"flex items-center justify-between gap-2",children:[(0,x.jsx)("span",{className:`font-black ${ft?"text-rose-400":vt?"text-emerald-400":"text-amber-300"}`,children:Z}),(0,x.jsxs)("span",{dir:"ltr",className:"font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums",children:[p,"%"]})]}),(0,x.jsx)(be,{percent:p,variant:ft?"rose":vt?"emerald":"gold"}),(0,x.jsxs)("div",{className:"flex items-center justify-between text-[11px] text-slate-400 font-['JetBrains_Mono',monospace] tabular-nums",children:[(0,x.jsxs)("span",{dir:"ltr",children:[Tt(C)," / ",Tt(j)]}),(0,x.jsx)("span",{dir:"ltr",className:"text-amber-300",children:O&&W>0?me(W):""})]}),ft&&(0,x.jsx)("div",{className:"bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5 text-rose-300 font-bold leading-relaxed",children:ft}),vt?.githubRelease&&(0,x.jsxs)("div",{className:"bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-emerald-200 space-y-1 text-[11px]",children:[(0,x.jsxs)("div",{className:"font-black",children:["✓ تم النشر رسمياً على GitHub Releases (",vt.githubRelease.releaseTag,") وحفظ السجل في Firestore!"]}),(0,x.jsxs)("div",{dir:"ltr",className:"text-[10px] font-['JetBrains_Mono',monospace] text-emerald-300/90 break-all",children:["Asset: ",vt.githubRelease.assetName," | Verified SHA-256: ",vt.githubRelease.sha256]})]}),O&&(0,x.jsx)("button",{type:"button",onClick:Ot,className:"w-full py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-black text-xs transition cursor-pointer",children:"إلغاء الرفع"}),!O&&ft&&q&&et?.canPublish&&(0,x.jsx)("button",{type:"button",onClick:It,className:"w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition cursor-pointer",children:"إعادة المحاولة لرفع ونشر الملف"})]}),(0,x.jsxs)("div",{className:"space-y-2 pt-1",children:[(0,x.jsx)("button",{type:"button",disabled:O||G||!q||!et?.canPublish,onClick:It,className:"w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer",children:(0,x.jsx)("span",{children:O?"جارٍ الرفع والتحقق والنشر...":"رفع ونشر التحديث عبر GitHub Releases 🚀"})}),(0,x.jsxs)("div",{className:"flex items-center gap-2",children:[(0,x.jsx)("button",{type:"button",onClick:()=>zt(!0),className:"flex-1 py-2.5 rounded-xl bg-[#0b0f17] hover:bg-slate-800 text-amber-300 font-bold text-xs border border-amber-400/30 transition cursor-pointer",children:"معاينة نافذة التحديث للمستخدم"}),d&&d.storageSource==="github_releases"&&(0,x.jsx)("button",{type:"button",disabled:wt||O,onClick:ve,className:`flex-1 py-2.5 rounded-xl font-black text-xs border transition cursor-pointer disabled:opacity-50 ${Ht?"bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300":"bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300"}`,children:Ht?"⏸️ إيقاف الإصدار مؤقتاً":"▶️ تفعيل الإصدار للمستخدمين"})]})]})]}),(0,x.jsxs)("div",{className:"bg-[#121824] border border-slate-800 rounded-2xl p-5 space-y-3",children:[(0,x.jsxs)("div",{className:"flex items-center justify-between",children:[(0,x.jsx)("h4",{className:"text-xs font-black text-amber-400",children:"سجل الإصدارات المنشورة والرجوع لإصدار سابق (Rollback)"}),(0,x.jsxs)("span",{className:"text-[11px] text-slate-400 font-['JetBrains_Mono',monospace] tabular-nums",children:[N.length," إصدار"]})]}),N.length===0?(0,x.jsx)("p",{className:"text-xs text-slate-400 py-2",children:"لا توجد سجلات إصدارات محفوظة بعد."}):(0,x.jsx)("div",{className:"space-y-2 max-h-72 overflow-y-auto",children:N.map(K=>{let it=K.isActive===!0&&!K.isHidden&&d?.versionCode===K.versionCode&&K.storageSource==="github_releases",pt=K.storageSource==="github_releases"&&!!K.sha256;return(0,x.jsxs)("div",{className:"bg-[#0b0f17] border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs",children:[(0,x.jsxs)("div",{className:"space-y-0.5",children:[(0,x.jsxs)("div",{className:"flex items-center gap-2",children:[(0,x.jsxs)("span",{dir:"ltr",className:"font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums",children:["v",K.versionName," (Code ",K.versionCode,")"]}),(0,x.jsx)("span",{className:`text-[10px] font-black px-2 py-0.5 rounded border ${it?"bg-emerald-500/15 border-emerald-500/40 text-emerald-300":pt?"bg-slate-800 border-slate-700 text-slate-300":"bg-slate-900 border-slate-800 text-slate-500"}`,children:it?"منشور ونشط":pt?"متوقف (GitHub Release)":"سجل قديم (متوقف)"}),K.releaseTag&&(0,x.jsx)("span",{dir:"ltr",className:"text-[10px] text-amber-300 font-['JetBrains_Mono',monospace]",children:K.releaseTag})]}),(0,x.jsxs)("div",{className:"text-[11px] text-slate-400",children:[K.fileSize?`${Tt(K.fileSize)} • `:"",K.isMandatory?"إلزامي":"اختياري",K.description?` • ${K.description.slice(0,70)}`:""]})]}),pt&&!it&&(0,x.jsx)("button",{type:"button",disabled:wt||O,onClick:()=>_e(K.versionCode),className:"px-3 py-1.5 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/40 text-amber-300 font-black text-[11px] transition cursor-pointer disabled:opacity-50",children:"اعتماد هذا الإصدار"})]},`${K.versionCode}_${K.id}`)})})]}),gt&&(0,x.jsx)(ge,{isOpen:gt,isPreview:!0,onDismiss:()=>zt(!1),config:et?{versionName:et.versionName||"1.3.2",versionCode:et.versionCode||m+1,description:ht.trim()||"تحديث تجريبي للمعاينة داخل لوحة الإدارة",fileSize:et.fileSize,sha256:et.sha256,signingCertSha256:et.signingCertificate?.sha256Fingerprint,applicationId:et.applicationId,storageSource:"github_releases",downloadUrl:"",isMandatory:_t,isActive:!0,isHidden:!1}:d&&d.storageSource==="github_releases"?d:{versionName:"1.3.2",versionCode:m+1,description:ht.trim()||"تحسينات شاملة في الأداء وتثبيت التحديثات المباشر من داخل تطبيق Sami.",fileSize:28*1024*1024,storageSource:"github_releases",downloadUrl:"",isMandatory:_t,isActive:!0,isHidden:!1}})]})}if(typeof window<"u"){let r=window;r.SamiUserUpdateModal=ge,r.SamiAdminUpdatePanel=Oe,r.shouldShowSamiCloudUpdate=pe,r.getInstalledSamiAppInfo=Lt,r.getSamiServerBaseUrl=Nt}export{Ft as SAMI_EXPECTED_APP_ID,re as SAMI_FALLBACK_VERSION_CODE,ee as SAMI_FALLBACK_VERSION_NAME,Oe as SamiAdminUpdatePanel,ge as SamiUserUpdateModal,Lt as getInstalledSamiAppInfo,Nt as getSamiServerBaseUrl,Be as isAndroidLocalAssetOrigin,pe as shouldShowCloudAppUpdate};
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
+var __commonJS = (cb, mod) => function __require2() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+
+// node_modules/jszip/dist/jszip.min.js
+var require_jszip_min = __commonJS({
+  "node_modules/jszip/dist/jszip.min.js"(exports, module) {
+    !(function(e) {
+      if ("object" == typeof exports && "undefined" != typeof module) module.exports = e();
+      else if ("function" == typeof define && define.amd) define([], e);
+      else {
+        ("undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : this).JSZip = e();
+      }
+    })(function() {
+      return (function s(a, o, h) {
+        function u(r, e2) {
+          if (!o[r]) {
+            if (!a[r]) {
+              var t = "function" == typeof __require && __require;
+              if (!e2 && t) return t(r, true);
+              if (l) return l(r, true);
+              var n = new Error("Cannot find module '" + r + "'");
+              throw n.code = "MODULE_NOT_FOUND", n;
+            }
+            var i = o[r] = { exports: {} };
+            a[r][0].call(i.exports, function(e3) {
+              var t2 = a[r][1][e3];
+              return u(t2 || e3);
+            }, i, i.exports, s, a, o, h);
+          }
+          return o[r].exports;
+        }
+        for (var l = "function" == typeof __require && __require, e = 0; e < h.length; e++) u(h[e]);
+        return u;
+      })({ 1: [function(e, t, r) {
+        "use strict";
+        var d = e("./utils"), c = e("./support"), p = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+        r.encode = function(e2) {
+          for (var t2, r2, n, i, s, a, o, h = [], u = 0, l = e2.length, f = l, c2 = "string" !== d.getTypeOf(e2); u < e2.length; ) f = l - u, n = c2 ? (t2 = e2[u++], r2 = u < l ? e2[u++] : 0, u < l ? e2[u++] : 0) : (t2 = e2.charCodeAt(u++), r2 = u < l ? e2.charCodeAt(u++) : 0, u < l ? e2.charCodeAt(u++) : 0), i = t2 >> 2, s = (3 & t2) << 4 | r2 >> 4, a = 1 < f ? (15 & r2) << 2 | n >> 6 : 64, o = 2 < f ? 63 & n : 64, h.push(p.charAt(i) + p.charAt(s) + p.charAt(a) + p.charAt(o));
+          return h.join("");
+        }, r.decode = function(e2) {
+          var t2, r2, n, i, s, a, o = 0, h = 0, u = "data:";
+          if (e2.substr(0, u.length) === u) throw new Error("Invalid base64 input, it looks like a data url.");
+          var l, f = 3 * (e2 = e2.replace(/[^A-Za-z0-9+/=]/g, "")).length / 4;
+          if (e2.charAt(e2.length - 1) === p.charAt(64) && f--, e2.charAt(e2.length - 2) === p.charAt(64) && f--, f % 1 != 0) throw new Error("Invalid base64 input, bad content length.");
+          for (l = c.uint8array ? new Uint8Array(0 | f) : new Array(0 | f); o < e2.length; ) t2 = p.indexOf(e2.charAt(o++)) << 2 | (i = p.indexOf(e2.charAt(o++))) >> 4, r2 = (15 & i) << 4 | (s = p.indexOf(e2.charAt(o++))) >> 2, n = (3 & s) << 6 | (a = p.indexOf(e2.charAt(o++))), l[h++] = t2, 64 !== s && (l[h++] = r2), 64 !== a && (l[h++] = n);
+          return l;
+        };
+      }, { "./support": 30, "./utils": 32 }], 2: [function(e, t, r) {
+        "use strict";
+        var n = e("./external"), i = e("./stream/DataWorker"), s = e("./stream/Crc32Probe"), a = e("./stream/DataLengthProbe");
+        function o(e2, t2, r2, n2, i2) {
+          this.compressedSize = e2, this.uncompressedSize = t2, this.crc32 = r2, this.compression = n2, this.compressedContent = i2;
+        }
+        o.prototype = { getContentWorker: function() {
+          var e2 = new i(n.Promise.resolve(this.compressedContent)).pipe(this.compression.uncompressWorker()).pipe(new a("data_length")), t2 = this;
+          return e2.on("end", function() {
+            if (this.streamInfo.data_length !== t2.uncompressedSize) throw new Error("Bug : uncompressed data size mismatch");
+          }), e2;
+        }, getCompressedWorker: function() {
+          return new i(n.Promise.resolve(this.compressedContent)).withStreamInfo("compressedSize", this.compressedSize).withStreamInfo("uncompressedSize", this.uncompressedSize).withStreamInfo("crc32", this.crc32).withStreamInfo("compression", this.compression);
+        } }, o.createWorkerFrom = function(e2, t2, r2) {
+          return e2.pipe(new s()).pipe(new a("uncompressedSize")).pipe(t2.compressWorker(r2)).pipe(new a("compressedSize")).withStreamInfo("compression", t2);
+        }, t.exports = o;
+      }, { "./external": 6, "./stream/Crc32Probe": 25, "./stream/DataLengthProbe": 26, "./stream/DataWorker": 27 }], 3: [function(e, t, r) {
+        "use strict";
+        var n = e("./stream/GenericWorker");
+        r.STORE = { magic: "\0\0", compressWorker: function() {
+          return new n("STORE compression");
+        }, uncompressWorker: function() {
+          return new n("STORE decompression");
+        } }, r.DEFLATE = e("./flate");
+      }, { "./flate": 7, "./stream/GenericWorker": 28 }], 4: [function(e, t, r) {
+        "use strict";
+        var n = e("./utils");
+        var o = (function() {
+          for (var e2, t2 = [], r2 = 0; r2 < 256; r2++) {
+            e2 = r2;
+            for (var n2 = 0; n2 < 8; n2++) e2 = 1 & e2 ? 3988292384 ^ e2 >>> 1 : e2 >>> 1;
+            t2[r2] = e2;
+          }
+          return t2;
+        })();
+        t.exports = function(e2, t2) {
+          return void 0 !== e2 && e2.length ? "string" !== n.getTypeOf(e2) ? (function(e3, t3, r2, n2) {
+            var i = o, s = n2 + r2;
+            e3 ^= -1;
+            for (var a = n2; a < s; a++) e3 = e3 >>> 8 ^ i[255 & (e3 ^ t3[a])];
+            return -1 ^ e3;
+          })(0 | t2, e2, e2.length, 0) : (function(e3, t3, r2, n2) {
+            var i = o, s = n2 + r2;
+            e3 ^= -1;
+            for (var a = n2; a < s; a++) e3 = e3 >>> 8 ^ i[255 & (e3 ^ t3.charCodeAt(a))];
+            return -1 ^ e3;
+          })(0 | t2, e2, e2.length, 0) : 0;
+        };
+      }, { "./utils": 32 }], 5: [function(e, t, r) {
+        "use strict";
+        r.base64 = false, r.binary = false, r.dir = false, r.createFolders = true, r.date = null, r.compression = null, r.compressionOptions = null, r.comment = null, r.unixPermissions = null, r.dosPermissions = null;
+      }, {}], 6: [function(e, t, r) {
+        "use strict";
+        var n = null;
+        n = "undefined" != typeof Promise ? Promise : e("lie"), t.exports = { Promise: n };
+      }, { lie: 37 }], 7: [function(e, t, r) {
+        "use strict";
+        var n = "undefined" != typeof Uint8Array && "undefined" != typeof Uint16Array && "undefined" != typeof Uint32Array, i = e("pako"), s = e("./utils"), a = e("./stream/GenericWorker"), o = n ? "uint8array" : "array";
+        function h(e2, t2) {
+          a.call(this, "FlateWorker/" + e2), this._pako = null, this._pakoAction = e2, this._pakoOptions = t2, this.meta = {};
+        }
+        r.magic = "\b\0", s.inherits(h, a), h.prototype.processChunk = function(e2) {
+          this.meta = e2.meta, null === this._pako && this._createPako(), this._pako.push(s.transformTo(o, e2.data), false);
+        }, h.prototype.flush = function() {
+          a.prototype.flush.call(this), null === this._pako && this._createPako(), this._pako.push([], true);
+        }, h.prototype.cleanUp = function() {
+          a.prototype.cleanUp.call(this), this._pako = null;
+        }, h.prototype._createPako = function() {
+          this._pako = new i[this._pakoAction]({ raw: true, level: this._pakoOptions.level || -1 });
+          var t2 = this;
+          this._pako.onData = function(e2) {
+            t2.push({ data: e2, meta: t2.meta });
+          };
+        }, r.compressWorker = function(e2) {
+          return new h("Deflate", e2);
+        }, r.uncompressWorker = function() {
+          return new h("Inflate", {});
+        };
+      }, { "./stream/GenericWorker": 28, "./utils": 32, pako: 38 }], 8: [function(e, t, r) {
+        "use strict";
+        function A(e2, t2) {
+          var r2, n2 = "";
+          for (r2 = 0; r2 < t2; r2++) n2 += String.fromCharCode(255 & e2), e2 >>>= 8;
+          return n2;
+        }
+        function n(e2, t2, r2, n2, i2, s2) {
+          var a, o, h = e2.file, u = e2.compression, l = s2 !== O.utf8encode, f = I.transformTo("string", s2(h.name)), c = I.transformTo("string", O.utf8encode(h.name)), d = h.comment, p = I.transformTo("string", s2(d)), m = I.transformTo("string", O.utf8encode(d)), _ = c.length !== h.name.length, g = m.length !== d.length, b = "", v = "", y = "", w = h.dir, k = h.date, x = { crc32: 0, compressedSize: 0, uncompressedSize: 0 };
+          t2 && !r2 || (x.crc32 = e2.crc32, x.compressedSize = e2.compressedSize, x.uncompressedSize = e2.uncompressedSize);
+          var S = 0;
+          t2 && (S |= 8), l || !_ && !g || (S |= 2048);
+          var z = 0, C = 0;
+          w && (z |= 16), "UNIX" === i2 ? (C = 798, z |= (function(e3, t3) {
+            var r3 = e3;
+            return e3 || (r3 = t3 ? 16893 : 33204), (65535 & r3) << 16;
+          })(h.unixPermissions, w)) : (C = 20, z |= (function(e3) {
+            return 63 & (e3 || 0);
+          })(h.dosPermissions)), a = k.getUTCHours(), a <<= 6, a |= k.getUTCMinutes(), a <<= 5, a |= k.getUTCSeconds() / 2, o = k.getUTCFullYear() - 1980, o <<= 4, o |= k.getUTCMonth() + 1, o <<= 5, o |= k.getUTCDate(), _ && (v = A(1, 1) + A(B(f), 4) + c, b += "up" + A(v.length, 2) + v), g && (y = A(1, 1) + A(B(p), 4) + m, b += "uc" + A(y.length, 2) + y);
+          var E = "";
+          return E += "\n\0", E += A(S, 2), E += u.magic, E += A(a, 2), E += A(o, 2), E += A(x.crc32, 4), E += A(x.compressedSize, 4), E += A(x.uncompressedSize, 4), E += A(f.length, 2), E += A(b.length, 2), { fileRecord: R.LOCAL_FILE_HEADER + E + f + b, dirRecord: R.CENTRAL_FILE_HEADER + A(C, 2) + E + A(p.length, 2) + "\0\0\0\0" + A(z, 4) + A(n2, 4) + f + b + p };
+        }
+        var I = e("../utils"), i = e("../stream/GenericWorker"), O = e("../utf8"), B = e("../crc32"), R = e("../signature");
+        function s(e2, t2, r2, n2) {
+          i.call(this, "ZipFileWorker"), this.bytesWritten = 0, this.zipComment = t2, this.zipPlatform = r2, this.encodeFileName = n2, this.streamFiles = e2, this.accumulate = false, this.contentBuffer = [], this.dirRecords = [], this.currentSourceOffset = 0, this.entriesCount = 0, this.currentFile = null, this._sources = [];
+        }
+        I.inherits(s, i), s.prototype.push = function(e2) {
+          var t2 = e2.meta.percent || 0, r2 = this.entriesCount, n2 = this._sources.length;
+          this.accumulate ? this.contentBuffer.push(e2) : (this.bytesWritten += e2.data.length, i.prototype.push.call(this, { data: e2.data, meta: { currentFile: this.currentFile, percent: r2 ? (t2 + 100 * (r2 - n2 - 1)) / r2 : 100 } }));
+        }, s.prototype.openedSource = function(e2) {
+          this.currentSourceOffset = this.bytesWritten, this.currentFile = e2.file.name;
+          var t2 = this.streamFiles && !e2.file.dir;
+          if (t2) {
+            var r2 = n(e2, t2, false, this.currentSourceOffset, this.zipPlatform, this.encodeFileName);
+            this.push({ data: r2.fileRecord, meta: { percent: 0 } });
+          } else this.accumulate = true;
+        }, s.prototype.closedSource = function(e2) {
+          this.accumulate = false;
+          var t2 = this.streamFiles && !e2.file.dir, r2 = n(e2, t2, true, this.currentSourceOffset, this.zipPlatform, this.encodeFileName);
+          if (this.dirRecords.push(r2.dirRecord), t2) this.push({ data: (function(e3) {
+            return R.DATA_DESCRIPTOR + A(e3.crc32, 4) + A(e3.compressedSize, 4) + A(e3.uncompressedSize, 4);
+          })(e2), meta: { percent: 100 } });
+          else for (this.push({ data: r2.fileRecord, meta: { percent: 0 } }); this.contentBuffer.length; ) this.push(this.contentBuffer.shift());
+          this.currentFile = null;
+        }, s.prototype.flush = function() {
+          for (var e2 = this.bytesWritten, t2 = 0; t2 < this.dirRecords.length; t2++) this.push({ data: this.dirRecords[t2], meta: { percent: 100 } });
+          var r2 = this.bytesWritten - e2, n2 = (function(e3, t3, r3, n3, i2) {
+            var s2 = I.transformTo("string", i2(n3));
+            return R.CENTRAL_DIRECTORY_END + "\0\0\0\0" + A(e3, 2) + A(e3, 2) + A(t3, 4) + A(r3, 4) + A(s2.length, 2) + s2;
+          })(this.dirRecords.length, r2, e2, this.zipComment, this.encodeFileName);
+          this.push({ data: n2, meta: { percent: 100 } });
+        }, s.prototype.prepareNextSource = function() {
+          this.previous = this._sources.shift(), this.openedSource(this.previous.streamInfo), this.isPaused ? this.previous.pause() : this.previous.resume();
+        }, s.prototype.registerPrevious = function(e2) {
+          this._sources.push(e2);
+          var t2 = this;
+          return e2.on("data", function(e3) {
+            t2.processChunk(e3);
+          }), e2.on("end", function() {
+            t2.closedSource(t2.previous.streamInfo), t2._sources.length ? t2.prepareNextSource() : t2.end();
+          }), e2.on("error", function(e3) {
+            t2.error(e3);
+          }), this;
+        }, s.prototype.resume = function() {
+          return !!i.prototype.resume.call(this) && (!this.previous && this._sources.length ? (this.prepareNextSource(), true) : this.previous || this._sources.length || this.generatedError ? void 0 : (this.end(), true));
+        }, s.prototype.error = function(e2) {
+          var t2 = this._sources;
+          if (!i.prototype.error.call(this, e2)) return false;
+          for (var r2 = 0; r2 < t2.length; r2++) try {
+            t2[r2].error(e2);
+          } catch (e3) {
+          }
+          return true;
+        }, s.prototype.lock = function() {
+          i.prototype.lock.call(this);
+          for (var e2 = this._sources, t2 = 0; t2 < e2.length; t2++) e2[t2].lock();
+        }, t.exports = s;
+      }, { "../crc32": 4, "../signature": 23, "../stream/GenericWorker": 28, "../utf8": 31, "../utils": 32 }], 9: [function(e, t, r) {
+        "use strict";
+        var u = e("../compressions"), n = e("./ZipFileWorker");
+        r.generateWorker = function(e2, a, t2) {
+          var o = new n(a.streamFiles, t2, a.platform, a.encodeFileName), h = 0;
+          try {
+            e2.forEach(function(e3, t3) {
+              h++;
+              var r2 = (function(e4, t4) {
+                var r3 = e4 || t4, n3 = u[r3];
+                if (!n3) throw new Error(r3 + " is not a valid compression method !");
+                return n3;
+              })(t3.options.compression, a.compression), n2 = t3.options.compressionOptions || a.compressionOptions || {}, i = t3.dir, s = t3.date;
+              t3._compressWorker(r2, n2).withStreamInfo("file", { name: e3, dir: i, date: s, comment: t3.comment || "", unixPermissions: t3.unixPermissions, dosPermissions: t3.dosPermissions }).pipe(o);
+            }), o.entriesCount = h;
+          } catch (e3) {
+            o.error(e3);
+          }
+          return o;
+        };
+      }, { "../compressions": 3, "./ZipFileWorker": 8 }], 10: [function(e, t, r) {
+        "use strict";
+        function n() {
+          if (!(this instanceof n)) return new n();
+          if (arguments.length) throw new Error("The constructor with parameters has been removed in JSZip 3.0, please check the upgrade guide.");
+          this.files = /* @__PURE__ */ Object.create(null), this.comment = null, this.root = "", this.clone = function() {
+            var e2 = new n();
+            for (var t2 in this) "function" != typeof this[t2] && (e2[t2] = this[t2]);
+            return e2;
+          };
+        }
+        (n.prototype = e("./object")).loadAsync = e("./load"), n.support = e("./support"), n.defaults = e("./defaults"), n.version = "3.10.2", n.loadAsync = function(e2, t2) {
+          return new n().loadAsync(e2, t2);
+        }, n.external = e("./external"), t.exports = n;
+      }, { "./defaults": 5, "./external": 6, "./load": 11, "./object": 15, "./support": 30 }], 11: [function(e, t, r) {
+        "use strict";
+        var u = e("./utils"), i = e("./external"), n = e("./utf8"), s = e("./zipEntries"), a = e("./stream/Crc32Probe"), l = e("./nodejsUtils");
+        function f(n2) {
+          return new i.Promise(function(e2, t2) {
+            var r2 = n2.decompressed.getContentWorker().pipe(new a());
+            r2.on("error", function(e3) {
+              t2(e3);
+            }).on("end", function() {
+              r2.streamInfo.crc32 !== n2.decompressed.crc32 ? t2(new Error("Corrupted zip : CRC32 mismatch")) : e2();
+            }).resume();
+          });
+        }
+        t.exports = function(e2, o) {
+          var h = this;
+          return o = u.extend(o || {}, { base64: false, checkCRC32: false, optimizedBinaryString: false, createFolders: false, decodeFileName: n.utf8decode }), l.isNode && l.isStream(e2) ? i.Promise.reject(new Error("JSZip can't accept a stream when loading a zip file.")) : u.prepareContent("the loaded zip file", e2, true, o.optimizedBinaryString, o.base64).then(function(e3) {
+            var t2 = new s(o);
+            return t2.load(e3), t2;
+          }).then(function(e3) {
+            var t2 = [i.Promise.resolve(e3)], r2 = e3.files;
+            if (o.checkCRC32) for (var n2 = 0; n2 < r2.length; n2++) t2.push(f(r2[n2]));
+            return i.Promise.all(t2);
+          }).then(function(e3) {
+            for (var t2 = e3.shift(), r2 = t2.files, n2 = 0; n2 < r2.length; n2++) {
+              var i2 = r2[n2], s2 = i2.fileNameStr, a2 = u.resolve(i2.fileNameStr);
+              h.file(a2, i2.decompressed, { binary: true, optimizedBinaryString: true, date: i2.date, dir: i2.dir, comment: i2.fileCommentStr.length ? i2.fileCommentStr : null, unixPermissions: i2.unixPermissions, dosPermissions: i2.dosPermissions, createFolders: o.createFolders }), i2.dir || (h.file(a2).unsafeOriginalName = s2);
+            }
+            return t2.zipComment.length && (h.comment = t2.zipComment), h;
+          });
+        };
+      }, { "./external": 6, "./nodejsUtils": 14, "./stream/Crc32Probe": 25, "./utf8": 31, "./utils": 32, "./zipEntries": 33 }], 12: [function(e, t, r) {
+        "use strict";
+        var n = e("../utils"), i = e("../stream/GenericWorker");
+        function s(e2, t2) {
+          i.call(this, "Nodejs stream input adapter for " + e2), this._upstreamEnded = false, this._bindStream(t2);
+        }
+        n.inherits(s, i), s.prototype._bindStream = function(e2) {
+          var t2 = this;
+          (this._stream = e2).pause(), e2.on("data", function(e3) {
+            t2.push({ data: e3, meta: { percent: 0 } });
+          }).on("error", function(e3) {
+            t2.isPaused ? this.generatedError = e3 : t2.error(e3);
+          }).on("end", function() {
+            t2.isPaused ? t2._upstreamEnded = true : t2.end();
+          });
+        }, s.prototype.pause = function() {
+          return !!i.prototype.pause.call(this) && (this._stream.pause(), true);
+        }, s.prototype.resume = function() {
+          return !!i.prototype.resume.call(this) && (this._upstreamEnded ? this.end() : this._stream.resume(), true);
+        }, t.exports = s;
+      }, { "../stream/GenericWorker": 28, "../utils": 32 }], 13: [function(e, t, r) {
+        "use strict";
+        var i = e("readable-stream").Readable;
+        function n(e2, t2, r2) {
+          i.call(this, t2), this._helper = e2;
+          var n2 = this;
+          e2.on("data", function(e3, t3) {
+            n2.push(e3) || n2._helper.pause(), r2 && r2(t3);
+          }).on("error", function(e3) {
+            n2.emit("error", e3);
+          }).on("end", function() {
+            n2.push(null);
+          });
+        }
+        e("../utils").inherits(n, i), n.prototype._read = function() {
+          this._helper.resume();
+        }, t.exports = n;
+      }, { "../utils": 32, "readable-stream": 16 }], 14: [function(e, t, r) {
+        "use strict";
+        t.exports = { isNode: "undefined" != typeof Buffer, newBufferFrom: function(e2, t2) {
+          if (Buffer.from && Buffer.from !== Uint8Array.from) return Buffer.from(e2, t2);
+          if ("number" == typeof e2) throw new Error('The "data" argument must not be a number');
+          return new Buffer(e2, t2);
+        }, allocBuffer: function(e2) {
+          if (Buffer.alloc) return Buffer.alloc(e2);
+          var t2 = new Buffer(e2);
+          return t2.fill(0), t2;
+        }, isBuffer: function(e2) {
+          return Buffer.isBuffer(e2);
+        }, isStream: function(e2) {
+          return e2 && "function" == typeof e2.on && "function" == typeof e2.pause && "function" == typeof e2.resume;
+        } };
+      }, {}], 15: [function(e, t, r) {
+        "use strict";
+        function s(e2, t2, r2) {
+          var n2, i2 = u.getTypeOf(t2), s2 = u.extend(r2 || {}, f);
+          s2.date = s2.date || /* @__PURE__ */ new Date(), null !== s2.compression && (s2.compression = s2.compression.toUpperCase()), "string" == typeof s2.unixPermissions && (s2.unixPermissions = parseInt(s2.unixPermissions, 8)), s2.unixPermissions && 16384 & s2.unixPermissions && (s2.dir = true), s2.dosPermissions && 16 & s2.dosPermissions && (s2.dir = true), s2.dir && (e2 = g(e2)), s2.createFolders && (n2 = _(e2)) && b.call(this, n2, true);
+          var a2 = "string" === i2 && false === s2.binary && false === s2.base64;
+          r2 && void 0 !== r2.binary || (s2.binary = !a2), (t2 instanceof c && 0 === t2.uncompressedSize || s2.dir || !t2 || 0 === t2.length) && (s2.base64 = false, s2.binary = true, t2 = "", s2.compression = "STORE", i2 = "string");
+          var o2 = null;
+          o2 = t2 instanceof c || t2 instanceof l ? t2 : p.isNode && p.isStream(t2) ? new m(e2, t2) : u.prepareContent(e2, t2, s2.binary, s2.optimizedBinaryString, s2.base64);
+          var h2 = new d(e2, o2, s2);
+          this.files[e2] = h2;
+        }
+        var i = e("./utf8"), u = e("./utils"), l = e("./stream/GenericWorker"), a = e("./stream/StreamHelper"), f = e("./defaults"), c = e("./compressedObject"), d = e("./zipObject"), o = e("./generate"), p = e("./nodejsUtils"), m = e("./nodejs/NodejsStreamInputAdapter"), _ = function(e2) {
+          "/" === e2.slice(-1) && (e2 = e2.substring(0, e2.length - 1));
+          var t2 = e2.lastIndexOf("/");
+          return 0 < t2 ? e2.substring(0, t2) : "";
+        }, g = function(e2) {
+          return "/" !== e2.slice(-1) && (e2 += "/"), e2;
+        }, b = function(e2, t2) {
+          return t2 = void 0 !== t2 ? t2 : f.createFolders, e2 = g(e2), this.files[e2] || s.call(this, e2, null, { dir: true, createFolders: t2 }), this.files[e2];
+        };
+        function h(e2) {
+          return "[object RegExp]" === Object.prototype.toString.call(e2);
+        }
+        var n = { load: function() {
+          throw new Error("This method has been removed in JSZip 3.0, please check the upgrade guide.");
+        }, forEach: function(e2) {
+          var t2, r2, n2;
+          for (t2 in this.files) n2 = this.files[t2], (r2 = t2.slice(this.root.length, t2.length)) && t2.slice(0, this.root.length) === this.root && e2(r2, n2);
+        }, filter: function(r2) {
+          var n2 = [];
+          return this.forEach(function(e2, t2) {
+            r2(e2, t2) && n2.push(t2);
+          }), n2;
+        }, file: function(e2, t2, r2) {
+          if (1 !== arguments.length) return e2 = this.root + e2, s.call(this, e2, t2, r2), this;
+          if (h(e2)) {
+            var n2 = e2;
+            return this.filter(function(e3, t3) {
+              return !t3.dir && n2.test(e3);
+            });
+          }
+          var i2 = this.files[this.root + e2];
+          return i2 && !i2.dir ? i2 : null;
+        }, folder: function(r2) {
+          if (!r2) return this;
+          if (h(r2)) return this.filter(function(e3, t3) {
+            return t3.dir && r2.test(e3);
+          });
+          var e2 = this.root + r2, t2 = b.call(this, e2), n2 = this.clone();
+          return n2.root = t2.name, n2;
+        }, remove: function(r2) {
+          r2 = this.root + r2;
+          var e2 = this.files[r2];
+          if (e2 || ("/" !== r2.slice(-1) && (r2 += "/"), e2 = this.files[r2]), e2 && !e2.dir) delete this.files[r2];
+          else for (var t2 = this.filter(function(e3, t3) {
+            return t3.name.slice(0, r2.length) === r2;
+          }), n2 = 0; n2 < t2.length; n2++) delete this.files[t2[n2].name];
+          return this;
+        }, generate: function() {
+          throw new Error("This method has been removed in JSZip 3.0, please check the upgrade guide.");
+        }, generateInternalStream: function(e2) {
+          var t2, r2 = {};
+          try {
+            if ((r2 = u.extend(e2 || {}, { streamFiles: false, compression: "STORE", compressionOptions: null, type: "", platform: "DOS", comment: null, mimeType: "application/zip", encodeFileName: i.utf8encode })).type = r2.type.toLowerCase(), r2.compression = r2.compression.toUpperCase(), "binarystring" === r2.type && (r2.type = "string"), !r2.type) throw new Error("No output type specified.");
+            u.checkSupport(r2.type), "darwin" !== r2.platform && "freebsd" !== r2.platform && "linux" !== r2.platform && "sunos" !== r2.platform || (r2.platform = "UNIX"), "win32" === r2.platform && (r2.platform = "DOS");
+            var n2 = r2.comment || this.comment || "";
+            t2 = o.generateWorker(this, r2, n2);
+          } catch (e3) {
+            (t2 = new l("error")).error(e3);
+          }
+          return new a(t2, r2.type || "string", r2.mimeType);
+        }, generateAsync: function(e2, t2) {
+          return this.generateInternalStream(e2).accumulate(t2);
+        }, generateNodeStream: function(e2, t2) {
+          return (e2 = e2 || {}).type || (e2.type = "nodebuffer"), this.generateInternalStream(e2).toNodejsStream(t2);
+        } };
+        t.exports = n;
+      }, { "./compressedObject": 2, "./defaults": 5, "./generate": 9, "./nodejs/NodejsStreamInputAdapter": 12, "./nodejsUtils": 14, "./stream/GenericWorker": 28, "./stream/StreamHelper": 29, "./utf8": 31, "./utils": 32, "./zipObject": 35 }], 16: [function(e, t, r) {
+        "use strict";
+        t.exports = e("stream");
+      }, { stream: void 0 }], 17: [function(e, t, r) {
+        "use strict";
+        var n = e("./DataReader");
+        function i(e2) {
+          n.call(this, e2);
+          for (var t2 = 0; t2 < this.data.length; t2++) e2[t2] = 255 & e2[t2];
+        }
+        e("../utils").inherits(i, n), i.prototype.byteAt = function(e2) {
+          return this.data[this.zero + e2];
+        }, i.prototype.lastIndexOfSignature = function(e2) {
+          for (var t2 = e2.charCodeAt(0), r2 = e2.charCodeAt(1), n2 = e2.charCodeAt(2), i2 = e2.charCodeAt(3), s = this.length - 4; 0 <= s; --s) if (this.data[s] === t2 && this.data[s + 1] === r2 && this.data[s + 2] === n2 && this.data[s + 3] === i2) return s - this.zero;
+          return -1;
+        }, i.prototype.readAndCheckSignature = function(e2) {
+          var t2 = e2.charCodeAt(0), r2 = e2.charCodeAt(1), n2 = e2.charCodeAt(2), i2 = e2.charCodeAt(3), s = this.readData(4);
+          return t2 === s[0] && r2 === s[1] && n2 === s[2] && i2 === s[3];
+        }, i.prototype.readData = function(e2) {
+          if (this.checkOffset(e2), 0 === e2) return [];
+          var t2 = this.data.slice(this.zero + this.index, this.zero + this.index + e2);
+          return this.index += e2, t2;
+        }, t.exports = i;
+      }, { "../utils": 32, "./DataReader": 18 }], 18: [function(e, t, r) {
+        "use strict";
+        var n = e("../utils");
+        function i(e2) {
+          this.data = e2, this.length = e2.length, this.index = 0, this.zero = 0;
+        }
+        i.prototype = { checkOffset: function(e2) {
+          this.checkIndex(this.index + e2);
+        }, checkIndex: function(e2) {
+          if (this.length < this.zero + e2 || e2 < 0) throw new Error("End of data reached (data length = " + this.length + ", asked index = " + e2 + "). Corrupted zip ?");
+        }, setIndex: function(e2) {
+          this.checkIndex(e2), this.index = e2;
+        }, skip: function(e2) {
+          this.setIndex(this.index + e2);
+        }, byteAt: function() {
+        }, readInt: function(e2) {
+          var t2, r2 = 0;
+          for (this.checkOffset(e2), t2 = this.index + e2 - 1; t2 >= this.index; t2--) r2 = (r2 << 8) + this.byteAt(t2);
+          return this.index += e2, r2;
+        }, readString: function(e2) {
+          return n.transformTo("string", this.readData(e2));
+        }, readData: function() {
+        }, lastIndexOfSignature: function() {
+        }, readAndCheckSignature: function() {
+        }, readDate: function() {
+          var e2 = this.readInt(4);
+          return new Date(Date.UTC(1980 + (e2 >> 25 & 127), (e2 >> 21 & 15) - 1, e2 >> 16 & 31, e2 >> 11 & 31, e2 >> 5 & 63, (31 & e2) << 1));
+        } }, t.exports = i;
+      }, { "../utils": 32 }], 19: [function(e, t, r) {
+        "use strict";
+        var n = e("./Uint8ArrayReader");
+        function i(e2) {
+          n.call(this, e2);
+        }
+        e("../utils").inherits(i, n), i.prototype.readData = function(e2) {
+          this.checkOffset(e2);
+          var t2 = this.data.slice(this.zero + this.index, this.zero + this.index + e2);
+          return this.index += e2, t2;
+        }, t.exports = i;
+      }, { "../utils": 32, "./Uint8ArrayReader": 21 }], 20: [function(e, t, r) {
+        "use strict";
+        var n = e("./DataReader");
+        function i(e2) {
+          n.call(this, e2);
+        }
+        e("../utils").inherits(i, n), i.prototype.byteAt = function(e2) {
+          return this.data.charCodeAt(this.zero + e2);
+        }, i.prototype.lastIndexOfSignature = function(e2) {
+          return this.data.lastIndexOf(e2) - this.zero;
+        }, i.prototype.readAndCheckSignature = function(e2) {
+          return e2 === this.readData(4);
+        }, i.prototype.readData = function(e2) {
+          this.checkOffset(e2);
+          var t2 = this.data.slice(this.zero + this.index, this.zero + this.index + e2);
+          return this.index += e2, t2;
+        }, t.exports = i;
+      }, { "../utils": 32, "./DataReader": 18 }], 21: [function(e, t, r) {
+        "use strict";
+        var n = e("./ArrayReader");
+        function i(e2) {
+          n.call(this, e2);
+        }
+        e("../utils").inherits(i, n), i.prototype.readData = function(e2) {
+          if (this.checkOffset(e2), 0 === e2) return new Uint8Array(0);
+          var t2 = this.data.subarray(this.zero + this.index, this.zero + this.index + e2);
+          return this.index += e2, t2;
+        }, t.exports = i;
+      }, { "../utils": 32, "./ArrayReader": 17 }], 22: [function(e, t, r) {
+        "use strict";
+        var n = e("../utils"), i = e("../support"), s = e("./ArrayReader"), a = e("./StringReader"), o = e("./NodeBufferReader"), h = e("./Uint8ArrayReader");
+        t.exports = function(e2) {
+          var t2 = n.getTypeOf(e2);
+          return n.checkSupport(t2), "string" !== t2 || i.uint8array ? "nodebuffer" === t2 ? new o(e2) : i.uint8array ? new h(n.transformTo("uint8array", e2)) : new s(n.transformTo("array", e2)) : new a(e2);
+        };
+      }, { "../support": 30, "../utils": 32, "./ArrayReader": 17, "./NodeBufferReader": 19, "./StringReader": 20, "./Uint8ArrayReader": 21 }], 23: [function(e, t, r) {
+        "use strict";
+        r.LOCAL_FILE_HEADER = "PK", r.CENTRAL_FILE_HEADER = "PK", r.CENTRAL_DIRECTORY_END = "PK", r.ZIP64_CENTRAL_DIRECTORY_LOCATOR = "PK\x07", r.ZIP64_CENTRAL_DIRECTORY_END = "PK", r.DATA_DESCRIPTOR = "PK\x07\b";
+      }, {}], 24: [function(e, t, r) {
+        "use strict";
+        var n = e("./GenericWorker"), i = e("../utils");
+        function s(e2) {
+          n.call(this, "ConvertWorker to " + e2), this.destType = e2;
+        }
+        i.inherits(s, n), s.prototype.processChunk = function(e2) {
+          this.push({ data: i.transformTo(this.destType, e2.data), meta: e2.meta });
+        }, t.exports = s;
+      }, { "../utils": 32, "./GenericWorker": 28 }], 25: [function(e, t, r) {
+        "use strict";
+        var n = e("./GenericWorker"), i = e("../crc32");
+        function s() {
+          n.call(this, "Crc32Probe"), this.withStreamInfo("crc32", 0);
+        }
+        e("../utils").inherits(s, n), s.prototype.processChunk = function(e2) {
+          this.streamInfo.crc32 = i(e2.data, this.streamInfo.crc32 || 0), this.push(e2);
+        }, t.exports = s;
+      }, { "../crc32": 4, "../utils": 32, "./GenericWorker": 28 }], 26: [function(e, t, r) {
+        "use strict";
+        var n = e("../utils"), i = e("./GenericWorker");
+        function s(e2) {
+          i.call(this, "DataLengthProbe for " + e2), this.propName = e2, this.withStreamInfo(e2, 0);
+        }
+        n.inherits(s, i), s.prototype.processChunk = function(e2) {
+          if (e2) {
+            var t2 = this.streamInfo[this.propName] || 0;
+            this.streamInfo[this.propName] = t2 + e2.data.length;
+          }
+          i.prototype.processChunk.call(this, e2);
+        }, t.exports = s;
+      }, { "../utils": 32, "./GenericWorker": 28 }], 27: [function(e, t, r) {
+        "use strict";
+        var n = e("../utils"), i = e("./GenericWorker");
+        function s(e2) {
+          i.call(this, "DataWorker");
+          var t2 = this;
+          this.dataIsReady = false, this.index = 0, this.max = 0, this.data = null, this.type = "", this._tickScheduled = false, e2.then(function(e3) {
+            t2.dataIsReady = true, t2.data = e3, t2.max = e3 && e3.length || 0, t2.type = n.getTypeOf(e3), t2.isPaused || t2._tickAndRepeat();
+          }, function(e3) {
+            t2.error(e3);
+          });
+        }
+        n.inherits(s, i), s.prototype.cleanUp = function() {
+          i.prototype.cleanUp.call(this), this.data = null;
+        }, s.prototype.resume = function() {
+          return !!i.prototype.resume.call(this) && (!this._tickScheduled && this.dataIsReady && (this._tickScheduled = true, n.delay(this._tickAndRepeat, [], this)), true);
+        }, s.prototype._tickAndRepeat = function() {
+          this._tickScheduled = false, this.isPaused || this.isFinished || (this._tick(), this.isFinished || (n.delay(this._tickAndRepeat, [], this), this._tickScheduled = true));
+        }, s.prototype._tick = function() {
+          if (this.isPaused || this.isFinished) return false;
+          var e2 = null, t2 = Math.min(this.max, this.index + 16384);
+          if (this.index >= this.max) return this.end();
+          switch (this.type) {
+            case "string":
+              e2 = this.data.substring(this.index, t2);
+              break;
+            case "uint8array":
+              e2 = this.data.subarray(this.index, t2);
+              break;
+            case "array":
+            case "nodebuffer":
+              e2 = this.data.slice(this.index, t2);
+          }
+          return this.index = t2, this.push({ data: e2, meta: { percent: this.max ? this.index / this.max * 100 : 0 } });
+        }, t.exports = s;
+      }, { "../utils": 32, "./GenericWorker": 28 }], 28: [function(e, t, r) {
+        "use strict";
+        function n(e2) {
+          this.name = e2 || "default", this.streamInfo = {}, this.generatedError = null, this.extraStreamInfo = {}, this.isPaused = true, this.isFinished = false, this.isLocked = false, this._listeners = { data: [], end: [], error: [] }, this.previous = null;
+        }
+        n.prototype = { push: function(e2) {
+          this.emit("data", e2);
+        }, end: function() {
+          if (this.isFinished) return false;
+          this.flush();
+          try {
+            this.emit("end"), this.cleanUp(), this.isFinished = true;
+          } catch (e2) {
+            this.emit("error", e2);
+          }
+          return true;
+        }, error: function(e2) {
+          return !this.isFinished && (this.isPaused ? this.generatedError = e2 : (this.isFinished = true, this.emit("error", e2), this.previous && this.previous.error(e2), this.cleanUp()), true);
+        }, on: function(e2, t2) {
+          return this._listeners[e2].push(t2), this;
+        }, cleanUp: function() {
+          this.streamInfo = this.generatedError = this.extraStreamInfo = null, this._listeners = [];
+        }, emit: function(e2, t2) {
+          if (this._listeners[e2]) for (var r2 = 0; r2 < this._listeners[e2].length; r2++) this._listeners[e2][r2].call(this, t2);
+        }, pipe: function(e2) {
+          return e2.registerPrevious(this);
+        }, registerPrevious: function(e2) {
+          if (this.isLocked) throw new Error("The stream '" + this + "' has already been used.");
+          this.streamInfo = e2.streamInfo, this.mergeStreamInfo(), this.previous = e2;
+          var t2 = this;
+          return e2.on("data", function(e3) {
+            t2.processChunk(e3);
+          }), e2.on("end", function() {
+            t2.end();
+          }), e2.on("error", function(e3) {
+            t2.error(e3);
+          }), this;
+        }, pause: function() {
+          return !this.isPaused && !this.isFinished && (this.isPaused = true, this.previous && this.previous.pause(), true);
+        }, resume: function() {
+          if (!this.isPaused || this.isFinished) return false;
+          var e2 = this.isPaused = false;
+          return this.generatedError && (this.error(this.generatedError), e2 = true), this.previous && this.previous.resume(), !e2;
+        }, flush: function() {
+        }, processChunk: function(e2) {
+          this.push(e2);
+        }, withStreamInfo: function(e2, t2) {
+          return this.extraStreamInfo[e2] = t2, this.mergeStreamInfo(), this;
+        }, mergeStreamInfo: function() {
+          for (var e2 in this.extraStreamInfo) Object.prototype.hasOwnProperty.call(this.extraStreamInfo, e2) && (this.streamInfo[e2] = this.extraStreamInfo[e2]);
+        }, lock: function() {
+          if (this.isLocked) throw new Error("The stream '" + this + "' has already been used.");
+          this.isLocked = true, this.previous && this.previous.lock();
+        }, toString: function() {
+          var e2 = "Worker " + this.name;
+          return this.previous ? this.previous + " -> " + e2 : e2;
+        } }, t.exports = n;
+      }, {}], 29: [function(e, t, r) {
+        "use strict";
+        var h = e("../utils"), i = e("./ConvertWorker"), s = e("./GenericWorker"), u = e("../base64"), n = e("../support"), a = e("../external"), o = null;
+        if (n.nodestream) try {
+          o = e("../nodejs/NodejsStreamOutputAdapter");
+        } catch (e2) {
+        }
+        function l(e2, o2) {
+          return new a.Promise(function(t2, r2) {
+            var n2 = [], i2 = e2._internalType, s2 = e2._outputType, a2 = e2._mimeType;
+            e2.on("data", function(e3, t3) {
+              n2.push(e3), o2 && o2(t3);
+            }).on("error", function(e3) {
+              n2 = [], r2(e3);
+            }).on("end", function() {
+              try {
+                var e3 = (function(e4, t3, r3) {
+                  switch (e4) {
+                    case "blob":
+                      return h.newBlob(h.transformTo("arraybuffer", t3), r3);
+                    case "base64":
+                      return u.encode(t3);
+                    default:
+                      return h.transformTo(e4, t3);
+                  }
+                })(s2, (function(e4, t3) {
+                  var r3, n3 = 0, i3 = null, s3 = 0;
+                  for (r3 = 0; r3 < t3.length; r3++) s3 += t3[r3].length;
+                  switch (e4) {
+                    case "string":
+                      return t3.join("");
+                    case "array":
+                      return Array.prototype.concat.apply([], t3);
+                    case "uint8array":
+                      for (i3 = new Uint8Array(s3), r3 = 0; r3 < t3.length; r3++) i3.set(t3[r3], n3), n3 += t3[r3].length;
+                      return i3;
+                    case "nodebuffer":
+                      return Buffer.concat(t3);
+                    default:
+                      throw new Error("concat : unsupported type '" + e4 + "'");
+                  }
+                })(i2, n2), a2);
+                t2(e3);
+              } catch (e4) {
+                r2(e4);
+              }
+              n2 = [];
+            }).resume();
+          });
+        }
+        function f(e2, t2, r2) {
+          var n2 = t2;
+          switch (t2) {
+            case "blob":
+            case "arraybuffer":
+              n2 = "uint8array";
+              break;
+            case "base64":
+              n2 = "string";
+          }
+          try {
+            this._internalType = n2, this._outputType = t2, this._mimeType = r2, h.checkSupport(n2), this._worker = e2.pipe(new i(n2)), e2.lock();
+          } catch (e3) {
+            this._worker = new s("error"), this._worker.error(e3);
+          }
+        }
+        f.prototype = { accumulate: function(e2) {
+          return l(this, e2);
+        }, on: function(e2, t2) {
+          var r2 = this;
+          return "data" === e2 ? this._worker.on(e2, function(e3) {
+            t2.call(r2, e3.data, e3.meta);
+          }) : this._worker.on(e2, function() {
+            h.delay(t2, arguments, r2);
+          }), this;
+        }, resume: function() {
+          return h.delay(this._worker.resume, [], this._worker), this;
+        }, pause: function() {
+          return this._worker.pause(), this;
+        }, toNodejsStream: function(e2) {
+          if (h.checkSupport("nodestream"), "nodebuffer" !== this._outputType) throw new Error(this._outputType + " is not supported by this method");
+          return new o(this, { objectMode: "nodebuffer" !== this._outputType }, e2);
+        } }, t.exports = f;
+      }, { "../base64": 1, "../external": 6, "../nodejs/NodejsStreamOutputAdapter": 13, "../support": 30, "../utils": 32, "./ConvertWorker": 24, "./GenericWorker": 28 }], 30: [function(e, t, r) {
+        "use strict";
+        if (r.base64 = true, r.array = true, r.string = true, r.arraybuffer = "undefined" != typeof ArrayBuffer && "undefined" != typeof Uint8Array, r.nodebuffer = "undefined" != typeof Buffer, r.uint8array = "undefined" != typeof Uint8Array, "undefined" == typeof ArrayBuffer) r.blob = false;
+        else {
+          var n = new ArrayBuffer(0);
+          try {
+            r.blob = 0 === new Blob([n], { type: "application/zip" }).size;
+          } catch (e2) {
+            try {
+              var i = new (self.BlobBuilder || self.WebKitBlobBuilder || self.MozBlobBuilder || self.MSBlobBuilder)();
+              i.append(n), r.blob = 0 === i.getBlob("application/zip").size;
+            } catch (e3) {
+              r.blob = false;
+            }
+          }
+        }
+        try {
+          r.nodestream = !!e("readable-stream").Readable;
+        } catch (e2) {
+          r.nodestream = false;
+        }
+      }, { "readable-stream": 16 }], 31: [function(e, t, s) {
+        "use strict";
+        for (var o = e("./utils"), h = e("./support"), r = e("./nodejsUtils"), n = e("./stream/GenericWorker"), u = new Array(256), i = 0; i < 256; i++) u[i] = 252 <= i ? 6 : 248 <= i ? 5 : 240 <= i ? 4 : 224 <= i ? 3 : 192 <= i ? 2 : 1;
+        u[254] = u[254] = 1;
+        function a() {
+          n.call(this, "utf-8 decode"), this.leftOver = null;
+        }
+        function l() {
+          n.call(this, "utf-8 encode");
+        }
+        s.utf8encode = function(e2) {
+          return h.nodebuffer ? r.newBufferFrom(e2, "utf-8") : (function(e3) {
+            var t2, r2, n2, i2, s2, a2 = e3.length, o2 = 0;
+            for (i2 = 0; i2 < a2; i2++) 55296 == (64512 & (r2 = e3.charCodeAt(i2))) && i2 + 1 < a2 && 56320 == (64512 & (n2 = e3.charCodeAt(i2 + 1))) && (r2 = 65536 + (r2 - 55296 << 10) + (n2 - 56320), i2++), o2 += r2 < 128 ? 1 : r2 < 2048 ? 2 : r2 < 65536 ? 3 : 4;
+            for (t2 = h.uint8array ? new Uint8Array(o2) : new Array(o2), i2 = s2 = 0; s2 < o2; i2++) 55296 == (64512 & (r2 = e3.charCodeAt(i2))) && i2 + 1 < a2 && 56320 == (64512 & (n2 = e3.charCodeAt(i2 + 1))) && (r2 = 65536 + (r2 - 55296 << 10) + (n2 - 56320), i2++), r2 < 128 ? t2[s2++] = r2 : (r2 < 2048 ? t2[s2++] = 192 | r2 >>> 6 : (r2 < 65536 ? t2[s2++] = 224 | r2 >>> 12 : (t2[s2++] = 240 | r2 >>> 18, t2[s2++] = 128 | r2 >>> 12 & 63), t2[s2++] = 128 | r2 >>> 6 & 63), t2[s2++] = 128 | 63 & r2);
+            return t2;
+          })(e2);
+        }, s.utf8decode = function(e2) {
+          return h.nodebuffer ? o.transformTo("nodebuffer", e2).toString("utf-8") : (function(e3) {
+            var t2, r2, n2, i2, s2 = e3.length, a2 = new Array(2 * s2);
+            for (t2 = r2 = 0; t2 < s2; ) if ((n2 = e3[t2++]) < 128) a2[r2++] = n2;
+            else if (4 < (i2 = u[n2])) a2[r2++] = 65533, t2 += i2 - 1;
+            else {
+              for (n2 &= 2 === i2 ? 31 : 3 === i2 ? 15 : 7; 1 < i2 && t2 < s2; ) n2 = n2 << 6 | 63 & e3[t2++], i2--;
+              1 < i2 ? a2[r2++] = 65533 : n2 < 65536 ? a2[r2++] = n2 : (n2 -= 65536, a2[r2++] = 55296 | n2 >> 10 & 1023, a2[r2++] = 56320 | 1023 & n2);
+            }
+            return a2.length !== r2 && (a2.subarray ? a2 = a2.subarray(0, r2) : a2.length = r2), o.applyFromCharCode(a2);
+          })(e2 = o.transformTo(h.uint8array ? "uint8array" : "array", e2));
+        }, o.inherits(a, n), a.prototype.processChunk = function(e2) {
+          var t2 = o.transformTo(h.uint8array ? "uint8array" : "array", e2.data);
+          if (this.leftOver && this.leftOver.length) {
+            if (h.uint8array) {
+              var r2 = t2;
+              (t2 = new Uint8Array(r2.length + this.leftOver.length)).set(this.leftOver, 0), t2.set(r2, this.leftOver.length);
+            } else t2 = this.leftOver.concat(t2);
+            this.leftOver = null;
+          }
+          var n2 = (function(e3, t3) {
+            var r3;
+            for ((t3 = t3 || e3.length) > e3.length && (t3 = e3.length), r3 = t3 - 1; 0 <= r3 && 128 == (192 & e3[r3]); ) r3--;
+            return r3 < 0 ? t3 : 0 === r3 ? t3 : r3 + u[e3[r3]] > t3 ? r3 : t3;
+          })(t2), i2 = t2;
+          n2 !== t2.length && (h.uint8array ? (i2 = t2.subarray(0, n2), this.leftOver = t2.subarray(n2, t2.length)) : (i2 = t2.slice(0, n2), this.leftOver = t2.slice(n2, t2.length))), this.push({ data: s.utf8decode(i2), meta: e2.meta });
+        }, a.prototype.flush = function() {
+          this.leftOver && this.leftOver.length && (this.push({ data: s.utf8decode(this.leftOver), meta: {} }), this.leftOver = null);
+        }, s.Utf8DecodeWorker = a, o.inherits(l, n), l.prototype.processChunk = function(e2) {
+          this.push({ data: s.utf8encode(e2.data), meta: e2.meta });
+        }, s.Utf8EncodeWorker = l;
+      }, { "./nodejsUtils": 14, "./stream/GenericWorker": 28, "./support": 30, "./utils": 32 }], 32: [function(e, t, a) {
+        "use strict";
+        var o = e("./support"), h = e("./base64"), r = e("./nodejsUtils"), u = e("./external");
+        function n(e2) {
+          return e2;
+        }
+        function l(e2, t2) {
+          for (var r2 = 0; r2 < e2.length; ++r2) t2[r2] = 255 & e2.charCodeAt(r2);
+          return t2;
+        }
+        e("setimmediate"), a.newBlob = function(t2, r2) {
+          a.checkSupport("blob");
+          try {
+            return new Blob([t2], { type: r2 });
+          } catch (e2) {
+            try {
+              var n2 = new (self.BlobBuilder || self.WebKitBlobBuilder || self.MozBlobBuilder || self.MSBlobBuilder)();
+              return n2.append(t2), n2.getBlob(r2);
+            } catch (e3) {
+              throw new Error("Bug : can't construct the Blob.");
+            }
+          }
+        };
+        var i = { stringifyByChunk: function(e2, t2, r2) {
+          var n2 = [], i2 = 0, s2 = e2.length;
+          if (s2 <= r2) return String.fromCharCode.apply(null, e2);
+          for (; i2 < s2; ) "array" === t2 || "nodebuffer" === t2 ? n2.push(String.fromCharCode.apply(null, e2.slice(i2, Math.min(i2 + r2, s2)))) : n2.push(String.fromCharCode.apply(null, e2.subarray(i2, Math.min(i2 + r2, s2)))), i2 += r2;
+          return n2.join("");
+        }, stringifyByChar: function(e2) {
+          for (var t2 = "", r2 = 0; r2 < e2.length; r2++) t2 += String.fromCharCode(e2[r2]);
+          return t2;
+        }, applyCanBeUsed: { uint8array: (function() {
+          try {
+            return o.uint8array && 1 === String.fromCharCode.apply(null, new Uint8Array(1)).length;
+          } catch (e2) {
+            return false;
+          }
+        })(), nodebuffer: (function() {
+          try {
+            return o.nodebuffer && 1 === String.fromCharCode.apply(null, r.allocBuffer(1)).length;
+          } catch (e2) {
+            return false;
+          }
+        })() } };
+        function s(e2) {
+          var t2 = 65536, r2 = a.getTypeOf(e2), n2 = true;
+          if ("uint8array" === r2 ? n2 = i.applyCanBeUsed.uint8array : "nodebuffer" === r2 && (n2 = i.applyCanBeUsed.nodebuffer), n2) for (; 1 < t2; ) try {
+            return i.stringifyByChunk(e2, r2, t2);
+          } catch (e3) {
+            t2 = Math.floor(t2 / 2);
+          }
+          return i.stringifyByChar(e2);
+        }
+        function f(e2, t2) {
+          for (var r2 = 0; r2 < e2.length; r2++) t2[r2] = e2[r2];
+          return t2;
+        }
+        a.applyFromCharCode = s;
+        var c = {};
+        c.string = { string: n, array: function(e2) {
+          return l(e2, new Array(e2.length));
+        }, arraybuffer: function(e2) {
+          return c.string.uint8array(e2).buffer;
+        }, uint8array: function(e2) {
+          return l(e2, new Uint8Array(e2.length));
+        }, nodebuffer: function(e2) {
+          return l(e2, r.allocBuffer(e2.length));
+        } }, c.array = { string: s, array: n, arraybuffer: function(e2) {
+          return new Uint8Array(e2).buffer;
+        }, uint8array: function(e2) {
+          return new Uint8Array(e2);
+        }, nodebuffer: function(e2) {
+          return r.newBufferFrom(e2);
+        } }, c.arraybuffer = { string: function(e2) {
+          return s(new Uint8Array(e2));
+        }, array: function(e2) {
+          return f(new Uint8Array(e2), new Array(e2.byteLength));
+        }, arraybuffer: n, uint8array: function(e2) {
+          return new Uint8Array(e2);
+        }, nodebuffer: function(e2) {
+          return r.newBufferFrom(new Uint8Array(e2));
+        } }, c.uint8array = { string: s, array: function(e2) {
+          return f(e2, new Array(e2.length));
+        }, arraybuffer: function(e2) {
+          return e2.buffer;
+        }, uint8array: n, nodebuffer: function(e2) {
+          return r.newBufferFrom(e2);
+        } }, c.nodebuffer = { string: s, array: function(e2) {
+          return f(e2, new Array(e2.length));
+        }, arraybuffer: function(e2) {
+          return c.nodebuffer.uint8array(e2).buffer;
+        }, uint8array: function(e2) {
+          return f(e2, new Uint8Array(e2.length));
+        }, nodebuffer: n }, a.transformTo = function(e2, t2) {
+          if (t2 = t2 || "", !e2) return t2;
+          a.checkSupport(e2);
+          var r2 = a.getTypeOf(t2);
+          return c[r2][e2](t2);
+        }, a.resolve = function(e2) {
+          for (var t2 = e2.split("/"), r2 = [], n2 = 0; n2 < t2.length; n2++) {
+            var i2 = t2[n2];
+            "." === i2 || "" === i2 && 0 !== n2 && n2 !== t2.length - 1 || (".." === i2 ? r2.pop() : r2.push(i2));
+          }
+          return r2.join("/");
+        }, a.getTypeOf = function(e2) {
+          if ("string" == typeof e2) return "string";
+          var t2 = Object.prototype.toString.call(e2);
+          return "[object Array]" === t2 ? "array" : o.nodebuffer && r.isBuffer(e2) ? "nodebuffer" : o.uint8array && "[object Uint8Array]" === t2 ? "uint8array" : o.arraybuffer && "[object ArrayBuffer]" === t2 ? "arraybuffer" : void 0;
+        }, a.checkSupport = function(e2) {
+          if (!o[e2.toLowerCase()]) throw new Error(e2 + " is not supported by this platform");
+        }, a.MAX_VALUE_16BITS = 65535, a.MAX_VALUE_32BITS = -1, a.pretty = function(e2) {
+          var t2, r2, n2 = "";
+          for (r2 = 0; r2 < (e2 || "").length; r2++) n2 += "\\x" + ((t2 = e2.charCodeAt(r2)) < 16 ? "0" : "") + t2.toString(16).toUpperCase();
+          return n2;
+        }, a.delay = function(e2, t2, r2) {
+          setImmediate(function() {
+            e2.apply(r2 || null, t2 || []);
+          });
+        }, a.inherits = function(e2, t2) {
+          function r2() {
+          }
+          r2.prototype = t2.prototype, e2.prototype = new r2();
+        }, a.extend = function() {
+          var e2, t2, r2 = {};
+          for (e2 = 0; e2 < arguments.length; e2++) for (t2 in arguments[e2]) Object.prototype.hasOwnProperty.call(arguments[e2], t2) && void 0 === r2[t2] && (r2[t2] = arguments[e2][t2]);
+          return r2;
+        }, a.prepareContent = function(r2, e2, n2, i2, s2) {
+          return u.Promise.resolve(e2).then(function(n3) {
+            return o.blob && (n3 instanceof Blob || -1 !== ["[object File]", "[object Blob]"].indexOf(Object.prototype.toString.call(n3))) ? void 0 !== Blob.prototype.arrayBuffer ? n3.arrayBuffer() : "undefined" != typeof FileReader ? new u.Promise(function(t2, r3) {
+              var e3 = new FileReader();
+              e3.onload = function(e4) {
+                t2(e4.target.result);
+              }, e3.onerror = function(e4) {
+                r3(e4.target.error);
+              }, e3.readAsArrayBuffer(n3);
+            }) : u.Promise.reject(new Error(r2 + " is a Blob, but we have no way of reading it.")) : n3;
+          }).then(function(e3) {
+            var t2 = a.getTypeOf(e3);
+            return t2 ? ("arraybuffer" === t2 ? e3 = a.transformTo("uint8array", e3) : "string" === t2 && (s2 ? e3 = h.decode(e3) : n2 && true !== i2 && (e3 = (function(e4) {
+              return l(e4, o.uint8array ? new Uint8Array(e4.length) : new Array(e4.length));
+            })(e3))), e3) : u.Promise.reject(new Error("Can't read the data of '" + r2 + "'. Is it in a supported JavaScript type (String, Blob, ArrayBuffer, etc) ?"));
+          });
+        };
+      }, { "./base64": 1, "./external": 6, "./nodejsUtils": 14, "./support": 30, setimmediate: 54 }], 33: [function(e, t, r) {
+        "use strict";
+        var n = e("./reader/readerFor"), i = e("./utils"), s = e("./signature"), a = e("./zipEntry"), o = e("./support");
+        function h(e2) {
+          this.files = [], this.loadOptions = e2;
+        }
+        h.prototype = { checkSignature: function(e2) {
+          if (!this.reader.readAndCheckSignature(e2)) {
+            this.reader.index -= 4;
+            var t2 = this.reader.readString(4);
+            throw new Error("Corrupted zip or bug: unexpected signature (" + i.pretty(t2) + ", expected " + i.pretty(e2) + ")");
+          }
+        }, isSignature: function(e2, t2) {
+          var r2 = this.reader.index;
+          this.reader.setIndex(e2);
+          var n2 = this.reader.readString(4) === t2;
+          return this.reader.setIndex(r2), n2;
+        }, readBlockEndOfCentral: function() {
+          this.diskNumber = this.reader.readInt(2), this.diskWithCentralDirStart = this.reader.readInt(2), this.centralDirRecordsOnThisDisk = this.reader.readInt(2), this.centralDirRecords = this.reader.readInt(2), this.centralDirSize = this.reader.readInt(4), this.centralDirOffset = this.reader.readInt(4), this.zipCommentLength = this.reader.readInt(2);
+          var e2 = this.reader.readData(this.zipCommentLength), t2 = o.uint8array ? "uint8array" : "array", r2 = i.transformTo(t2, e2);
+          this.zipComment = this.loadOptions.decodeFileName(r2);
+        }, readBlockZip64EndOfCentral: function() {
+          this.zip64EndOfCentralSize = this.reader.readInt(8), this.reader.skip(4), this.diskNumber = this.reader.readInt(4), this.diskWithCentralDirStart = this.reader.readInt(4), this.centralDirRecordsOnThisDisk = this.reader.readInt(8), this.centralDirRecords = this.reader.readInt(8), this.centralDirSize = this.reader.readInt(8), this.centralDirOffset = this.reader.readInt(8), this.zip64ExtensibleData = {};
+          for (var e2, t2, r2, n2 = this.zip64EndOfCentralSize - 44; 0 < n2; ) e2 = this.reader.readInt(2), t2 = this.reader.readInt(4), r2 = this.reader.readData(t2), this.zip64ExtensibleData[e2] = { id: e2, length: t2, value: r2 };
+        }, readBlockZip64EndOfCentralLocator: function() {
+          if (this.diskWithZip64CentralDirStart = this.reader.readInt(4), this.relativeOffsetEndOfZip64CentralDir = this.reader.readInt(8), this.disksCount = this.reader.readInt(4), 1 < this.disksCount) throw new Error("Multi-volumes zip are not supported");
+        }, readLocalFiles: function() {
+          var e2, t2;
+          for (e2 = 0; e2 < this.files.length; e2++) t2 = this.files[e2], this.reader.setIndex(t2.localHeaderOffset), this.checkSignature(s.LOCAL_FILE_HEADER), t2.readLocalPart(this.reader), t2.handleUTF8(), t2.processAttributes();
+        }, readCentralDir: function() {
+          var e2;
+          for (this.reader.setIndex(this.centralDirOffset); this.reader.readAndCheckSignature(s.CENTRAL_FILE_HEADER); ) (e2 = new a({ zip64: this.zip64 }, this.loadOptions)).readCentralPart(this.reader), this.files.push(e2);
+          if (this.centralDirRecords !== this.files.length && 0 !== this.centralDirRecords && 0 === this.files.length) throw new Error("Corrupted zip or bug: expected " + this.centralDirRecords + " records in central dir, got " + this.files.length);
+        }, readEndOfCentral: function() {
+          var e2 = this.reader.lastIndexOfSignature(s.CENTRAL_DIRECTORY_END);
+          if (e2 < 0) throw !this.isSignature(0, s.LOCAL_FILE_HEADER) ? new Error("Can't find end of central directory : is this a zip file ? If it is, see https://stuk.github.io/jszip/documentation/howto/read_zip.html") : new Error("Corrupted zip: can't find end of central directory");
+          this.reader.setIndex(e2);
+          var t2 = e2;
+          if (this.checkSignature(s.CENTRAL_DIRECTORY_END), this.readBlockEndOfCentral(), this.diskNumber === i.MAX_VALUE_16BITS || this.diskWithCentralDirStart === i.MAX_VALUE_16BITS || this.centralDirRecordsOnThisDisk === i.MAX_VALUE_16BITS || this.centralDirRecords === i.MAX_VALUE_16BITS || this.centralDirSize === i.MAX_VALUE_32BITS || this.centralDirOffset === i.MAX_VALUE_32BITS) {
+            if (this.zip64 = true, (e2 = this.reader.lastIndexOfSignature(s.ZIP64_CENTRAL_DIRECTORY_LOCATOR)) < 0) throw new Error("Corrupted zip: can't find the ZIP64 end of central directory locator");
+            if (this.reader.setIndex(e2), this.checkSignature(s.ZIP64_CENTRAL_DIRECTORY_LOCATOR), this.readBlockZip64EndOfCentralLocator(), !this.isSignature(this.relativeOffsetEndOfZip64CentralDir, s.ZIP64_CENTRAL_DIRECTORY_END) && (this.relativeOffsetEndOfZip64CentralDir = this.reader.lastIndexOfSignature(s.ZIP64_CENTRAL_DIRECTORY_END), this.relativeOffsetEndOfZip64CentralDir < 0)) throw new Error("Corrupted zip: can't find the ZIP64 end of central directory");
+            this.reader.setIndex(this.relativeOffsetEndOfZip64CentralDir), this.checkSignature(s.ZIP64_CENTRAL_DIRECTORY_END), this.readBlockZip64EndOfCentral();
+          }
+          var r2 = this.centralDirOffset + this.centralDirSize;
+          this.zip64 && (r2 += 20, r2 += 12 + this.zip64EndOfCentralSize);
+          var n2 = t2 - r2;
+          if (0 < n2) this.isSignature(t2, s.CENTRAL_FILE_HEADER) || (this.reader.zero = n2);
+          else if (n2 < 0) throw new Error("Corrupted zip: missing " + Math.abs(n2) + " bytes.");
+        }, prepareReader: function(e2) {
+          this.reader = n(e2);
+        }, load: function(e2) {
+          this.prepareReader(e2), this.readEndOfCentral(), this.readCentralDir(), this.readLocalFiles();
+        } }, t.exports = h;
+      }, { "./reader/readerFor": 22, "./signature": 23, "./support": 30, "./utils": 32, "./zipEntry": 34 }], 34: [function(e, t, r) {
+        "use strict";
+        var n = e("./reader/readerFor"), s = e("./utils"), i = e("./compressedObject"), a = e("./crc32"), o = e("./utf8"), h = e("./compressions"), u = e("./support");
+        function l(e2, t2) {
+          this.options = e2, this.loadOptions = t2;
+        }
+        l.prototype = { isEncrypted: function() {
+          return 1 == (1 & this.bitFlag);
+        }, useUTF8: function() {
+          return 2048 == (2048 & this.bitFlag);
+        }, readLocalPart: function(e2) {
+          var t2, r2;
+          if (e2.skip(22), this.fileNameLength = e2.readInt(2), r2 = e2.readInt(2), this.fileName = e2.readData(this.fileNameLength), e2.skip(r2), -1 === this.compressedSize || -1 === this.uncompressedSize) throw new Error("Bug or corrupted zip : didn't get enough information from the central directory (compressedSize === -1 || uncompressedSize === -1)");
+          if (null === (t2 = (function(e3) {
+            for (var t3 in h) if (Object.prototype.hasOwnProperty.call(h, t3) && h[t3].magic === e3) return h[t3];
+            return null;
+          })(this.compressionMethod))) throw new Error("Corrupted zip : compression " + s.pretty(this.compressionMethod) + " unknown (inner file : " + s.transformTo("string", this.fileName) + ")");
+          this.decompressed = new i(this.compressedSize, this.uncompressedSize, this.crc32, t2, e2.readData(this.compressedSize));
+        }, readCentralPart: function(e2) {
+          this.versionMadeBy = e2.readInt(2), e2.skip(2), this.bitFlag = e2.readInt(2), this.compressionMethod = e2.readString(2), this.date = e2.readDate(), this.crc32 = e2.readInt(4), this.compressedSize = e2.readInt(4), this.uncompressedSize = e2.readInt(4);
+          var t2 = e2.readInt(2);
+          if (this.extraFieldsLength = e2.readInt(2), this.fileCommentLength = e2.readInt(2), this.diskNumberStart = e2.readInt(2), this.internalFileAttributes = e2.readInt(2), this.externalFileAttributes = e2.readInt(4), this.localHeaderOffset = e2.readInt(4), this.isEncrypted()) throw new Error("Encrypted zip are not supported");
+          e2.skip(t2), this.readExtraFields(e2), this.parseZIP64ExtraField(e2), this.fileComment = e2.readData(this.fileCommentLength);
+        }, processAttributes: function() {
+          this.unixPermissions = null, this.dosPermissions = null;
+          var e2 = this.versionMadeBy >> 8;
+          this.dir = !!(16 & this.externalFileAttributes), 0 == e2 && (this.dosPermissions = 63 & this.externalFileAttributes), 3 == e2 && (this.unixPermissions = this.externalFileAttributes >> 16 & 65535), this.dir || "/" !== this.fileNameStr.slice(-1) || (this.dir = true);
+        }, parseZIP64ExtraField: function() {
+          if (this.extraFields[1]) {
+            var e2 = n(this.extraFields[1].value);
+            this.uncompressedSize === s.MAX_VALUE_32BITS && (this.uncompressedSize = e2.readInt(8)), this.compressedSize === s.MAX_VALUE_32BITS && (this.compressedSize = e2.readInt(8)), this.localHeaderOffset === s.MAX_VALUE_32BITS && (this.localHeaderOffset = e2.readInt(8)), this.diskNumberStart === s.MAX_VALUE_32BITS && (this.diskNumberStart = e2.readInt(4));
+          }
+        }, readExtraFields: function(e2) {
+          var t2, r2, n2, i2 = e2.index + this.extraFieldsLength;
+          for (this.extraFields || (this.extraFields = {}); e2.index + 4 < i2; ) t2 = e2.readInt(2), r2 = e2.readInt(2), n2 = e2.readData(r2), this.extraFields[t2] = { id: t2, length: r2, value: n2 };
+          e2.setIndex(i2);
+        }, handleUTF8: function() {
+          var e2 = u.uint8array ? "uint8array" : "array";
+          if (this.useUTF8()) this.fileNameStr = o.utf8decode(this.fileName), this.fileCommentStr = o.utf8decode(this.fileComment);
+          else {
+            var t2 = this.findExtraFieldUnicodePath();
+            if (null !== t2) this.fileNameStr = t2;
+            else {
+              var r2 = s.transformTo(e2, this.fileName);
+              this.fileNameStr = this.loadOptions.decodeFileName(r2);
+            }
+            var n2 = this.findExtraFieldUnicodeComment();
+            if (null !== n2) this.fileCommentStr = n2;
+            else {
+              var i2 = s.transformTo(e2, this.fileComment);
+              this.fileCommentStr = this.loadOptions.decodeFileName(i2);
+            }
+          }
+        }, findExtraFieldUnicodePath: function() {
+          var e2 = this.extraFields[28789];
+          if (e2) {
+            var t2 = n(e2.value);
+            return 1 !== t2.readInt(1) ? null : a(this.fileName) !== t2.readInt(4) ? null : o.utf8decode(t2.readData(e2.length - 5));
+          }
+          return null;
+        }, findExtraFieldUnicodeComment: function() {
+          var e2 = this.extraFields[25461];
+          if (e2) {
+            var t2 = n(e2.value);
+            return 1 !== t2.readInt(1) ? null : a(this.fileComment) !== t2.readInt(4) ? null : o.utf8decode(t2.readData(e2.length - 5));
+          }
+          return null;
+        } }, t.exports = l;
+      }, { "./compressedObject": 2, "./compressions": 3, "./crc32": 4, "./reader/readerFor": 22, "./support": 30, "./utf8": 31, "./utils": 32 }], 35: [function(e, t, r) {
+        "use strict";
+        function n(e2, t2, r2) {
+          this.name = e2, this.dir = r2.dir, this.date = r2.date, this.comment = r2.comment, this.unixPermissions = r2.unixPermissions, this.dosPermissions = r2.dosPermissions, this._data = t2, this._dataBinary = r2.binary, this.options = { compression: r2.compression, compressionOptions: r2.compressionOptions };
+        }
+        var s = e("./stream/StreamHelper"), i = e("./stream/DataWorker"), a = e("./utf8"), o = e("./compressedObject"), h = e("./stream/GenericWorker");
+        n.prototype = { internalStream: function(e2) {
+          var t2 = null, r2 = "string";
+          try {
+            if (!e2) throw new Error("No output type specified.");
+            var n2 = "string" === (r2 = e2.toLowerCase()) || "text" === r2;
+            "binarystring" !== r2 && "text" !== r2 || (r2 = "string"), t2 = this._decompressWorker();
+            var i2 = !this._dataBinary;
+            i2 && !n2 && (t2 = t2.pipe(new a.Utf8EncodeWorker())), !i2 && n2 && (t2 = t2.pipe(new a.Utf8DecodeWorker()));
+          } catch (e3) {
+            (t2 = new h("error")).error(e3);
+          }
+          return new s(t2, r2, "");
+        }, async: function(e2, t2) {
+          return this.internalStream(e2).accumulate(t2);
+        }, nodeStream: function(e2, t2) {
+          return this.internalStream(e2 || "nodebuffer").toNodejsStream(t2);
+        }, _compressWorker: function(e2, t2) {
+          if (this._data instanceof o && this._data.compression.magic === e2.magic) return this._data.getCompressedWorker();
+          var r2 = this._decompressWorker();
+          return this._dataBinary || (r2 = r2.pipe(new a.Utf8EncodeWorker())), o.createWorkerFrom(r2, e2, t2);
+        }, _decompressWorker: function() {
+          return this._data instanceof o ? this._data.getContentWorker() : this._data instanceof h ? this._data : new i(this._data);
+        } };
+        for (var u = ["asText", "asBinary", "asNodeBuffer", "asUint8Array", "asArrayBuffer"], l = function() {
+          throw new Error("This method has been removed in JSZip 3.0, please check the upgrade guide.");
+        }, f = 0; f < u.length; f++) n.prototype[u[f]] = l;
+        t.exports = n;
+      }, { "./compressedObject": 2, "./stream/DataWorker": 27, "./stream/GenericWorker": 28, "./stream/StreamHelper": 29, "./utf8": 31 }], 36: [function(e, l, t) {
+        (function(t2) {
+          "use strict";
+          var r, n, e2 = t2.MutationObserver || t2.WebKitMutationObserver;
+          if (e2) {
+            var i = 0, s = new e2(u), a = t2.document.createTextNode("");
+            s.observe(a, { characterData: true }), r = function() {
+              a.data = i = ++i % 2;
+            };
+          } else if (t2.setImmediate || void 0 === t2.MessageChannel) r = "document" in t2 && "onreadystatechange" in t2.document.createElement("script") ? function() {
+            var e3 = t2.document.createElement("script");
+            e3.onreadystatechange = function() {
+              u(), e3.onreadystatechange = null, e3.parentNode.removeChild(e3), e3 = null;
+            }, t2.document.documentElement.appendChild(e3);
+          } : function() {
+            setTimeout(u, 0);
+          };
+          else {
+            var o = new t2.MessageChannel();
+            o.port1.onmessage = u, r = function() {
+              o.port2.postMessage(0);
+            };
+          }
+          var h = [];
+          function u() {
+            var e3, t3;
+            n = true;
+            for (var r2 = h.length; r2; ) {
+              for (t3 = h, h = [], e3 = -1; ++e3 < r2; ) t3[e3]();
+              r2 = h.length;
+            }
+            n = false;
+          }
+          l.exports = function(e3) {
+            1 !== h.push(e3) || n || r();
+          };
+        }).call(this, "undefined" != typeof global ? global : "undefined" != typeof self ? self : "undefined" != typeof window ? window : {});
+      }, {}], 37: [function(e, t, r) {
+        "use strict";
+        var i = e("immediate");
+        function u() {
+        }
+        var l = {}, s = ["REJECTED"], a = ["FULFILLED"], n = ["PENDING"];
+        function o(e2) {
+          if ("function" != typeof e2) throw new TypeError("resolver must be a function");
+          this.state = n, this.queue = [], this.outcome = void 0, e2 !== u && d(this, e2);
+        }
+        function h(e2, t2, r2) {
+          this.promise = e2, "function" == typeof t2 && (this.onFulfilled = t2, this.callFulfilled = this.otherCallFulfilled), "function" == typeof r2 && (this.onRejected = r2, this.callRejected = this.otherCallRejected);
+        }
+        function f(t2, r2, n2) {
+          i(function() {
+            var e2;
+            try {
+              e2 = r2(n2);
+            } catch (e3) {
+              return l.reject(t2, e3);
+            }
+            e2 === t2 ? l.reject(t2, new TypeError("Cannot resolve promise with itself")) : l.resolve(t2, e2);
+          });
+        }
+        function c(e2) {
+          var t2 = e2 && e2.then;
+          if (e2 && ("object" == typeof e2 || "function" == typeof e2) && "function" == typeof t2) return function() {
+            t2.apply(e2, arguments);
+          };
+        }
+        function d(t2, e2) {
+          var r2 = false;
+          function n2(e3) {
+            r2 || (r2 = true, l.reject(t2, e3));
+          }
+          function i2(e3) {
+            r2 || (r2 = true, l.resolve(t2, e3));
+          }
+          var s2 = p(function() {
+            e2(i2, n2);
+          });
+          "error" === s2.status && n2(s2.value);
+        }
+        function p(e2, t2) {
+          var r2 = {};
+          try {
+            r2.value = e2(t2), r2.status = "success";
+          } catch (e3) {
+            r2.status = "error", r2.value = e3;
+          }
+          return r2;
+        }
+        (t.exports = o).prototype.finally = function(t2) {
+          if ("function" != typeof t2) return this;
+          var r2 = this.constructor;
+          return this.then(function(e2) {
+            return r2.resolve(t2()).then(function() {
+              return e2;
+            });
+          }, function(e2) {
+            return r2.resolve(t2()).then(function() {
+              throw e2;
+            });
+          });
+        }, o.prototype.catch = function(e2) {
+          return this.then(null, e2);
+        }, o.prototype.then = function(e2, t2) {
+          if ("function" != typeof e2 && this.state === a || "function" != typeof t2 && this.state === s) return this;
+          var r2 = new this.constructor(u);
+          this.state !== n ? f(r2, this.state === a ? e2 : t2, this.outcome) : this.queue.push(new h(r2, e2, t2));
+          return r2;
+        }, h.prototype.callFulfilled = function(e2) {
+          l.resolve(this.promise, e2);
+        }, h.prototype.otherCallFulfilled = function(e2) {
+          f(this.promise, this.onFulfilled, e2);
+        }, h.prototype.callRejected = function(e2) {
+          l.reject(this.promise, e2);
+        }, h.prototype.otherCallRejected = function(e2) {
+          f(this.promise, this.onRejected, e2);
+        }, l.resolve = function(e2, t2) {
+          var r2 = p(c, t2);
+          if ("error" === r2.status) return l.reject(e2, r2.value);
+          var n2 = r2.value;
+          if (n2) d(e2, n2);
+          else {
+            e2.state = a, e2.outcome = t2;
+            for (var i2 = -1, s2 = e2.queue.length; ++i2 < s2; ) e2.queue[i2].callFulfilled(t2);
+          }
+          return e2;
+        }, l.reject = function(e2, t2) {
+          e2.state = s, e2.outcome = t2;
+          for (var r2 = -1, n2 = e2.queue.length; ++r2 < n2; ) e2.queue[r2].callRejected(t2);
+          return e2;
+        }, o.resolve = function(e2) {
+          if (e2 instanceof this) return e2;
+          return l.resolve(new this(u), e2);
+        }, o.reject = function(e2) {
+          var t2 = new this(u);
+          return l.reject(t2, e2);
+        }, o.all = function(e2) {
+          var r2 = this;
+          if ("[object Array]" !== Object.prototype.toString.call(e2)) return this.reject(new TypeError("must be an array"));
+          var n2 = e2.length, i2 = false;
+          if (!n2) return this.resolve([]);
+          var s2 = new Array(n2), a2 = 0, t2 = -1, o2 = new this(u);
+          for (; ++t2 < n2; ) h2(e2[t2], t2);
+          return o2;
+          function h2(e3, t3) {
+            r2.resolve(e3).then(function(e4) {
+              s2[t3] = e4, ++a2 !== n2 || i2 || (i2 = true, l.resolve(o2, s2));
+            }, function(e4) {
+              i2 || (i2 = true, l.reject(o2, e4));
+            });
+          }
+        }, o.race = function(e2) {
+          var t2 = this;
+          if ("[object Array]" !== Object.prototype.toString.call(e2)) return this.reject(new TypeError("must be an array"));
+          var r2 = e2.length, n2 = false;
+          if (!r2) return this.resolve([]);
+          var i2 = -1, s2 = new this(u);
+          for (; ++i2 < r2; ) a2 = e2[i2], t2.resolve(a2).then(function(e3) {
+            n2 || (n2 = true, l.resolve(s2, e3));
+          }, function(e3) {
+            n2 || (n2 = true, l.reject(s2, e3));
+          });
+          var a2;
+          return s2;
+        };
+      }, { immediate: 36 }], 38: [function(e, t, r) {
+        "use strict";
+        var n = {};
+        (0, e("./lib/utils/common").assign)(n, e("./lib/deflate"), e("./lib/inflate"), e("./lib/zlib/constants")), t.exports = n;
+      }, { "./lib/deflate": 39, "./lib/inflate": 40, "./lib/utils/common": 41, "./lib/zlib/constants": 44 }], 39: [function(e, t, r) {
+        "use strict";
+        var a = e("./zlib/deflate"), o = e("./utils/common"), h = e("./utils/strings"), i = e("./zlib/messages"), s = e("./zlib/zstream"), u = Object.prototype.toString, l = 0, f = -1, c = 0, d = 8;
+        function p(e2) {
+          if (!(this instanceof p)) return new p(e2);
+          this.options = o.assign({ level: f, method: d, chunkSize: 16384, windowBits: 15, memLevel: 8, strategy: c, to: "" }, e2 || {});
+          var t2 = this.options;
+          t2.raw && 0 < t2.windowBits ? t2.windowBits = -t2.windowBits : t2.gzip && 0 < t2.windowBits && t2.windowBits < 16 && (t2.windowBits += 16), this.err = 0, this.msg = "", this.ended = false, this.chunks = [], this.strm = new s(), this.strm.avail_out = 0;
+          var r2 = a.deflateInit2(this.strm, t2.level, t2.method, t2.windowBits, t2.memLevel, t2.strategy);
+          if (r2 !== l) throw new Error(i[r2]);
+          if (t2.header && a.deflateSetHeader(this.strm, t2.header), t2.dictionary) {
+            var n2;
+            if (n2 = "string" == typeof t2.dictionary ? h.string2buf(t2.dictionary) : "[object ArrayBuffer]" === u.call(t2.dictionary) ? new Uint8Array(t2.dictionary) : t2.dictionary, (r2 = a.deflateSetDictionary(this.strm, n2)) !== l) throw new Error(i[r2]);
+            this._dict_set = true;
+          }
+        }
+        function n(e2, t2) {
+          var r2 = new p(t2);
+          if (r2.push(e2, true), r2.err) throw r2.msg || i[r2.err];
+          return r2.result;
+        }
+        p.prototype.push = function(e2, t2) {
+          var r2, n2, i2 = this.strm, s2 = this.options.chunkSize;
+          if (this.ended) return false;
+          n2 = t2 === ~~t2 ? t2 : true === t2 ? 4 : 0, "string" == typeof e2 ? i2.input = h.string2buf(e2) : "[object ArrayBuffer]" === u.call(e2) ? i2.input = new Uint8Array(e2) : i2.input = e2, i2.next_in = 0, i2.avail_in = i2.input.length;
+          do {
+            if (0 === i2.avail_out && (i2.output = new o.Buf8(s2), i2.next_out = 0, i2.avail_out = s2), 1 !== (r2 = a.deflate(i2, n2)) && r2 !== l) return this.onEnd(r2), !(this.ended = true);
+            0 !== i2.avail_out && (0 !== i2.avail_in || 4 !== n2 && 2 !== n2) || ("string" === this.options.to ? this.onData(h.buf2binstring(o.shrinkBuf(i2.output, i2.next_out))) : this.onData(o.shrinkBuf(i2.output, i2.next_out)));
+          } while ((0 < i2.avail_in || 0 === i2.avail_out) && 1 !== r2);
+          return 4 === n2 ? (r2 = a.deflateEnd(this.strm), this.onEnd(r2), this.ended = true, r2 === l) : 2 !== n2 || (this.onEnd(l), !(i2.avail_out = 0));
+        }, p.prototype.onData = function(e2) {
+          this.chunks.push(e2);
+        }, p.prototype.onEnd = function(e2) {
+          e2 === l && ("string" === this.options.to ? this.result = this.chunks.join("") : this.result = o.flattenChunks(this.chunks)), this.chunks = [], this.err = e2, this.msg = this.strm.msg;
+        }, r.Deflate = p, r.deflate = n, r.deflateRaw = function(e2, t2) {
+          return (t2 = t2 || {}).raw = true, n(e2, t2);
+        }, r.gzip = function(e2, t2) {
+          return (t2 = t2 || {}).gzip = true, n(e2, t2);
+        };
+      }, { "./utils/common": 41, "./utils/strings": 42, "./zlib/deflate": 46, "./zlib/messages": 51, "./zlib/zstream": 53 }], 40: [function(e, t, r) {
+        "use strict";
+        var c = e("./zlib/inflate"), d = e("./utils/common"), p = e("./utils/strings"), m = e("./zlib/constants"), n = e("./zlib/messages"), i = e("./zlib/zstream"), s = e("./zlib/gzheader"), _ = Object.prototype.toString;
+        function a(e2) {
+          if (!(this instanceof a)) return new a(e2);
+          this.options = d.assign({ chunkSize: 16384, windowBits: 0, to: "" }, e2 || {});
+          var t2 = this.options;
+          t2.raw && 0 <= t2.windowBits && t2.windowBits < 16 && (t2.windowBits = -t2.windowBits, 0 === t2.windowBits && (t2.windowBits = -15)), !(0 <= t2.windowBits && t2.windowBits < 16) || e2 && e2.windowBits || (t2.windowBits += 32), 15 < t2.windowBits && t2.windowBits < 48 && 0 == (15 & t2.windowBits) && (t2.windowBits |= 15), this.err = 0, this.msg = "", this.ended = false, this.chunks = [], this.strm = new i(), this.strm.avail_out = 0;
+          var r2 = c.inflateInit2(this.strm, t2.windowBits);
+          if (r2 !== m.Z_OK) throw new Error(n[r2]);
+          this.header = new s(), c.inflateGetHeader(this.strm, this.header);
+        }
+        function o(e2, t2) {
+          var r2 = new a(t2);
+          if (r2.push(e2, true), r2.err) throw r2.msg || n[r2.err];
+          return r2.result;
+        }
+        a.prototype.push = function(e2, t2) {
+          var r2, n2, i2, s2, a2, o2, h = this.strm, u = this.options.chunkSize, l = this.options.dictionary, f = false;
+          if (this.ended) return false;
+          n2 = t2 === ~~t2 ? t2 : true === t2 ? m.Z_FINISH : m.Z_NO_FLUSH, "string" == typeof e2 ? h.input = p.binstring2buf(e2) : "[object ArrayBuffer]" === _.call(e2) ? h.input = new Uint8Array(e2) : h.input = e2, h.next_in = 0, h.avail_in = h.input.length;
+          do {
+            if (0 === h.avail_out && (h.output = new d.Buf8(u), h.next_out = 0, h.avail_out = u), (r2 = c.inflate(h, m.Z_NO_FLUSH)) === m.Z_NEED_DICT && l && (o2 = "string" == typeof l ? p.string2buf(l) : "[object ArrayBuffer]" === _.call(l) ? new Uint8Array(l) : l, r2 = c.inflateSetDictionary(this.strm, o2)), r2 === m.Z_BUF_ERROR && true === f && (r2 = m.Z_OK, f = false), r2 !== m.Z_STREAM_END && r2 !== m.Z_OK) return this.onEnd(r2), !(this.ended = true);
+            h.next_out && (0 !== h.avail_out && r2 !== m.Z_STREAM_END && (0 !== h.avail_in || n2 !== m.Z_FINISH && n2 !== m.Z_SYNC_FLUSH) || ("string" === this.options.to ? (i2 = p.utf8border(h.output, h.next_out), s2 = h.next_out - i2, a2 = p.buf2string(h.output, i2), h.next_out = s2, h.avail_out = u - s2, s2 && d.arraySet(h.output, h.output, i2, s2, 0), this.onData(a2)) : this.onData(d.shrinkBuf(h.output, h.next_out)))), 0 === h.avail_in && 0 === h.avail_out && (f = true);
+          } while ((0 < h.avail_in || 0 === h.avail_out) && r2 !== m.Z_STREAM_END);
+          return r2 === m.Z_STREAM_END && (n2 = m.Z_FINISH), n2 === m.Z_FINISH ? (r2 = c.inflateEnd(this.strm), this.onEnd(r2), this.ended = true, r2 === m.Z_OK) : n2 !== m.Z_SYNC_FLUSH || (this.onEnd(m.Z_OK), !(h.avail_out = 0));
+        }, a.prototype.onData = function(e2) {
+          this.chunks.push(e2);
+        }, a.prototype.onEnd = function(e2) {
+          e2 === m.Z_OK && ("string" === this.options.to ? this.result = this.chunks.join("") : this.result = d.flattenChunks(this.chunks)), this.chunks = [], this.err = e2, this.msg = this.strm.msg;
+        }, r.Inflate = a, r.inflate = o, r.inflateRaw = function(e2, t2) {
+          return (t2 = t2 || {}).raw = true, o(e2, t2);
+        }, r.ungzip = o;
+      }, { "./utils/common": 41, "./utils/strings": 42, "./zlib/constants": 44, "./zlib/gzheader": 47, "./zlib/inflate": 49, "./zlib/messages": 51, "./zlib/zstream": 53 }], 41: [function(e, t, r) {
+        "use strict";
+        var n = "undefined" != typeof Uint8Array && "undefined" != typeof Uint16Array && "undefined" != typeof Int32Array;
+        r.assign = function(e2) {
+          for (var t2 = Array.prototype.slice.call(arguments, 1); t2.length; ) {
+            var r2 = t2.shift();
+            if (r2) {
+              if ("object" != typeof r2) throw new TypeError(r2 + "must be non-object");
+              for (var n2 in r2) r2.hasOwnProperty(n2) && (e2[n2] = r2[n2]);
+            }
+          }
+          return e2;
+        }, r.shrinkBuf = function(e2, t2) {
+          return e2.length === t2 ? e2 : e2.subarray ? e2.subarray(0, t2) : (e2.length = t2, e2);
+        };
+        var i = { arraySet: function(e2, t2, r2, n2, i2) {
+          if (t2.subarray && e2.subarray) e2.set(t2.subarray(r2, r2 + n2), i2);
+          else for (var s2 = 0; s2 < n2; s2++) e2[i2 + s2] = t2[r2 + s2];
+        }, flattenChunks: function(e2) {
+          var t2, r2, n2, i2, s2, a;
+          for (t2 = n2 = 0, r2 = e2.length; t2 < r2; t2++) n2 += e2[t2].length;
+          for (a = new Uint8Array(n2), t2 = i2 = 0, r2 = e2.length; t2 < r2; t2++) s2 = e2[t2], a.set(s2, i2), i2 += s2.length;
+          return a;
+        } }, s = { arraySet: function(e2, t2, r2, n2, i2) {
+          for (var s2 = 0; s2 < n2; s2++) e2[i2 + s2] = t2[r2 + s2];
+        }, flattenChunks: function(e2) {
+          return [].concat.apply([], e2);
+        } };
+        r.setTyped = function(e2) {
+          e2 ? (r.Buf8 = Uint8Array, r.Buf16 = Uint16Array, r.Buf32 = Int32Array, r.assign(r, i)) : (r.Buf8 = Array, r.Buf16 = Array, r.Buf32 = Array, r.assign(r, s));
+        }, r.setTyped(n);
+      }, {}], 42: [function(e, t, r) {
+        "use strict";
+        var h = e("./common"), i = true, s = true;
+        try {
+          String.fromCharCode.apply(null, [0]);
+        } catch (e2) {
+          i = false;
+        }
+        try {
+          String.fromCharCode.apply(null, new Uint8Array(1));
+        } catch (e2) {
+          s = false;
+        }
+        for (var u = new h.Buf8(256), n = 0; n < 256; n++) u[n] = 252 <= n ? 6 : 248 <= n ? 5 : 240 <= n ? 4 : 224 <= n ? 3 : 192 <= n ? 2 : 1;
+        function l(e2, t2) {
+          if (t2 < 65537 && (e2.subarray && s || !e2.subarray && i)) return String.fromCharCode.apply(null, h.shrinkBuf(e2, t2));
+          for (var r2 = "", n2 = 0; n2 < t2; n2++) r2 += String.fromCharCode(e2[n2]);
+          return r2;
+        }
+        u[254] = u[254] = 1, r.string2buf = function(e2) {
+          var t2, r2, n2, i2, s2, a = e2.length, o = 0;
+          for (i2 = 0; i2 < a; i2++) 55296 == (64512 & (r2 = e2.charCodeAt(i2))) && i2 + 1 < a && 56320 == (64512 & (n2 = e2.charCodeAt(i2 + 1))) && (r2 = 65536 + (r2 - 55296 << 10) + (n2 - 56320), i2++), o += r2 < 128 ? 1 : r2 < 2048 ? 2 : r2 < 65536 ? 3 : 4;
+          for (t2 = new h.Buf8(o), i2 = s2 = 0; s2 < o; i2++) 55296 == (64512 & (r2 = e2.charCodeAt(i2))) && i2 + 1 < a && 56320 == (64512 & (n2 = e2.charCodeAt(i2 + 1))) && (r2 = 65536 + (r2 - 55296 << 10) + (n2 - 56320), i2++), r2 < 128 ? t2[s2++] = r2 : (r2 < 2048 ? t2[s2++] = 192 | r2 >>> 6 : (r2 < 65536 ? t2[s2++] = 224 | r2 >>> 12 : (t2[s2++] = 240 | r2 >>> 18, t2[s2++] = 128 | r2 >>> 12 & 63), t2[s2++] = 128 | r2 >>> 6 & 63), t2[s2++] = 128 | 63 & r2);
+          return t2;
+        }, r.buf2binstring = function(e2) {
+          return l(e2, e2.length);
+        }, r.binstring2buf = function(e2) {
+          for (var t2 = new h.Buf8(e2.length), r2 = 0, n2 = t2.length; r2 < n2; r2++) t2[r2] = e2.charCodeAt(r2);
+          return t2;
+        }, r.buf2string = function(e2, t2) {
+          var r2, n2, i2, s2, a = t2 || e2.length, o = new Array(2 * a);
+          for (r2 = n2 = 0; r2 < a; ) if ((i2 = e2[r2++]) < 128) o[n2++] = i2;
+          else if (4 < (s2 = u[i2])) o[n2++] = 65533, r2 += s2 - 1;
+          else {
+            for (i2 &= 2 === s2 ? 31 : 3 === s2 ? 15 : 7; 1 < s2 && r2 < a; ) i2 = i2 << 6 | 63 & e2[r2++], s2--;
+            1 < s2 ? o[n2++] = 65533 : i2 < 65536 ? o[n2++] = i2 : (i2 -= 65536, o[n2++] = 55296 | i2 >> 10 & 1023, o[n2++] = 56320 | 1023 & i2);
+          }
+          return l(o, n2);
+        }, r.utf8border = function(e2, t2) {
+          var r2;
+          for ((t2 = t2 || e2.length) > e2.length && (t2 = e2.length), r2 = t2 - 1; 0 <= r2 && 128 == (192 & e2[r2]); ) r2--;
+          return r2 < 0 ? t2 : 0 === r2 ? t2 : r2 + u[e2[r2]] > t2 ? r2 : t2;
+        };
+      }, { "./common": 41 }], 43: [function(e, t, r) {
+        "use strict";
+        t.exports = function(e2, t2, r2, n) {
+          for (var i = 65535 & e2 | 0, s = e2 >>> 16 & 65535 | 0, a = 0; 0 !== r2; ) {
+            for (r2 -= a = 2e3 < r2 ? 2e3 : r2; s = s + (i = i + t2[n++] | 0) | 0, --a; ) ;
+            i %= 65521, s %= 65521;
+          }
+          return i | s << 16 | 0;
+        };
+      }, {}], 44: [function(e, t, r) {
+        "use strict";
+        t.exports = { Z_NO_FLUSH: 0, Z_PARTIAL_FLUSH: 1, Z_SYNC_FLUSH: 2, Z_FULL_FLUSH: 3, Z_FINISH: 4, Z_BLOCK: 5, Z_TREES: 6, Z_OK: 0, Z_STREAM_END: 1, Z_NEED_DICT: 2, Z_ERRNO: -1, Z_STREAM_ERROR: -2, Z_DATA_ERROR: -3, Z_BUF_ERROR: -5, Z_NO_COMPRESSION: 0, Z_BEST_SPEED: 1, Z_BEST_COMPRESSION: 9, Z_DEFAULT_COMPRESSION: -1, Z_FILTERED: 1, Z_HUFFMAN_ONLY: 2, Z_RLE: 3, Z_FIXED: 4, Z_DEFAULT_STRATEGY: 0, Z_BINARY: 0, Z_TEXT: 1, Z_UNKNOWN: 2, Z_DEFLATED: 8 };
+      }, {}], 45: [function(e, t, r) {
+        "use strict";
+        var o = (function() {
+          for (var e2, t2 = [], r2 = 0; r2 < 256; r2++) {
+            e2 = r2;
+            for (var n = 0; n < 8; n++) e2 = 1 & e2 ? 3988292384 ^ e2 >>> 1 : e2 >>> 1;
+            t2[r2] = e2;
+          }
+          return t2;
+        })();
+        t.exports = function(e2, t2, r2, n) {
+          var i = o, s = n + r2;
+          e2 ^= -1;
+          for (var a = n; a < s; a++) e2 = e2 >>> 8 ^ i[255 & (e2 ^ t2[a])];
+          return -1 ^ e2;
+        };
+      }, {}], 46: [function(e, t, r) {
+        "use strict";
+        var h, c = e("../utils/common"), u = e("./trees"), d = e("./adler32"), p = e("./crc32"), n = e("./messages"), l = 0, f = 4, m = 0, _ = -2, g = -1, b = 4, i = 2, v = 8, y = 9, s = 286, a = 30, o = 19, w = 2 * s + 1, k = 15, x = 3, S = 258, z = S + x + 1, C = 42, E = 113, A = 1, I = 2, O = 3, B = 4;
+        function R(e2, t2) {
+          return e2.msg = n[t2], t2;
+        }
+        function T(e2) {
+          return (e2 << 1) - (4 < e2 ? 9 : 0);
+        }
+        function D(e2) {
+          for (var t2 = e2.length; 0 <= --t2; ) e2[t2] = 0;
+        }
+        function F(e2) {
+          var t2 = e2.state, r2 = t2.pending;
+          r2 > e2.avail_out && (r2 = e2.avail_out), 0 !== r2 && (c.arraySet(e2.output, t2.pending_buf, t2.pending_out, r2, e2.next_out), e2.next_out += r2, t2.pending_out += r2, e2.total_out += r2, e2.avail_out -= r2, t2.pending -= r2, 0 === t2.pending && (t2.pending_out = 0));
+        }
+        function N(e2, t2) {
+          u._tr_flush_block(e2, 0 <= e2.block_start ? e2.block_start : -1, e2.strstart - e2.block_start, t2), e2.block_start = e2.strstart, F(e2.strm);
+        }
+        function U(e2, t2) {
+          e2.pending_buf[e2.pending++] = t2;
+        }
+        function P(e2, t2) {
+          e2.pending_buf[e2.pending++] = t2 >>> 8 & 255, e2.pending_buf[e2.pending++] = 255 & t2;
+        }
+        function L(e2, t2) {
+          var r2, n2, i2 = e2.max_chain_length, s2 = e2.strstart, a2 = e2.prev_length, o2 = e2.nice_match, h2 = e2.strstart > e2.w_size - z ? e2.strstart - (e2.w_size - z) : 0, u2 = e2.window, l2 = e2.w_mask, f2 = e2.prev, c2 = e2.strstart + S, d2 = u2[s2 + a2 - 1], p2 = u2[s2 + a2];
+          e2.prev_length >= e2.good_match && (i2 >>= 2), o2 > e2.lookahead && (o2 = e2.lookahead);
+          do {
+            if (u2[(r2 = t2) + a2] === p2 && u2[r2 + a2 - 1] === d2 && u2[r2] === u2[s2] && u2[++r2] === u2[s2 + 1]) {
+              s2 += 2, r2++;
+              do {
+              } while (u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && u2[++s2] === u2[++r2] && s2 < c2);
+              if (n2 = S - (c2 - s2), s2 = c2 - S, a2 < n2) {
+                if (e2.match_start = t2, o2 <= (a2 = n2)) break;
+                d2 = u2[s2 + a2 - 1], p2 = u2[s2 + a2];
+              }
+            }
+          } while ((t2 = f2[t2 & l2]) > h2 && 0 != --i2);
+          return a2 <= e2.lookahead ? a2 : e2.lookahead;
+        }
+        function j(e2) {
+          var t2, r2, n2, i2, s2, a2, o2, h2, u2, l2, f2 = e2.w_size;
+          do {
+            if (i2 = e2.window_size - e2.lookahead - e2.strstart, e2.strstart >= f2 + (f2 - z)) {
+              for (c.arraySet(e2.window, e2.window, f2, f2, 0), e2.match_start -= f2, e2.strstart -= f2, e2.block_start -= f2, t2 = r2 = e2.hash_size; n2 = e2.head[--t2], e2.head[t2] = f2 <= n2 ? n2 - f2 : 0, --r2; ) ;
+              for (t2 = r2 = f2; n2 = e2.prev[--t2], e2.prev[t2] = f2 <= n2 ? n2 - f2 : 0, --r2; ) ;
+              i2 += f2;
+            }
+            if (0 === e2.strm.avail_in) break;
+            if (a2 = e2.strm, o2 = e2.window, h2 = e2.strstart + e2.lookahead, u2 = i2, l2 = void 0, l2 = a2.avail_in, u2 < l2 && (l2 = u2), r2 = 0 === l2 ? 0 : (a2.avail_in -= l2, c.arraySet(o2, a2.input, a2.next_in, l2, h2), 1 === a2.state.wrap ? a2.adler = d(a2.adler, o2, l2, h2) : 2 === a2.state.wrap && (a2.adler = p(a2.adler, o2, l2, h2)), a2.next_in += l2, a2.total_in += l2, l2), e2.lookahead += r2, e2.lookahead + e2.insert >= x) for (s2 = e2.strstart - e2.insert, e2.ins_h = e2.window[s2], e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[s2 + 1]) & e2.hash_mask; e2.insert && (e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[s2 + x - 1]) & e2.hash_mask, e2.prev[s2 & e2.w_mask] = e2.head[e2.ins_h], e2.head[e2.ins_h] = s2, s2++, e2.insert--, !(e2.lookahead + e2.insert < x)); ) ;
+          } while (e2.lookahead < z && 0 !== e2.strm.avail_in);
+        }
+        function Z(e2, t2) {
+          for (var r2, n2; ; ) {
+            if (e2.lookahead < z) {
+              if (j(e2), e2.lookahead < z && t2 === l) return A;
+              if (0 === e2.lookahead) break;
+            }
+            if (r2 = 0, e2.lookahead >= x && (e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[e2.strstart + x - 1]) & e2.hash_mask, r2 = e2.prev[e2.strstart & e2.w_mask] = e2.head[e2.ins_h], e2.head[e2.ins_h] = e2.strstart), 0 !== r2 && e2.strstart - r2 <= e2.w_size - z && (e2.match_length = L(e2, r2)), e2.match_length >= x) if (n2 = u._tr_tally(e2, e2.strstart - e2.match_start, e2.match_length - x), e2.lookahead -= e2.match_length, e2.match_length <= e2.max_lazy_match && e2.lookahead >= x) {
+              for (e2.match_length--; e2.strstart++, e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[e2.strstart + x - 1]) & e2.hash_mask, r2 = e2.prev[e2.strstart & e2.w_mask] = e2.head[e2.ins_h], e2.head[e2.ins_h] = e2.strstart, 0 != --e2.match_length; ) ;
+              e2.strstart++;
+            } else e2.strstart += e2.match_length, e2.match_length = 0, e2.ins_h = e2.window[e2.strstart], e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[e2.strstart + 1]) & e2.hash_mask;
+            else n2 = u._tr_tally(e2, 0, e2.window[e2.strstart]), e2.lookahead--, e2.strstart++;
+            if (n2 && (N(e2, false), 0 === e2.strm.avail_out)) return A;
+          }
+          return e2.insert = e2.strstart < x - 1 ? e2.strstart : x - 1, t2 === f ? (N(e2, true), 0 === e2.strm.avail_out ? O : B) : e2.last_lit && (N(e2, false), 0 === e2.strm.avail_out) ? A : I;
+        }
+        function W(e2, t2) {
+          for (var r2, n2, i2; ; ) {
+            if (e2.lookahead < z) {
+              if (j(e2), e2.lookahead < z && t2 === l) return A;
+              if (0 === e2.lookahead) break;
+            }
+            if (r2 = 0, e2.lookahead >= x && (e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[e2.strstart + x - 1]) & e2.hash_mask, r2 = e2.prev[e2.strstart & e2.w_mask] = e2.head[e2.ins_h], e2.head[e2.ins_h] = e2.strstart), e2.prev_length = e2.match_length, e2.prev_match = e2.match_start, e2.match_length = x - 1, 0 !== r2 && e2.prev_length < e2.max_lazy_match && e2.strstart - r2 <= e2.w_size - z && (e2.match_length = L(e2, r2), e2.match_length <= 5 && (1 === e2.strategy || e2.match_length === x && 4096 < e2.strstart - e2.match_start) && (e2.match_length = x - 1)), e2.prev_length >= x && e2.match_length <= e2.prev_length) {
+              for (i2 = e2.strstart + e2.lookahead - x, n2 = u._tr_tally(e2, e2.strstart - 1 - e2.prev_match, e2.prev_length - x), e2.lookahead -= e2.prev_length - 1, e2.prev_length -= 2; ++e2.strstart <= i2 && (e2.ins_h = (e2.ins_h << e2.hash_shift ^ e2.window[e2.strstart + x - 1]) & e2.hash_mask, r2 = e2.prev[e2.strstart & e2.w_mask] = e2.head[e2.ins_h], e2.head[e2.ins_h] = e2.strstart), 0 != --e2.prev_length; ) ;
+              if (e2.match_available = 0, e2.match_length = x - 1, e2.strstart++, n2 && (N(e2, false), 0 === e2.strm.avail_out)) return A;
+            } else if (e2.match_available) {
+              if ((n2 = u._tr_tally(e2, 0, e2.window[e2.strstart - 1])) && N(e2, false), e2.strstart++, e2.lookahead--, 0 === e2.strm.avail_out) return A;
+            } else e2.match_available = 1, e2.strstart++, e2.lookahead--;
+          }
+          return e2.match_available && (n2 = u._tr_tally(e2, 0, e2.window[e2.strstart - 1]), e2.match_available = 0), e2.insert = e2.strstart < x - 1 ? e2.strstart : x - 1, t2 === f ? (N(e2, true), 0 === e2.strm.avail_out ? O : B) : e2.last_lit && (N(e2, false), 0 === e2.strm.avail_out) ? A : I;
+        }
+        function M(e2, t2, r2, n2, i2) {
+          this.good_length = e2, this.max_lazy = t2, this.nice_length = r2, this.max_chain = n2, this.func = i2;
+        }
+        function H() {
+          this.strm = null, this.status = 0, this.pending_buf = null, this.pending_buf_size = 0, this.pending_out = 0, this.pending = 0, this.wrap = 0, this.gzhead = null, this.gzindex = 0, this.method = v, this.last_flush = -1, this.w_size = 0, this.w_bits = 0, this.w_mask = 0, this.window = null, this.window_size = 0, this.prev = null, this.head = null, this.ins_h = 0, this.hash_size = 0, this.hash_bits = 0, this.hash_mask = 0, this.hash_shift = 0, this.block_start = 0, this.match_length = 0, this.prev_match = 0, this.match_available = 0, this.strstart = 0, this.match_start = 0, this.lookahead = 0, this.prev_length = 0, this.max_chain_length = 0, this.max_lazy_match = 0, this.level = 0, this.strategy = 0, this.good_match = 0, this.nice_match = 0, this.dyn_ltree = new c.Buf16(2 * w), this.dyn_dtree = new c.Buf16(2 * (2 * a + 1)), this.bl_tree = new c.Buf16(2 * (2 * o + 1)), D(this.dyn_ltree), D(this.dyn_dtree), D(this.bl_tree), this.l_desc = null, this.d_desc = null, this.bl_desc = null, this.bl_count = new c.Buf16(k + 1), this.heap = new c.Buf16(2 * s + 1), D(this.heap), this.heap_len = 0, this.heap_max = 0, this.depth = new c.Buf16(2 * s + 1), D(this.depth), this.l_buf = 0, this.lit_bufsize = 0, this.last_lit = 0, this.d_buf = 0, this.opt_len = 0, this.static_len = 0, this.matches = 0, this.insert = 0, this.bi_buf = 0, this.bi_valid = 0;
+        }
+        function G(e2) {
+          var t2;
+          return e2 && e2.state ? (e2.total_in = e2.total_out = 0, e2.data_type = i, (t2 = e2.state).pending = 0, t2.pending_out = 0, t2.wrap < 0 && (t2.wrap = -t2.wrap), t2.status = t2.wrap ? C : E, e2.adler = 2 === t2.wrap ? 0 : 1, t2.last_flush = l, u._tr_init(t2), m) : R(e2, _);
+        }
+        function K(e2) {
+          var t2 = G(e2);
+          return t2 === m && (function(e3) {
+            e3.window_size = 2 * e3.w_size, D(e3.head), e3.max_lazy_match = h[e3.level].max_lazy, e3.good_match = h[e3.level].good_length, e3.nice_match = h[e3.level].nice_length, e3.max_chain_length = h[e3.level].max_chain, e3.strstart = 0, e3.block_start = 0, e3.lookahead = 0, e3.insert = 0, e3.match_length = e3.prev_length = x - 1, e3.match_available = 0, e3.ins_h = 0;
+          })(e2.state), t2;
+        }
+        function Y(e2, t2, r2, n2, i2, s2) {
+          if (!e2) return _;
+          var a2 = 1;
+          if (t2 === g && (t2 = 6), n2 < 0 ? (a2 = 0, n2 = -n2) : 15 < n2 && (a2 = 2, n2 -= 16), i2 < 1 || y < i2 || r2 !== v || n2 < 8 || 15 < n2 || t2 < 0 || 9 < t2 || s2 < 0 || b < s2) return R(e2, _);
+          8 === n2 && (n2 = 9);
+          var o2 = new H();
+          return (e2.state = o2).strm = e2, o2.wrap = a2, o2.gzhead = null, o2.w_bits = n2, o2.w_size = 1 << o2.w_bits, o2.w_mask = o2.w_size - 1, o2.hash_bits = i2 + 7, o2.hash_size = 1 << o2.hash_bits, o2.hash_mask = o2.hash_size - 1, o2.hash_shift = ~~((o2.hash_bits + x - 1) / x), o2.window = new c.Buf8(2 * o2.w_size), o2.head = new c.Buf16(o2.hash_size), o2.prev = new c.Buf16(o2.w_size), o2.lit_bufsize = 1 << i2 + 6, o2.pending_buf_size = 4 * o2.lit_bufsize, o2.pending_buf = new c.Buf8(o2.pending_buf_size), o2.d_buf = 1 * o2.lit_bufsize, o2.l_buf = 3 * o2.lit_bufsize, o2.level = t2, o2.strategy = s2, o2.method = r2, K(e2);
+        }
+        h = [new M(0, 0, 0, 0, function(e2, t2) {
+          var r2 = 65535;
+          for (r2 > e2.pending_buf_size - 5 && (r2 = e2.pending_buf_size - 5); ; ) {
+            if (e2.lookahead <= 1) {
+              if (j(e2), 0 === e2.lookahead && t2 === l) return A;
+              if (0 === e2.lookahead) break;
+            }
+            e2.strstart += e2.lookahead, e2.lookahead = 0;
+            var n2 = e2.block_start + r2;
+            if ((0 === e2.strstart || e2.strstart >= n2) && (e2.lookahead = e2.strstart - n2, e2.strstart = n2, N(e2, false), 0 === e2.strm.avail_out)) return A;
+            if (e2.strstart - e2.block_start >= e2.w_size - z && (N(e2, false), 0 === e2.strm.avail_out)) return A;
+          }
+          return e2.insert = 0, t2 === f ? (N(e2, true), 0 === e2.strm.avail_out ? O : B) : (e2.strstart > e2.block_start && (N(e2, false), e2.strm.avail_out), A);
+        }), new M(4, 4, 8, 4, Z), new M(4, 5, 16, 8, Z), new M(4, 6, 32, 32, Z), new M(4, 4, 16, 16, W), new M(8, 16, 32, 32, W), new M(8, 16, 128, 128, W), new M(8, 32, 128, 256, W), new M(32, 128, 258, 1024, W), new M(32, 258, 258, 4096, W)], r.deflateInit = function(e2, t2) {
+          return Y(e2, t2, v, 15, 8, 0);
+        }, r.deflateInit2 = Y, r.deflateReset = K, r.deflateResetKeep = G, r.deflateSetHeader = function(e2, t2) {
+          return e2 && e2.state ? 2 !== e2.state.wrap ? _ : (e2.state.gzhead = t2, m) : _;
+        }, r.deflate = function(e2, t2) {
+          var r2, n2, i2, s2;
+          if (!e2 || !e2.state || 5 < t2 || t2 < 0) return e2 ? R(e2, _) : _;
+          if (n2 = e2.state, !e2.output || !e2.input && 0 !== e2.avail_in || 666 === n2.status && t2 !== f) return R(e2, 0 === e2.avail_out ? -5 : _);
+          if (n2.strm = e2, r2 = n2.last_flush, n2.last_flush = t2, n2.status === C) if (2 === n2.wrap) e2.adler = 0, U(n2, 31), U(n2, 139), U(n2, 8), n2.gzhead ? (U(n2, (n2.gzhead.text ? 1 : 0) + (n2.gzhead.hcrc ? 2 : 0) + (n2.gzhead.extra ? 4 : 0) + (n2.gzhead.name ? 8 : 0) + (n2.gzhead.comment ? 16 : 0)), U(n2, 255 & n2.gzhead.time), U(n2, n2.gzhead.time >> 8 & 255), U(n2, n2.gzhead.time >> 16 & 255), U(n2, n2.gzhead.time >> 24 & 255), U(n2, 9 === n2.level ? 2 : 2 <= n2.strategy || n2.level < 2 ? 4 : 0), U(n2, 255 & n2.gzhead.os), n2.gzhead.extra && n2.gzhead.extra.length && (U(n2, 255 & n2.gzhead.extra.length), U(n2, n2.gzhead.extra.length >> 8 & 255)), n2.gzhead.hcrc && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending, 0)), n2.gzindex = 0, n2.status = 69) : (U(n2, 0), U(n2, 0), U(n2, 0), U(n2, 0), U(n2, 0), U(n2, 9 === n2.level ? 2 : 2 <= n2.strategy || n2.level < 2 ? 4 : 0), U(n2, 3), n2.status = E);
+          else {
+            var a2 = v + (n2.w_bits - 8 << 4) << 8;
+            a2 |= (2 <= n2.strategy || n2.level < 2 ? 0 : n2.level < 6 ? 1 : 6 === n2.level ? 2 : 3) << 6, 0 !== n2.strstart && (a2 |= 32), a2 += 31 - a2 % 31, n2.status = E, P(n2, a2), 0 !== n2.strstart && (P(n2, e2.adler >>> 16), P(n2, 65535 & e2.adler)), e2.adler = 1;
+          }
+          if (69 === n2.status) if (n2.gzhead.extra) {
+            for (i2 = n2.pending; n2.gzindex < (65535 & n2.gzhead.extra.length) && (n2.pending !== n2.pending_buf_size || (n2.gzhead.hcrc && n2.pending > i2 && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending - i2, i2)), F(e2), i2 = n2.pending, n2.pending !== n2.pending_buf_size)); ) U(n2, 255 & n2.gzhead.extra[n2.gzindex]), n2.gzindex++;
+            n2.gzhead.hcrc && n2.pending > i2 && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending - i2, i2)), n2.gzindex === n2.gzhead.extra.length && (n2.gzindex = 0, n2.status = 73);
+          } else n2.status = 73;
+          if (73 === n2.status) if (n2.gzhead.name) {
+            i2 = n2.pending;
+            do {
+              if (n2.pending === n2.pending_buf_size && (n2.gzhead.hcrc && n2.pending > i2 && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending - i2, i2)), F(e2), i2 = n2.pending, n2.pending === n2.pending_buf_size)) {
+                s2 = 1;
+                break;
+              }
+              s2 = n2.gzindex < n2.gzhead.name.length ? 255 & n2.gzhead.name.charCodeAt(n2.gzindex++) : 0, U(n2, s2);
+            } while (0 !== s2);
+            n2.gzhead.hcrc && n2.pending > i2 && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending - i2, i2)), 0 === s2 && (n2.gzindex = 0, n2.status = 91);
+          } else n2.status = 91;
+          if (91 === n2.status) if (n2.gzhead.comment) {
+            i2 = n2.pending;
+            do {
+              if (n2.pending === n2.pending_buf_size && (n2.gzhead.hcrc && n2.pending > i2 && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending - i2, i2)), F(e2), i2 = n2.pending, n2.pending === n2.pending_buf_size)) {
+                s2 = 1;
+                break;
+              }
+              s2 = n2.gzindex < n2.gzhead.comment.length ? 255 & n2.gzhead.comment.charCodeAt(n2.gzindex++) : 0, U(n2, s2);
+            } while (0 !== s2);
+            n2.gzhead.hcrc && n2.pending > i2 && (e2.adler = p(e2.adler, n2.pending_buf, n2.pending - i2, i2)), 0 === s2 && (n2.status = 103);
+          } else n2.status = 103;
+          if (103 === n2.status && (n2.gzhead.hcrc ? (n2.pending + 2 > n2.pending_buf_size && F(e2), n2.pending + 2 <= n2.pending_buf_size && (U(n2, 255 & e2.adler), U(n2, e2.adler >> 8 & 255), e2.adler = 0, n2.status = E)) : n2.status = E), 0 !== n2.pending) {
+            if (F(e2), 0 === e2.avail_out) return n2.last_flush = -1, m;
+          } else if (0 === e2.avail_in && T(t2) <= T(r2) && t2 !== f) return R(e2, -5);
+          if (666 === n2.status && 0 !== e2.avail_in) return R(e2, -5);
+          if (0 !== e2.avail_in || 0 !== n2.lookahead || t2 !== l && 666 !== n2.status) {
+            var o2 = 2 === n2.strategy ? (function(e3, t3) {
+              for (var r3; ; ) {
+                if (0 === e3.lookahead && (j(e3), 0 === e3.lookahead)) {
+                  if (t3 === l) return A;
+                  break;
+                }
+                if (e3.match_length = 0, r3 = u._tr_tally(e3, 0, e3.window[e3.strstart]), e3.lookahead--, e3.strstart++, r3 && (N(e3, false), 0 === e3.strm.avail_out)) return A;
+              }
+              return e3.insert = 0, t3 === f ? (N(e3, true), 0 === e3.strm.avail_out ? O : B) : e3.last_lit && (N(e3, false), 0 === e3.strm.avail_out) ? A : I;
+            })(n2, t2) : 3 === n2.strategy ? (function(e3, t3) {
+              for (var r3, n3, i3, s3, a3 = e3.window; ; ) {
+                if (e3.lookahead <= S) {
+                  if (j(e3), e3.lookahead <= S && t3 === l) return A;
+                  if (0 === e3.lookahead) break;
+                }
+                if (e3.match_length = 0, e3.lookahead >= x && 0 < e3.strstart && (n3 = a3[i3 = e3.strstart - 1]) === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3]) {
+                  s3 = e3.strstart + S;
+                  do {
+                  } while (n3 === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3] && n3 === a3[++i3] && i3 < s3);
+                  e3.match_length = S - (s3 - i3), e3.match_length > e3.lookahead && (e3.match_length = e3.lookahead);
+                }
+                if (e3.match_length >= x ? (r3 = u._tr_tally(e3, 1, e3.match_length - x), e3.lookahead -= e3.match_length, e3.strstart += e3.match_length, e3.match_length = 0) : (r3 = u._tr_tally(e3, 0, e3.window[e3.strstart]), e3.lookahead--, e3.strstart++), r3 && (N(e3, false), 0 === e3.strm.avail_out)) return A;
+              }
+              return e3.insert = 0, t3 === f ? (N(e3, true), 0 === e3.strm.avail_out ? O : B) : e3.last_lit && (N(e3, false), 0 === e3.strm.avail_out) ? A : I;
+            })(n2, t2) : h[n2.level].func(n2, t2);
+            if (o2 !== O && o2 !== B || (n2.status = 666), o2 === A || o2 === O) return 0 === e2.avail_out && (n2.last_flush = -1), m;
+            if (o2 === I && (1 === t2 ? u._tr_align(n2) : 5 !== t2 && (u._tr_stored_block(n2, 0, 0, false), 3 === t2 && (D(n2.head), 0 === n2.lookahead && (n2.strstart = 0, n2.block_start = 0, n2.insert = 0))), F(e2), 0 === e2.avail_out)) return n2.last_flush = -1, m;
+          }
+          return t2 !== f ? m : n2.wrap <= 0 ? 1 : (2 === n2.wrap ? (U(n2, 255 & e2.adler), U(n2, e2.adler >> 8 & 255), U(n2, e2.adler >> 16 & 255), U(n2, e2.adler >> 24 & 255), U(n2, 255 & e2.total_in), U(n2, e2.total_in >> 8 & 255), U(n2, e2.total_in >> 16 & 255), U(n2, e2.total_in >> 24 & 255)) : (P(n2, e2.adler >>> 16), P(n2, 65535 & e2.adler)), F(e2), 0 < n2.wrap && (n2.wrap = -n2.wrap), 0 !== n2.pending ? m : 1);
+        }, r.deflateEnd = function(e2) {
+          var t2;
+          return e2 && e2.state ? (t2 = e2.state.status) !== C && 69 !== t2 && 73 !== t2 && 91 !== t2 && 103 !== t2 && t2 !== E && 666 !== t2 ? R(e2, _) : (e2.state = null, t2 === E ? R(e2, -3) : m) : _;
+        }, r.deflateSetDictionary = function(e2, t2) {
+          var r2, n2, i2, s2, a2, o2, h2, u2, l2 = t2.length;
+          if (!e2 || !e2.state) return _;
+          if (2 === (s2 = (r2 = e2.state).wrap) || 1 === s2 && r2.status !== C || r2.lookahead) return _;
+          for (1 === s2 && (e2.adler = d(e2.adler, t2, l2, 0)), r2.wrap = 0, l2 >= r2.w_size && (0 === s2 && (D(r2.head), r2.strstart = 0, r2.block_start = 0, r2.insert = 0), u2 = new c.Buf8(r2.w_size), c.arraySet(u2, t2, l2 - r2.w_size, r2.w_size, 0), t2 = u2, l2 = r2.w_size), a2 = e2.avail_in, o2 = e2.next_in, h2 = e2.input, e2.avail_in = l2, e2.next_in = 0, e2.input = t2, j(r2); r2.lookahead >= x; ) {
+            for (n2 = r2.strstart, i2 = r2.lookahead - (x - 1); r2.ins_h = (r2.ins_h << r2.hash_shift ^ r2.window[n2 + x - 1]) & r2.hash_mask, r2.prev[n2 & r2.w_mask] = r2.head[r2.ins_h], r2.head[r2.ins_h] = n2, n2++, --i2; ) ;
+            r2.strstart = n2, r2.lookahead = x - 1, j(r2);
+          }
+          return r2.strstart += r2.lookahead, r2.block_start = r2.strstart, r2.insert = r2.lookahead, r2.lookahead = 0, r2.match_length = r2.prev_length = x - 1, r2.match_available = 0, e2.next_in = o2, e2.input = h2, e2.avail_in = a2, r2.wrap = s2, m;
+        }, r.deflateInfo = "pako deflate (from Nodeca project)";
+      }, { "../utils/common": 41, "./adler32": 43, "./crc32": 45, "./messages": 51, "./trees": 52 }], 47: [function(e, t, r) {
+        "use strict";
+        t.exports = function() {
+          this.text = 0, this.time = 0, this.xflags = 0, this.os = 0, this.extra = null, this.extra_len = 0, this.name = "", this.comment = "", this.hcrc = 0, this.done = false;
+        };
+      }, {}], 48: [function(e, t, r) {
+        "use strict";
+        t.exports = function(e2, t2) {
+          var r2, n, i, s, a, o, h, u, l, f, c, d, p, m, _, g, b, v, y, w, k, x, S, z, C;
+          r2 = e2.state, n = e2.next_in, z = e2.input, i = n + (e2.avail_in - 5), s = e2.next_out, C = e2.output, a = s - (t2 - e2.avail_out), o = s + (e2.avail_out - 257), h = r2.dmax, u = r2.wsize, l = r2.whave, f = r2.wnext, c = r2.window, d = r2.hold, p = r2.bits, m = r2.lencode, _ = r2.distcode, g = (1 << r2.lenbits) - 1, b = (1 << r2.distbits) - 1;
+          e: do {
+            p < 15 && (d += z[n++] << p, p += 8, d += z[n++] << p, p += 8), v = m[d & g];
+            t: for (; ; ) {
+              if (d >>>= y = v >>> 24, p -= y, 0 === (y = v >>> 16 & 255)) C[s++] = 65535 & v;
+              else {
+                if (!(16 & y)) {
+                  if (0 == (64 & y)) {
+                    v = m[(65535 & v) + (d & (1 << y) - 1)];
+                    continue t;
+                  }
+                  if (32 & y) {
+                    r2.mode = 12;
+                    break e;
+                  }
+                  e2.msg = "invalid literal/length code", r2.mode = 30;
+                  break e;
+                }
+                w = 65535 & v, (y &= 15) && (p < y && (d += z[n++] << p, p += 8), w += d & (1 << y) - 1, d >>>= y, p -= y), p < 15 && (d += z[n++] << p, p += 8, d += z[n++] << p, p += 8), v = _[d & b];
+                r: for (; ; ) {
+                  if (d >>>= y = v >>> 24, p -= y, !(16 & (y = v >>> 16 & 255))) {
+                    if (0 == (64 & y)) {
+                      v = _[(65535 & v) + (d & (1 << y) - 1)];
+                      continue r;
+                    }
+                    e2.msg = "invalid distance code", r2.mode = 30;
+                    break e;
+                  }
+                  if (k = 65535 & v, p < (y &= 15) && (d += z[n++] << p, (p += 8) < y && (d += z[n++] << p, p += 8)), h < (k += d & (1 << y) - 1)) {
+                    e2.msg = "invalid distance too far back", r2.mode = 30;
+                    break e;
+                  }
+                  if (d >>>= y, p -= y, (y = s - a) < k) {
+                    if (l < (y = k - y) && r2.sane) {
+                      e2.msg = "invalid distance too far back", r2.mode = 30;
+                      break e;
+                    }
+                    if (S = c, (x = 0) === f) {
+                      if (x += u - y, y < w) {
+                        for (w -= y; C[s++] = c[x++], --y; ) ;
+                        x = s - k, S = C;
+                      }
+                    } else if (f < y) {
+                      if (x += u + f - y, (y -= f) < w) {
+                        for (w -= y; C[s++] = c[x++], --y; ) ;
+                        if (x = 0, f < w) {
+                          for (w -= y = f; C[s++] = c[x++], --y; ) ;
+                          x = s - k, S = C;
+                        }
+                      }
+                    } else if (x += f - y, y < w) {
+                      for (w -= y; C[s++] = c[x++], --y; ) ;
+                      x = s - k, S = C;
+                    }
+                    for (; 2 < w; ) C[s++] = S[x++], C[s++] = S[x++], C[s++] = S[x++], w -= 3;
+                    w && (C[s++] = S[x++], 1 < w && (C[s++] = S[x++]));
+                  } else {
+                    for (x = s - k; C[s++] = C[x++], C[s++] = C[x++], C[s++] = C[x++], 2 < (w -= 3); ) ;
+                    w && (C[s++] = C[x++], 1 < w && (C[s++] = C[x++]));
+                  }
+                  break;
+                }
+              }
+              break;
+            }
+          } while (n < i && s < o);
+          n -= w = p >> 3, d &= (1 << (p -= w << 3)) - 1, e2.next_in = n, e2.next_out = s, e2.avail_in = n < i ? i - n + 5 : 5 - (n - i), e2.avail_out = s < o ? o - s + 257 : 257 - (s - o), r2.hold = d, r2.bits = p;
+        };
+      }, {}], 49: [function(e, t, r) {
+        "use strict";
+        var I = e("../utils/common"), O = e("./adler32"), B = e("./crc32"), R = e("./inffast"), T = e("./inftrees"), D = 1, F = 2, N = 0, U = -2, P = 1, n = 852, i = 592;
+        function L(e2) {
+          return (e2 >>> 24 & 255) + (e2 >>> 8 & 65280) + ((65280 & e2) << 8) + ((255 & e2) << 24);
+        }
+        function s() {
+          this.mode = 0, this.last = false, this.wrap = 0, this.havedict = false, this.flags = 0, this.dmax = 0, this.check = 0, this.total = 0, this.head = null, this.wbits = 0, this.wsize = 0, this.whave = 0, this.wnext = 0, this.window = null, this.hold = 0, this.bits = 0, this.length = 0, this.offset = 0, this.extra = 0, this.lencode = null, this.distcode = null, this.lenbits = 0, this.distbits = 0, this.ncode = 0, this.nlen = 0, this.ndist = 0, this.have = 0, this.next = null, this.lens = new I.Buf16(320), this.work = new I.Buf16(288), this.lendyn = null, this.distdyn = null, this.sane = 0, this.back = 0, this.was = 0;
+        }
+        function a(e2) {
+          var t2;
+          return e2 && e2.state ? (t2 = e2.state, e2.total_in = e2.total_out = t2.total = 0, e2.msg = "", t2.wrap && (e2.adler = 1 & t2.wrap), t2.mode = P, t2.last = 0, t2.havedict = 0, t2.dmax = 32768, t2.head = null, t2.hold = 0, t2.bits = 0, t2.lencode = t2.lendyn = new I.Buf32(n), t2.distcode = t2.distdyn = new I.Buf32(i), t2.sane = 1, t2.back = -1, N) : U;
+        }
+        function o(e2) {
+          var t2;
+          return e2 && e2.state ? ((t2 = e2.state).wsize = 0, t2.whave = 0, t2.wnext = 0, a(e2)) : U;
+        }
+        function h(e2, t2) {
+          var r2, n2;
+          return e2 && e2.state ? (n2 = e2.state, t2 < 0 ? (r2 = 0, t2 = -t2) : (r2 = 1 + (t2 >> 4), t2 < 48 && (t2 &= 15)), t2 && (t2 < 8 || 15 < t2) ? U : (null !== n2.window && n2.wbits !== t2 && (n2.window = null), n2.wrap = r2, n2.wbits = t2, o(e2))) : U;
+        }
+        function u(e2, t2) {
+          var r2, n2;
+          return e2 ? (n2 = new s(), (e2.state = n2).window = null, (r2 = h(e2, t2)) !== N && (e2.state = null), r2) : U;
+        }
+        var l, f, c = true;
+        function j(e2) {
+          if (c) {
+            var t2;
+            for (l = new I.Buf32(512), f = new I.Buf32(32), t2 = 0; t2 < 144; ) e2.lens[t2++] = 8;
+            for (; t2 < 256; ) e2.lens[t2++] = 9;
+            for (; t2 < 280; ) e2.lens[t2++] = 7;
+            for (; t2 < 288; ) e2.lens[t2++] = 8;
+            for (T(D, e2.lens, 0, 288, l, 0, e2.work, { bits: 9 }), t2 = 0; t2 < 32; ) e2.lens[t2++] = 5;
+            T(F, e2.lens, 0, 32, f, 0, e2.work, { bits: 5 }), c = false;
+          }
+          e2.lencode = l, e2.lenbits = 9, e2.distcode = f, e2.distbits = 5;
+        }
+        function Z(e2, t2, r2, n2) {
+          var i2, s2 = e2.state;
+          return null === s2.window && (s2.wsize = 1 << s2.wbits, s2.wnext = 0, s2.whave = 0, s2.window = new I.Buf8(s2.wsize)), n2 >= s2.wsize ? (I.arraySet(s2.window, t2, r2 - s2.wsize, s2.wsize, 0), s2.wnext = 0, s2.whave = s2.wsize) : (n2 < (i2 = s2.wsize - s2.wnext) && (i2 = n2), I.arraySet(s2.window, t2, r2 - n2, i2, s2.wnext), (n2 -= i2) ? (I.arraySet(s2.window, t2, r2 - n2, n2, 0), s2.wnext = n2, s2.whave = s2.wsize) : (s2.wnext += i2, s2.wnext === s2.wsize && (s2.wnext = 0), s2.whave < s2.wsize && (s2.whave += i2))), 0;
+        }
+        r.inflateReset = o, r.inflateReset2 = h, r.inflateResetKeep = a, r.inflateInit = function(e2) {
+          return u(e2, 15);
+        }, r.inflateInit2 = u, r.inflate = function(e2, t2) {
+          var r2, n2, i2, s2, a2, o2, h2, u2, l2, f2, c2, d, p, m, _, g, b, v, y, w, k, x, S, z, C = 0, E = new I.Buf8(4), A = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+          if (!e2 || !e2.state || !e2.output || !e2.input && 0 !== e2.avail_in) return U;
+          12 === (r2 = e2.state).mode && (r2.mode = 13), a2 = e2.next_out, i2 = e2.output, h2 = e2.avail_out, s2 = e2.next_in, n2 = e2.input, o2 = e2.avail_in, u2 = r2.hold, l2 = r2.bits, f2 = o2, c2 = h2, x = N;
+          e: for (; ; ) switch (r2.mode) {
+            case P:
+              if (0 === r2.wrap) {
+                r2.mode = 13;
+                break;
+              }
+              for (; l2 < 16; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              if (2 & r2.wrap && 35615 === u2) {
+                E[r2.check = 0] = 255 & u2, E[1] = u2 >>> 8 & 255, r2.check = B(r2.check, E, 2, 0), l2 = u2 = 0, r2.mode = 2;
+                break;
+              }
+              if (r2.flags = 0, r2.head && (r2.head.done = false), !(1 & r2.wrap) || (((255 & u2) << 8) + (u2 >> 8)) % 31) {
+                e2.msg = "incorrect header check", r2.mode = 30;
+                break;
+              }
+              if (8 != (15 & u2)) {
+                e2.msg = "unknown compression method", r2.mode = 30;
+                break;
+              }
+              if (l2 -= 4, k = 8 + (15 & (u2 >>>= 4)), 0 === r2.wbits) r2.wbits = k;
+              else if (k > r2.wbits) {
+                e2.msg = "invalid window size", r2.mode = 30;
+                break;
+              }
+              r2.dmax = 1 << k, e2.adler = r2.check = 1, r2.mode = 512 & u2 ? 10 : 12, l2 = u2 = 0;
+              break;
+            case 2:
+              for (; l2 < 16; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              if (r2.flags = u2, 8 != (255 & r2.flags)) {
+                e2.msg = "unknown compression method", r2.mode = 30;
+                break;
+              }
+              if (57344 & r2.flags) {
+                e2.msg = "unknown header flags set", r2.mode = 30;
+                break;
+              }
+              r2.head && (r2.head.text = u2 >> 8 & 1), 512 & r2.flags && (E[0] = 255 & u2, E[1] = u2 >>> 8 & 255, r2.check = B(r2.check, E, 2, 0)), l2 = u2 = 0, r2.mode = 3;
+            case 3:
+              for (; l2 < 32; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              r2.head && (r2.head.time = u2), 512 & r2.flags && (E[0] = 255 & u2, E[1] = u2 >>> 8 & 255, E[2] = u2 >>> 16 & 255, E[3] = u2 >>> 24 & 255, r2.check = B(r2.check, E, 4, 0)), l2 = u2 = 0, r2.mode = 4;
+            case 4:
+              for (; l2 < 16; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              r2.head && (r2.head.xflags = 255 & u2, r2.head.os = u2 >> 8), 512 & r2.flags && (E[0] = 255 & u2, E[1] = u2 >>> 8 & 255, r2.check = B(r2.check, E, 2, 0)), l2 = u2 = 0, r2.mode = 5;
+            case 5:
+              if (1024 & r2.flags) {
+                for (; l2 < 16; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                r2.length = u2, r2.head && (r2.head.extra_len = u2), 512 & r2.flags && (E[0] = 255 & u2, E[1] = u2 >>> 8 & 255, r2.check = B(r2.check, E, 2, 0)), l2 = u2 = 0;
+              } else r2.head && (r2.head.extra = null);
+              r2.mode = 6;
+            case 6:
+              if (1024 & r2.flags && (o2 < (d = r2.length) && (d = o2), d && (r2.head && (k = r2.head.extra_len - r2.length, r2.head.extra || (r2.head.extra = new Array(r2.head.extra_len)), I.arraySet(r2.head.extra, n2, s2, d, k)), 512 & r2.flags && (r2.check = B(r2.check, n2, d, s2)), o2 -= d, s2 += d, r2.length -= d), r2.length)) break e;
+              r2.length = 0, r2.mode = 7;
+            case 7:
+              if (2048 & r2.flags) {
+                if (0 === o2) break e;
+                for (d = 0; k = n2[s2 + d++], r2.head && k && r2.length < 65536 && (r2.head.name += String.fromCharCode(k)), k && d < o2; ) ;
+                if (512 & r2.flags && (r2.check = B(r2.check, n2, d, s2)), o2 -= d, s2 += d, k) break e;
+              } else r2.head && (r2.head.name = null);
+              r2.length = 0, r2.mode = 8;
+            case 8:
+              if (4096 & r2.flags) {
+                if (0 === o2) break e;
+                for (d = 0; k = n2[s2 + d++], r2.head && k && r2.length < 65536 && (r2.head.comment += String.fromCharCode(k)), k && d < o2; ) ;
+                if (512 & r2.flags && (r2.check = B(r2.check, n2, d, s2)), o2 -= d, s2 += d, k) break e;
+              } else r2.head && (r2.head.comment = null);
+              r2.mode = 9;
+            case 9:
+              if (512 & r2.flags) {
+                for (; l2 < 16; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                if (u2 !== (65535 & r2.check)) {
+                  e2.msg = "header crc mismatch", r2.mode = 30;
+                  break;
+                }
+                l2 = u2 = 0;
+              }
+              r2.head && (r2.head.hcrc = r2.flags >> 9 & 1, r2.head.done = true), e2.adler = r2.check = 0, r2.mode = 12;
+              break;
+            case 10:
+              for (; l2 < 32; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              e2.adler = r2.check = L(u2), l2 = u2 = 0, r2.mode = 11;
+            case 11:
+              if (0 === r2.havedict) return e2.next_out = a2, e2.avail_out = h2, e2.next_in = s2, e2.avail_in = o2, r2.hold = u2, r2.bits = l2, 2;
+              e2.adler = r2.check = 1, r2.mode = 12;
+            case 12:
+              if (5 === t2 || 6 === t2) break e;
+            case 13:
+              if (r2.last) {
+                u2 >>>= 7 & l2, l2 -= 7 & l2, r2.mode = 27;
+                break;
+              }
+              for (; l2 < 3; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              switch (r2.last = 1 & u2, l2 -= 1, 3 & (u2 >>>= 1)) {
+                case 0:
+                  r2.mode = 14;
+                  break;
+                case 1:
+                  if (j(r2), r2.mode = 20, 6 !== t2) break;
+                  u2 >>>= 2, l2 -= 2;
+                  break e;
+                case 2:
+                  r2.mode = 17;
+                  break;
+                case 3:
+                  e2.msg = "invalid block type", r2.mode = 30;
+              }
+              u2 >>>= 2, l2 -= 2;
+              break;
+            case 14:
+              for (u2 >>>= 7 & l2, l2 -= 7 & l2; l2 < 32; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              if ((65535 & u2) != (u2 >>> 16 ^ 65535)) {
+                e2.msg = "invalid stored block lengths", r2.mode = 30;
+                break;
+              }
+              if (r2.length = 65535 & u2, l2 = u2 = 0, r2.mode = 15, 6 === t2) break e;
+            case 15:
+              r2.mode = 16;
+            case 16:
+              if (d = r2.length) {
+                if (o2 < d && (d = o2), h2 < d && (d = h2), 0 === d) break e;
+                I.arraySet(i2, n2, s2, d, a2), o2 -= d, s2 += d, h2 -= d, a2 += d, r2.length -= d;
+                break;
+              }
+              r2.mode = 12;
+              break;
+            case 17:
+              for (; l2 < 14; ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              if (r2.nlen = 257 + (31 & u2), u2 >>>= 5, l2 -= 5, r2.ndist = 1 + (31 & u2), u2 >>>= 5, l2 -= 5, r2.ncode = 4 + (15 & u2), u2 >>>= 4, l2 -= 4, 286 < r2.nlen || 30 < r2.ndist) {
+                e2.msg = "too many length or distance symbols", r2.mode = 30;
+                break;
+              }
+              r2.have = 0, r2.mode = 18;
+            case 18:
+              for (; r2.have < r2.ncode; ) {
+                for (; l2 < 3; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                r2.lens[A[r2.have++]] = 7 & u2, u2 >>>= 3, l2 -= 3;
+              }
+              for (; r2.have < 19; ) r2.lens[A[r2.have++]] = 0;
+              if (r2.lencode = r2.lendyn, r2.lenbits = 7, S = { bits: r2.lenbits }, x = T(0, r2.lens, 0, 19, r2.lencode, 0, r2.work, S), r2.lenbits = S.bits, x) {
+                e2.msg = "invalid code lengths set", r2.mode = 30;
+                break;
+              }
+              r2.have = 0, r2.mode = 19;
+            case 19:
+              for (; r2.have < r2.nlen + r2.ndist; ) {
+                for (; g = (C = r2.lencode[u2 & (1 << r2.lenbits) - 1]) >>> 16 & 255, b = 65535 & C, !((_ = C >>> 24) <= l2); ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                if (b < 16) u2 >>>= _, l2 -= _, r2.lens[r2.have++] = b;
+                else {
+                  if (16 === b) {
+                    for (z = _ + 2; l2 < z; ) {
+                      if (0 === o2) break e;
+                      o2--, u2 += n2[s2++] << l2, l2 += 8;
+                    }
+                    if (u2 >>>= _, l2 -= _, 0 === r2.have) {
+                      e2.msg = "invalid bit length repeat", r2.mode = 30;
+                      break;
+                    }
+                    k = r2.lens[r2.have - 1], d = 3 + (3 & u2), u2 >>>= 2, l2 -= 2;
+                  } else if (17 === b) {
+                    for (z = _ + 3; l2 < z; ) {
+                      if (0 === o2) break e;
+                      o2--, u2 += n2[s2++] << l2, l2 += 8;
+                    }
+                    l2 -= _, k = 0, d = 3 + (7 & (u2 >>>= _)), u2 >>>= 3, l2 -= 3;
+                  } else {
+                    for (z = _ + 7; l2 < z; ) {
+                      if (0 === o2) break e;
+                      o2--, u2 += n2[s2++] << l2, l2 += 8;
+                    }
+                    l2 -= _, k = 0, d = 11 + (127 & (u2 >>>= _)), u2 >>>= 7, l2 -= 7;
+                  }
+                  if (r2.have + d > r2.nlen + r2.ndist) {
+                    e2.msg = "invalid bit length repeat", r2.mode = 30;
+                    break;
+                  }
+                  for (; d--; ) r2.lens[r2.have++] = k;
+                }
+              }
+              if (30 === r2.mode) break;
+              if (0 === r2.lens[256]) {
+                e2.msg = "invalid code -- missing end-of-block", r2.mode = 30;
+                break;
+              }
+              if (r2.lenbits = 9, S = { bits: r2.lenbits }, x = T(D, r2.lens, 0, r2.nlen, r2.lencode, 0, r2.work, S), r2.lenbits = S.bits, x) {
+                e2.msg = "invalid literal/lengths set", r2.mode = 30;
+                break;
+              }
+              if (r2.distbits = 6, r2.distcode = r2.distdyn, S = { bits: r2.distbits }, x = T(F, r2.lens, r2.nlen, r2.ndist, r2.distcode, 0, r2.work, S), r2.distbits = S.bits, x) {
+                e2.msg = "invalid distances set", r2.mode = 30;
+                break;
+              }
+              if (r2.mode = 20, 6 === t2) break e;
+            case 20:
+              r2.mode = 21;
+            case 21:
+              if (6 <= o2 && 258 <= h2) {
+                e2.next_out = a2, e2.avail_out = h2, e2.next_in = s2, e2.avail_in = o2, r2.hold = u2, r2.bits = l2, R(e2, c2), a2 = e2.next_out, i2 = e2.output, h2 = e2.avail_out, s2 = e2.next_in, n2 = e2.input, o2 = e2.avail_in, u2 = r2.hold, l2 = r2.bits, 12 === r2.mode && (r2.back = -1);
+                break;
+              }
+              for (r2.back = 0; g = (C = r2.lencode[u2 & (1 << r2.lenbits) - 1]) >>> 16 & 255, b = 65535 & C, !((_ = C >>> 24) <= l2); ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              if (g && 0 == (240 & g)) {
+                for (v = _, y = g, w = b; g = (C = r2.lencode[w + ((u2 & (1 << v + y) - 1) >> v)]) >>> 16 & 255, b = 65535 & C, !(v + (_ = C >>> 24) <= l2); ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                u2 >>>= v, l2 -= v, r2.back += v;
+              }
+              if (u2 >>>= _, l2 -= _, r2.back += _, r2.length = b, 0 === g) {
+                r2.mode = 26;
+                break;
+              }
+              if (32 & g) {
+                r2.back = -1, r2.mode = 12;
+                break;
+              }
+              if (64 & g) {
+                e2.msg = "invalid literal/length code", r2.mode = 30;
+                break;
+              }
+              r2.extra = 15 & g, r2.mode = 22;
+            case 22:
+              if (r2.extra) {
+                for (z = r2.extra; l2 < z; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                r2.length += u2 & (1 << r2.extra) - 1, u2 >>>= r2.extra, l2 -= r2.extra, r2.back += r2.extra;
+              }
+              r2.was = r2.length, r2.mode = 23;
+            case 23:
+              for (; g = (C = r2.distcode[u2 & (1 << r2.distbits) - 1]) >>> 16 & 255, b = 65535 & C, !((_ = C >>> 24) <= l2); ) {
+                if (0 === o2) break e;
+                o2--, u2 += n2[s2++] << l2, l2 += 8;
+              }
+              if (0 == (240 & g)) {
+                for (v = _, y = g, w = b; g = (C = r2.distcode[w + ((u2 & (1 << v + y) - 1) >> v)]) >>> 16 & 255, b = 65535 & C, !(v + (_ = C >>> 24) <= l2); ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                u2 >>>= v, l2 -= v, r2.back += v;
+              }
+              if (u2 >>>= _, l2 -= _, r2.back += _, 64 & g) {
+                e2.msg = "invalid distance code", r2.mode = 30;
+                break;
+              }
+              r2.offset = b, r2.extra = 15 & g, r2.mode = 24;
+            case 24:
+              if (r2.extra) {
+                for (z = r2.extra; l2 < z; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                r2.offset += u2 & (1 << r2.extra) - 1, u2 >>>= r2.extra, l2 -= r2.extra, r2.back += r2.extra;
+              }
+              if (r2.offset > r2.dmax) {
+                e2.msg = "invalid distance too far back", r2.mode = 30;
+                break;
+              }
+              r2.mode = 25;
+            case 25:
+              if (0 === h2) break e;
+              if (d = c2 - h2, r2.offset > d) {
+                if ((d = r2.offset - d) > r2.whave && r2.sane) {
+                  e2.msg = "invalid distance too far back", r2.mode = 30;
+                  break;
+                }
+                p = d > r2.wnext ? (d -= r2.wnext, r2.wsize - d) : r2.wnext - d, d > r2.length && (d = r2.length), m = r2.window;
+              } else m = i2, p = a2 - r2.offset, d = r2.length;
+              for (h2 < d && (d = h2), h2 -= d, r2.length -= d; i2[a2++] = m[p++], --d; ) ;
+              0 === r2.length && (r2.mode = 21);
+              break;
+            case 26:
+              if (0 === h2) break e;
+              i2[a2++] = r2.length, h2--, r2.mode = 21;
+              break;
+            case 27:
+              if (r2.wrap) {
+                for (; l2 < 32; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 |= n2[s2++] << l2, l2 += 8;
+                }
+                if (c2 -= h2, e2.total_out += c2, r2.total += c2, c2 && (e2.adler = r2.check = r2.flags ? B(r2.check, i2, c2, a2 - c2) : O(r2.check, i2, c2, a2 - c2)), c2 = h2, (r2.flags ? u2 : L(u2)) !== r2.check) {
+                  e2.msg = "incorrect data check", r2.mode = 30;
+                  break;
+                }
+                l2 = u2 = 0;
+              }
+              r2.mode = 28;
+            case 28:
+              if (r2.wrap && r2.flags) {
+                for (; l2 < 32; ) {
+                  if (0 === o2) break e;
+                  o2--, u2 += n2[s2++] << l2, l2 += 8;
+                }
+                if (u2 !== (4294967295 & r2.total)) {
+                  e2.msg = "incorrect length check", r2.mode = 30;
+                  break;
+                }
+                l2 = u2 = 0;
+              }
+              r2.mode = 29;
+            case 29:
+              x = 1;
+              break e;
+            case 30:
+              x = -3;
+              break e;
+            case 31:
+              return -4;
+            case 32:
+            default:
+              return U;
+          }
+          return e2.next_out = a2, e2.avail_out = h2, e2.next_in = s2, e2.avail_in = o2, r2.hold = u2, r2.bits = l2, (r2.wsize || c2 !== e2.avail_out && r2.mode < 30 && (r2.mode < 27 || 4 !== t2)) && Z(e2, e2.output, e2.next_out, c2 - e2.avail_out) ? (r2.mode = 31, -4) : (f2 -= e2.avail_in, c2 -= e2.avail_out, e2.total_in += f2, e2.total_out += c2, r2.total += c2, r2.wrap && c2 && (e2.adler = r2.check = r2.flags ? B(r2.check, i2, c2, e2.next_out - c2) : O(r2.check, i2, c2, e2.next_out - c2)), e2.data_type = r2.bits + (r2.last ? 64 : 0) + (12 === r2.mode ? 128 : 0) + (20 === r2.mode || 15 === r2.mode ? 256 : 0), (0 == f2 && 0 === c2 || 4 === t2) && x === N && (x = -5), x);
+        }, r.inflateEnd = function(e2) {
+          if (!e2 || !e2.state) return U;
+          var t2 = e2.state;
+          return t2.window && (t2.window = null), e2.state = null, N;
+        }, r.inflateGetHeader = function(e2, t2) {
+          var r2;
+          return e2 && e2.state ? 0 == (2 & (r2 = e2.state).wrap) ? U : ((r2.head = t2).done = false, N) : U;
+        }, r.inflateSetDictionary = function(e2, t2) {
+          var r2, n2 = t2.length;
+          return e2 && e2.state ? 0 !== (r2 = e2.state).wrap && 11 !== r2.mode ? U : 11 === r2.mode && O(1, t2, n2, 0) !== r2.check ? -3 : Z(e2, t2, n2, n2) ? (r2.mode = 31, -4) : (r2.havedict = 1, N) : U;
+        }, r.inflateInfo = "pako inflate (from Nodeca project)";
+      }, { "../utils/common": 41, "./adler32": 43, "./crc32": 45, "./inffast": 48, "./inftrees": 50 }], 50: [function(e, t, r) {
+        "use strict";
+        var D = e("../utils/common"), F = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0], N = [16, 16, 16, 16, 16, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 16, 72, 78], U = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577, 0, 0], P = [16, 16, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 64, 64];
+        t.exports = function(e2, t2, r2, n, i, s, a, o) {
+          var h, u, l, f, c, d, p, m, _, g = o.bits, b = 0, v = 0, y = 0, w = 0, k = 0, x = 0, S = 0, z = 0, C = 0, E = 0, A = null, I = 0, O = new D.Buf16(16), B = new D.Buf16(16), R = null, T = 0;
+          for (b = 0; b <= 15; b++) O[b] = 0;
+          for (v = 0; v < n; v++) O[t2[r2 + v]]++;
+          for (k = g, w = 15; 1 <= w && 0 === O[w]; w--) ;
+          if (w < k && (k = w), 0 === w) return i[s++] = 20971520, i[s++] = 20971520, o.bits = 1, 0;
+          for (y = 1; y < w && 0 === O[y]; y++) ;
+          for (k < y && (k = y), b = z = 1; b <= 15; b++) if (z <<= 1, (z -= O[b]) < 0) return -1;
+          if (0 < z && (0 === e2 || 1 !== w)) return -1;
+          for (B[1] = 0, b = 1; b < 15; b++) B[b + 1] = B[b] + O[b];
+          for (v = 0; v < n; v++) 0 !== t2[r2 + v] && (a[B[t2[r2 + v]]++] = v);
+          if (d = 0 === e2 ? (A = R = a, 19) : 1 === e2 ? (A = F, I -= 257, R = N, T -= 257, 256) : (A = U, R = P, -1), b = y, c = s, S = v = E = 0, l = -1, f = (C = 1 << (x = k)) - 1, 1 === e2 && 852 < C || 2 === e2 && 592 < C) return 1;
+          for (; ; ) {
+            for (p = b - S, _ = a[v] < d ? (m = 0, a[v]) : a[v] > d ? (m = R[T + a[v]], A[I + a[v]]) : (m = 96, 0), h = 1 << b - S, y = u = 1 << x; i[c + (E >> S) + (u -= h)] = p << 24 | m << 16 | _ | 0, 0 !== u; ) ;
+            for (h = 1 << b - 1; E & h; ) h >>= 1;
+            if (0 !== h ? (E &= h - 1, E += h) : E = 0, v++, 0 == --O[b]) {
+              if (b === w) break;
+              b = t2[r2 + a[v]];
+            }
+            if (k < b && (E & f) !== l) {
+              for (0 === S && (S = k), c += y, z = 1 << (x = b - S); x + S < w && !((z -= O[x + S]) <= 0); ) x++, z <<= 1;
+              if (C += 1 << x, 1 === e2 && 852 < C || 2 === e2 && 592 < C) return 1;
+              i[l = E & f] = k << 24 | x << 16 | c - s | 0;
+            }
+          }
+          return 0 !== E && (i[c + E] = b - S << 24 | 64 << 16 | 0), o.bits = k, 0;
+        };
+      }, { "../utils/common": 41 }], 51: [function(e, t, r) {
+        "use strict";
+        t.exports = { 2: "need dictionary", 1: "stream end", 0: "", "-1": "file error", "-2": "stream error", "-3": "data error", "-4": "insufficient memory", "-5": "buffer error", "-6": "incompatible version" };
+      }, {}], 52: [function(e, t, r) {
+        "use strict";
+        var i = e("../utils/common"), o = 0, h = 1;
+        function n(e2) {
+          for (var t2 = e2.length; 0 <= --t2; ) e2[t2] = 0;
+        }
+        var s = 0, a = 29, u = 256, l = u + 1 + a, f = 30, c = 19, _ = 2 * l + 1, g = 15, d = 16, p = 7, m = 256, b = 16, v = 17, y = 18, w = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0], k = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13], x = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7], S = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15], z = new Array(2 * (l + 2));
+        n(z);
+        var C = new Array(2 * f);
+        n(C);
+        var E = new Array(512);
+        n(E);
+        var A = new Array(256);
+        n(A);
+        var I = new Array(a);
+        n(I);
+        var O, B, R, T = new Array(f);
+        function D(e2, t2, r2, n2, i2) {
+          this.static_tree = e2, this.extra_bits = t2, this.extra_base = r2, this.elems = n2, this.max_length = i2, this.has_stree = e2 && e2.length;
+        }
+        function F(e2, t2) {
+          this.dyn_tree = e2, this.max_code = 0, this.stat_desc = t2;
+        }
+        function N(e2) {
+          return e2 < 256 ? E[e2] : E[256 + (e2 >>> 7)];
+        }
+        function U(e2, t2) {
+          e2.pending_buf[e2.pending++] = 255 & t2, e2.pending_buf[e2.pending++] = t2 >>> 8 & 255;
+        }
+        function P(e2, t2, r2) {
+          e2.bi_valid > d - r2 ? (e2.bi_buf |= t2 << e2.bi_valid & 65535, U(e2, e2.bi_buf), e2.bi_buf = t2 >> d - e2.bi_valid, e2.bi_valid += r2 - d) : (e2.bi_buf |= t2 << e2.bi_valid & 65535, e2.bi_valid += r2);
+        }
+        function L(e2, t2, r2) {
+          P(e2, r2[2 * t2], r2[2 * t2 + 1]);
+        }
+        function j(e2, t2) {
+          for (var r2 = 0; r2 |= 1 & e2, e2 >>>= 1, r2 <<= 1, 0 < --t2; ) ;
+          return r2 >>> 1;
+        }
+        function Z(e2, t2, r2) {
+          var n2, i2, s2 = new Array(g + 1), a2 = 0;
+          for (n2 = 1; n2 <= g; n2++) s2[n2] = a2 = a2 + r2[n2 - 1] << 1;
+          for (i2 = 0; i2 <= t2; i2++) {
+            var o2 = e2[2 * i2 + 1];
+            0 !== o2 && (e2[2 * i2] = j(s2[o2]++, o2));
+          }
+        }
+        function W(e2) {
+          var t2;
+          for (t2 = 0; t2 < l; t2++) e2.dyn_ltree[2 * t2] = 0;
+          for (t2 = 0; t2 < f; t2++) e2.dyn_dtree[2 * t2] = 0;
+          for (t2 = 0; t2 < c; t2++) e2.bl_tree[2 * t2] = 0;
+          e2.dyn_ltree[2 * m] = 1, e2.opt_len = e2.static_len = 0, e2.last_lit = e2.matches = 0;
+        }
+        function M(e2) {
+          8 < e2.bi_valid ? U(e2, e2.bi_buf) : 0 < e2.bi_valid && (e2.pending_buf[e2.pending++] = e2.bi_buf), e2.bi_buf = 0, e2.bi_valid = 0;
+        }
+        function H(e2, t2, r2, n2) {
+          var i2 = 2 * t2, s2 = 2 * r2;
+          return e2[i2] < e2[s2] || e2[i2] === e2[s2] && n2[t2] <= n2[r2];
+        }
+        function G(e2, t2, r2) {
+          for (var n2 = e2.heap[r2], i2 = r2 << 1; i2 <= e2.heap_len && (i2 < e2.heap_len && H(t2, e2.heap[i2 + 1], e2.heap[i2], e2.depth) && i2++, !H(t2, n2, e2.heap[i2], e2.depth)); ) e2.heap[r2] = e2.heap[i2], r2 = i2, i2 <<= 1;
+          e2.heap[r2] = n2;
+        }
+        function K(e2, t2, r2) {
+          var n2, i2, s2, a2, o2 = 0;
+          if (0 !== e2.last_lit) for (; n2 = e2.pending_buf[e2.d_buf + 2 * o2] << 8 | e2.pending_buf[e2.d_buf + 2 * o2 + 1], i2 = e2.pending_buf[e2.l_buf + o2], o2++, 0 === n2 ? L(e2, i2, t2) : (L(e2, (s2 = A[i2]) + u + 1, t2), 0 !== (a2 = w[s2]) && P(e2, i2 -= I[s2], a2), L(e2, s2 = N(--n2), r2), 0 !== (a2 = k[s2]) && P(e2, n2 -= T[s2], a2)), o2 < e2.last_lit; ) ;
+          L(e2, m, t2);
+        }
+        function Y(e2, t2) {
+          var r2, n2, i2, s2 = t2.dyn_tree, a2 = t2.stat_desc.static_tree, o2 = t2.stat_desc.has_stree, h2 = t2.stat_desc.elems, u2 = -1;
+          for (e2.heap_len = 0, e2.heap_max = _, r2 = 0; r2 < h2; r2++) 0 !== s2[2 * r2] ? (e2.heap[++e2.heap_len] = u2 = r2, e2.depth[r2] = 0) : s2[2 * r2 + 1] = 0;
+          for (; e2.heap_len < 2; ) s2[2 * (i2 = e2.heap[++e2.heap_len] = u2 < 2 ? ++u2 : 0)] = 1, e2.depth[i2] = 0, e2.opt_len--, o2 && (e2.static_len -= a2[2 * i2 + 1]);
+          for (t2.max_code = u2, r2 = e2.heap_len >> 1; 1 <= r2; r2--) G(e2, s2, r2);
+          for (i2 = h2; r2 = e2.heap[1], e2.heap[1] = e2.heap[e2.heap_len--], G(e2, s2, 1), n2 = e2.heap[1], e2.heap[--e2.heap_max] = r2, e2.heap[--e2.heap_max] = n2, s2[2 * i2] = s2[2 * r2] + s2[2 * n2], e2.depth[i2] = (e2.depth[r2] >= e2.depth[n2] ? e2.depth[r2] : e2.depth[n2]) + 1, s2[2 * r2 + 1] = s2[2 * n2 + 1] = i2, e2.heap[1] = i2++, G(e2, s2, 1), 2 <= e2.heap_len; ) ;
+          e2.heap[--e2.heap_max] = e2.heap[1], (function(e3, t3) {
+            var r3, n3, i3, s3, a3, o3, h3 = t3.dyn_tree, u3 = t3.max_code, l2 = t3.stat_desc.static_tree, f2 = t3.stat_desc.has_stree, c2 = t3.stat_desc.extra_bits, d2 = t3.stat_desc.extra_base, p2 = t3.stat_desc.max_length, m2 = 0;
+            for (s3 = 0; s3 <= g; s3++) e3.bl_count[s3] = 0;
+            for (h3[2 * e3.heap[e3.heap_max] + 1] = 0, r3 = e3.heap_max + 1; r3 < _; r3++) p2 < (s3 = h3[2 * h3[2 * (n3 = e3.heap[r3]) + 1] + 1] + 1) && (s3 = p2, m2++), h3[2 * n3 + 1] = s3, u3 < n3 || (e3.bl_count[s3]++, a3 = 0, d2 <= n3 && (a3 = c2[n3 - d2]), o3 = h3[2 * n3], e3.opt_len += o3 * (s3 + a3), f2 && (e3.static_len += o3 * (l2[2 * n3 + 1] + a3)));
+            if (0 !== m2) {
+              do {
+                for (s3 = p2 - 1; 0 === e3.bl_count[s3]; ) s3--;
+                e3.bl_count[s3]--, e3.bl_count[s3 + 1] += 2, e3.bl_count[p2]--, m2 -= 2;
+              } while (0 < m2);
+              for (s3 = p2; 0 !== s3; s3--) for (n3 = e3.bl_count[s3]; 0 !== n3; ) u3 < (i3 = e3.heap[--r3]) || (h3[2 * i3 + 1] !== s3 && (e3.opt_len += (s3 - h3[2 * i3 + 1]) * h3[2 * i3], h3[2 * i3 + 1] = s3), n3--);
+            }
+          })(e2, t2), Z(s2, u2, e2.bl_count);
+        }
+        function X(e2, t2, r2) {
+          var n2, i2, s2 = -1, a2 = t2[1], o2 = 0, h2 = 7, u2 = 4;
+          for (0 === a2 && (h2 = 138, u2 = 3), t2[2 * (r2 + 1) + 1] = 65535, n2 = 0; n2 <= r2; n2++) i2 = a2, a2 = t2[2 * (n2 + 1) + 1], ++o2 < h2 && i2 === a2 || (o2 < u2 ? e2.bl_tree[2 * i2] += o2 : 0 !== i2 ? (i2 !== s2 && e2.bl_tree[2 * i2]++, e2.bl_tree[2 * b]++) : o2 <= 10 ? e2.bl_tree[2 * v]++ : e2.bl_tree[2 * y]++, s2 = i2, u2 = (o2 = 0) === a2 ? (h2 = 138, 3) : i2 === a2 ? (h2 = 6, 3) : (h2 = 7, 4));
+        }
+        function V(e2, t2, r2) {
+          var n2, i2, s2 = -1, a2 = t2[1], o2 = 0, h2 = 7, u2 = 4;
+          for (0 === a2 && (h2 = 138, u2 = 3), n2 = 0; n2 <= r2; n2++) if (i2 = a2, a2 = t2[2 * (n2 + 1) + 1], !(++o2 < h2 && i2 === a2)) {
+            if (o2 < u2) for (; L(e2, i2, e2.bl_tree), 0 != --o2; ) ;
+            else 0 !== i2 ? (i2 !== s2 && (L(e2, i2, e2.bl_tree), o2--), L(e2, b, e2.bl_tree), P(e2, o2 - 3, 2)) : o2 <= 10 ? (L(e2, v, e2.bl_tree), P(e2, o2 - 3, 3)) : (L(e2, y, e2.bl_tree), P(e2, o2 - 11, 7));
+            s2 = i2, u2 = (o2 = 0) === a2 ? (h2 = 138, 3) : i2 === a2 ? (h2 = 6, 3) : (h2 = 7, 4);
+          }
+        }
+        n(T);
+        var q = false;
+        function J(e2, t2, r2, n2) {
+          P(e2, (s << 1) + (n2 ? 1 : 0), 3), (function(e3, t3, r3, n3) {
+            M(e3), n3 && (U(e3, r3), U(e3, ~r3)), i.arraySet(e3.pending_buf, e3.window, t3, r3, e3.pending), e3.pending += r3;
+          })(e2, t2, r2, true);
+        }
+        r._tr_init = function(e2) {
+          q || ((function() {
+            var e3, t2, r2, n2, i2, s2 = new Array(g + 1);
+            for (n2 = r2 = 0; n2 < a - 1; n2++) for (I[n2] = r2, e3 = 0; e3 < 1 << w[n2]; e3++) A[r2++] = n2;
+            for (A[r2 - 1] = n2, n2 = i2 = 0; n2 < 16; n2++) for (T[n2] = i2, e3 = 0; e3 < 1 << k[n2]; e3++) E[i2++] = n2;
+            for (i2 >>= 7; n2 < f; n2++) for (T[n2] = i2 << 7, e3 = 0; e3 < 1 << k[n2] - 7; e3++) E[256 + i2++] = n2;
+            for (t2 = 0; t2 <= g; t2++) s2[t2] = 0;
+            for (e3 = 0; e3 <= 143; ) z[2 * e3 + 1] = 8, e3++, s2[8]++;
+            for (; e3 <= 255; ) z[2 * e3 + 1] = 9, e3++, s2[9]++;
+            for (; e3 <= 279; ) z[2 * e3 + 1] = 7, e3++, s2[7]++;
+            for (; e3 <= 287; ) z[2 * e3 + 1] = 8, e3++, s2[8]++;
+            for (Z(z, l + 1, s2), e3 = 0; e3 < f; e3++) C[2 * e3 + 1] = 5, C[2 * e3] = j(e3, 5);
+            O = new D(z, w, u + 1, l, g), B = new D(C, k, 0, f, g), R = new D(new Array(0), x, 0, c, p);
+          })(), q = true), e2.l_desc = new F(e2.dyn_ltree, O), e2.d_desc = new F(e2.dyn_dtree, B), e2.bl_desc = new F(e2.bl_tree, R), e2.bi_buf = 0, e2.bi_valid = 0, W(e2);
+        }, r._tr_stored_block = J, r._tr_flush_block = function(e2, t2, r2, n2) {
+          var i2, s2, a2 = 0;
+          0 < e2.level ? (2 === e2.strm.data_type && (e2.strm.data_type = (function(e3) {
+            var t3, r3 = 4093624447;
+            for (t3 = 0; t3 <= 31; t3++, r3 >>>= 1) if (1 & r3 && 0 !== e3.dyn_ltree[2 * t3]) return o;
+            if (0 !== e3.dyn_ltree[18] || 0 !== e3.dyn_ltree[20] || 0 !== e3.dyn_ltree[26]) return h;
+            for (t3 = 32; t3 < u; t3++) if (0 !== e3.dyn_ltree[2 * t3]) return h;
+            return o;
+          })(e2)), Y(e2, e2.l_desc), Y(e2, e2.d_desc), a2 = (function(e3) {
+            var t3;
+            for (X(e3, e3.dyn_ltree, e3.l_desc.max_code), X(e3, e3.dyn_dtree, e3.d_desc.max_code), Y(e3, e3.bl_desc), t3 = c - 1; 3 <= t3 && 0 === e3.bl_tree[2 * S[t3] + 1]; t3--) ;
+            return e3.opt_len += 3 * (t3 + 1) + 5 + 5 + 4, t3;
+          })(e2), i2 = e2.opt_len + 3 + 7 >>> 3, (s2 = e2.static_len + 3 + 7 >>> 3) <= i2 && (i2 = s2)) : i2 = s2 = r2 + 5, r2 + 4 <= i2 && -1 !== t2 ? J(e2, t2, r2, n2) : 4 === e2.strategy || s2 === i2 ? (P(e2, 2 + (n2 ? 1 : 0), 3), K(e2, z, C)) : (P(e2, 4 + (n2 ? 1 : 0), 3), (function(e3, t3, r3, n3) {
+            var i3;
+            for (P(e3, t3 - 257, 5), P(e3, r3 - 1, 5), P(e3, n3 - 4, 4), i3 = 0; i3 < n3; i3++) P(e3, e3.bl_tree[2 * S[i3] + 1], 3);
+            V(e3, e3.dyn_ltree, t3 - 1), V(e3, e3.dyn_dtree, r3 - 1);
+          })(e2, e2.l_desc.max_code + 1, e2.d_desc.max_code + 1, a2 + 1), K(e2, e2.dyn_ltree, e2.dyn_dtree)), W(e2), n2 && M(e2);
+        }, r._tr_tally = function(e2, t2, r2) {
+          return e2.pending_buf[e2.d_buf + 2 * e2.last_lit] = t2 >>> 8 & 255, e2.pending_buf[e2.d_buf + 2 * e2.last_lit + 1] = 255 & t2, e2.pending_buf[e2.l_buf + e2.last_lit] = 255 & r2, e2.last_lit++, 0 === t2 ? e2.dyn_ltree[2 * r2]++ : (e2.matches++, t2--, e2.dyn_ltree[2 * (A[r2] + u + 1)]++, e2.dyn_dtree[2 * N(t2)]++), e2.last_lit === e2.lit_bufsize - 1;
+        }, r._tr_align = function(e2) {
+          P(e2, 2, 3), L(e2, m, z), (function(e3) {
+            16 === e3.bi_valid ? (U(e3, e3.bi_buf), e3.bi_buf = 0, e3.bi_valid = 0) : 8 <= e3.bi_valid && (e3.pending_buf[e3.pending++] = 255 & e3.bi_buf, e3.bi_buf >>= 8, e3.bi_valid -= 8);
+          })(e2);
+        };
+      }, { "../utils/common": 41 }], 53: [function(e, t, r) {
+        "use strict";
+        t.exports = function() {
+          this.input = null, this.next_in = 0, this.avail_in = 0, this.total_in = 0, this.output = null, this.next_out = 0, this.avail_out = 0, this.total_out = 0, this.msg = "", this.state = null, this.data_type = 2, this.adler = 0;
+        };
+      }, {}], 54: [function(e, t, r) {
+        (function(e2) {
+          !(function(r2, n) {
+            "use strict";
+            if (!r2.setImmediate) {
+              var i, s, t2, a, o = 1, h = {}, u = false, l = r2.document, e3 = Object.getPrototypeOf && Object.getPrototypeOf(r2);
+              e3 = e3 && e3.setTimeout ? e3 : r2, i = "[object process]" === {}.toString.call(r2.process) ? function(e4) {
+                process.nextTick(function() {
+                  c(e4);
+                });
+              } : (function() {
+                if (r2.postMessage && !r2.importScripts) {
+                  var e4 = true, t3 = r2.onmessage;
+                  return r2.onmessage = function() {
+                    e4 = false;
+                  }, r2.postMessage("", "*"), r2.onmessage = t3, e4;
+                }
+              })() ? (a = "setImmediate$" + Math.random() + "$", r2.addEventListener ? r2.addEventListener("message", d, false) : r2.attachEvent("onmessage", d), function(e4) {
+                r2.postMessage(a + e4, "*");
+              }) : r2.MessageChannel ? ((t2 = new MessageChannel()).port1.onmessage = function(e4) {
+                c(e4.data);
+              }, function(e4) {
+                t2.port2.postMessage(e4);
+              }) : l && "onreadystatechange" in l.createElement("script") ? (s = l.documentElement, function(e4) {
+                var t3 = l.createElement("script");
+                t3.onreadystatechange = function() {
+                  c(e4), t3.onreadystatechange = null, s.removeChild(t3), t3 = null;
+                }, s.appendChild(t3);
+              }) : function(e4) {
+                setTimeout(c, 0, e4);
+              }, e3.setImmediate = function(e4) {
+                "function" != typeof e4 && (e4 = new Function("" + e4));
+                for (var t3 = new Array(arguments.length - 1), r3 = 0; r3 < t3.length; r3++) t3[r3] = arguments[r3 + 1];
+                var n2 = { callback: e4, args: t3 };
+                return h[o] = n2, i(o), o++;
+              }, e3.clearImmediate = f;
+            }
+            function f(e4) {
+              delete h[e4];
+            }
+            function c(e4) {
+              if (u) setTimeout(c, 0, e4);
+              else {
+                var t3 = h[e4];
+                if (t3) {
+                  u = true;
+                  try {
+                    !(function(e5) {
+                      var t4 = e5.callback, r3 = e5.args;
+                      switch (r3.length) {
+                        case 0:
+                          t4();
+                          break;
+                        case 1:
+                          t4(r3[0]);
+                          break;
+                        case 2:
+                          t4(r3[0], r3[1]);
+                          break;
+                        case 3:
+                          t4(r3[0], r3[1], r3[2]);
+                          break;
+                        default:
+                          t4.apply(n, r3);
+                      }
+                    })(t3);
+                  } finally {
+                    f(e4), u = false;
+                  }
+                }
+              }
+            }
+            function d(e4) {
+              e4.source === r2 && "string" == typeof e4.data && 0 === e4.data.indexOf(a) && c(+e4.data.slice(a.length));
+            }
+          })("undefined" == typeof self ? void 0 === e2 ? this : e2 : self);
+        }).call(this, "undefined" != typeof global ? global : "undefined" != typeof self ? self : "undefined" != typeof window ? window : {});
+      }, {}] }, {}, [10])(10);
+    });
+  }
+});
+
+// node_modules/react/cjs/react.development.js
+var require_react_development = __commonJS({
+  "node_modules/react/cjs/react.development.js"(exports, module) {
+    "use strict";
+    (function() {
+      function defineDeprecationWarning(methodName, info) {
+        Object.defineProperty(Component.prototype, methodName, {
+          get: function() {
+            console.warn(
+              "%s(...) is deprecated in plain JavaScript React classes. %s",
+              info[0],
+              info[1]
+            );
+          }
+        });
+      }
+      function getIteratorFn(maybeIterable) {
+        if (null === maybeIterable || "object" !== typeof maybeIterable)
+          return null;
+        maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
+        return "function" === typeof maybeIterable ? maybeIterable : null;
+      }
+      function warnNoop(publicInstance, callerName) {
+        publicInstance = (publicInstance = publicInstance.constructor) && (publicInstance.displayName || publicInstance.name) || "ReactClass";
+        var warningKey = publicInstance + "." + callerName;
+        didWarnStateUpdateForUnmountedComponent[warningKey] || (console.error(
+          "Can't call %s on a component that is not yet mounted. This is a no-op, but it might indicate a bug in your application. Instead, assign to `this.state` directly or define a `state = {};` class property with the desired state in the %s component.",
+          callerName,
+          publicInstance
+        ), didWarnStateUpdateForUnmountedComponent[warningKey] = true);
+      }
+      function Component(props, context, updater) {
+        this.props = props;
+        this.context = context;
+        this.refs = emptyObject;
+        this.updater = updater || ReactNoopUpdateQueue;
+      }
+      function ComponentDummy() {
+      }
+      function PureComponent(props, context, updater) {
+        this.props = props;
+        this.context = context;
+        this.refs = emptyObject;
+        this.updater = updater || ReactNoopUpdateQueue;
+      }
+      function noop() {
+      }
+      function testStringCoercion(value) {
+        return "" + value;
+      }
+      function checkKeyStringCoercion(value) {
+        try {
+          testStringCoercion(value);
+          var JSCompiler_inline_result = false;
+        } catch (e) {
+          JSCompiler_inline_result = true;
+        }
+        if (JSCompiler_inline_result) {
+          JSCompiler_inline_result = console;
+          var JSCompiler_temp_const = JSCompiler_inline_result.error;
+          var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
+          JSCompiler_temp_const.call(
+            JSCompiler_inline_result,
+            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+            JSCompiler_inline_result$jscomp$0
+          );
+          return testStringCoercion(value);
+        }
+      }
+      function getComponentNameFromType(type) {
+        if (null == type) return null;
+        if ("function" === typeof type)
+          return type.$$typeof === REACT_CLIENT_REFERENCE ? null : type.displayName || type.name || null;
+        if ("string" === typeof type) return type;
+        switch (type) {
+          case REACT_FRAGMENT_TYPE:
+            return "Fragment";
+          case REACT_PROFILER_TYPE:
+            return "Profiler";
+          case REACT_STRICT_MODE_TYPE:
+            return "StrictMode";
+          case REACT_SUSPENSE_TYPE:
+            return "Suspense";
+          case REACT_SUSPENSE_LIST_TYPE:
+            return "SuspenseList";
+          case REACT_ACTIVITY_TYPE:
+            return "Activity";
+          case REACT_VIEW_TRANSITION_TYPE:
+            return "ViewTransition";
+        }
+        if ("object" === typeof type)
+          switch ("number" === typeof type.tag && console.error(
+            "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
+          ), type.$$typeof) {
+            case REACT_PORTAL_TYPE:
+              return "Portal";
+            case REACT_CONTEXT_TYPE:
+              return type.displayName || "Context";
+            case REACT_CONSUMER_TYPE:
+              return (type._context.displayName || "Context") + ".Consumer";
+            case REACT_FORWARD_REF_TYPE:
+              var innerType = type.render;
+              type = type.displayName;
+              type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
+              return type;
+            case REACT_MEMO_TYPE:
+              return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
+            case REACT_LAZY_TYPE:
+              innerType = type._payload;
+              type = type._init;
+              try {
+                return getComponentNameFromType(type(innerType));
+              } catch (x) {
+              }
+          }
+        return null;
+      }
+      function getTaskName(type) {
+        if (type === REACT_FRAGMENT_TYPE) return "<>";
+        if ("object" === typeof type && null !== type && type.$$typeof === REACT_LAZY_TYPE)
+          return "<...>";
+        try {
+          var name = getComponentNameFromType(type);
+          return name ? "<" + name + ">" : "<...>";
+        } catch (x) {
+          return "<...>";
+        }
+      }
+      function getOwner() {
+        var dispatcher = ReactSharedInternals.A;
+        return null === dispatcher ? null : dispatcher.getOwner();
+      }
+      function UnknownOwner() {
+        return Error("react-stack-top-frame");
+      }
+      function hasValidKey(config) {
+        if (hasOwnProperty.call(config, "key")) {
+          var getter = Object.getOwnPropertyDescriptor(config, "key").get;
+          if (getter && getter.isReactWarning) return false;
+        }
+        return void 0 !== config.key;
+      }
+      function defineKeyPropWarningGetter(props, displayName) {
+        function warnAboutAccessingKey() {
+          specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
+            "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
+            displayName
+          ));
+        }
+        warnAboutAccessingKey.isReactWarning = true;
+        Object.defineProperty(props, "key", {
+          get: warnAboutAccessingKey,
+          configurable: true
+        });
+      }
+      function elementRefGetterWithDeprecationWarning() {
+        var componentName = getComponentNameFromType(this.type);
+        didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
+          "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
+        ));
+        componentName = this.props.ref;
+        return void 0 !== componentName ? componentName : null;
+      }
+      function ReactElement(type, key, props, owner, debugStack, debugTask) {
+        var refProp = props.ref;
+        type = {
+          $$typeof: REACT_ELEMENT_TYPE,
+          type,
+          key,
+          props,
+          _owner: owner
+        };
+        null !== (void 0 !== refProp ? refProp : null) ? Object.defineProperty(type, "ref", {
+          enumerable: false,
+          get: elementRefGetterWithDeprecationWarning
+        }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
+        type._store = {};
+        Object.defineProperty(type._store, "validated", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: 0
+        });
+        Object.defineProperty(type, "_debugInfo", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: null
+        });
+        Object.defineProperty(type, "_debugStack", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: debugStack
+        });
+        Object.defineProperty(type, "_debugTask", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: debugTask
+        });
+        Object.freeze && (Object.freeze(type.props), Object.freeze(type));
+        return type;
+      }
+      function cloneAndReplaceKey(oldElement, newKey) {
+        newKey = ReactElement(
+          oldElement.type,
+          newKey,
+          oldElement.props,
+          oldElement._owner,
+          oldElement._debugStack,
+          oldElement._debugTask
+        );
+        oldElement._store && (newKey._store.validated = oldElement._store.validated);
+        return newKey;
+      }
+      function validateChildKeys(node) {
+        isValidElement(node) ? node._store && (node._store.validated = 1) : "object" === typeof node && null !== node && node.$$typeof === REACT_LAZY_TYPE && ("fulfilled" === node._payload.status ? isValidElement(node._payload.value) && node._payload.value._store && (node._payload.value._store.validated = 1) : node._store && (node._store.validated = 1));
+      }
+      function isValidElement(object) {
+        return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+      }
+      function escape(key) {
+        var escaperLookup = { "=": "=0", ":": "=2" };
+        return "$" + key.replace(/[=:]/g, function(match) {
+          return escaperLookup[match];
+        });
+      }
+      function getElementKey(element, index) {
+        return "object" === typeof element && null !== element && null != element.key ? (checkKeyStringCoercion(element.key), escape("" + element.key)) : index.toString(36);
+      }
+      function resolveThenable(thenable) {
+        switch (thenable.status) {
+          case "fulfilled":
+            return thenable.value;
+          case "rejected":
+            throw thenable.reason;
+          default:
+            switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
+              function(fulfilledValue) {
+                "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
+              },
+              function(error) {
+                "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+              }
+            )), thenable.status) {
+              case "fulfilled":
+                return thenable.value;
+              case "rejected":
+                throw thenable.reason;
+            }
+        }
+        throw thenable;
+      }
+      function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
+        var type = typeof children;
+        if ("undefined" === type || "boolean" === type) children = null;
+        var invokeCallback = false;
+        if (null === children) invokeCallback = true;
+        else
+          switch (type) {
+            case "bigint":
+            case "string":
+            case "number":
+              invokeCallback = true;
+              break;
+            case "object":
+              switch (children.$$typeof) {
+                case REACT_ELEMENT_TYPE:
+                case REACT_PORTAL_TYPE:
+                  invokeCallback = true;
+                  break;
+                case REACT_LAZY_TYPE:
+                  return invokeCallback = children._init, mapIntoArray(
+                    invokeCallback(children._payload),
+                    array,
+                    escapedPrefix,
+                    nameSoFar,
+                    callback
+                  );
+              }
+          }
+        if (invokeCallback) {
+          invokeCallback = children;
+          callback = callback(invokeCallback);
+          var childKey = "" === nameSoFar ? "." + getElementKey(invokeCallback, 0) : nameSoFar;
+          isArrayImpl(callback) ? (escapedPrefix = "", null != childKey && (escapedPrefix = childKey.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c) {
+            return c;
+          })) : null != callback && (isValidElement(callback) && (null != callback.key && (invokeCallback && invokeCallback.key === callback.key || checkKeyStringCoercion(callback.key)), escapedPrefix = cloneAndReplaceKey(
+            callback,
+            escapedPrefix + (null == callback.key || invokeCallback && invokeCallback.key === callback.key ? "" : ("" + callback.key).replace(
+              userProvidedKeyEscapeRegex,
+              "$&/"
+            ) + "/") + childKey
+          ), "" !== nameSoFar && null != invokeCallback && isValidElement(invokeCallback) && null == invokeCallback.key && invokeCallback._store && !invokeCallback._store.validated && (escapedPrefix._store.validated = 2), callback = escapedPrefix), array.push(callback));
+          return 1;
+        }
+        invokeCallback = 0;
+        childKey = "" === nameSoFar ? "." : nameSoFar + ":";
+        if (isArrayImpl(children))
+          for (var i = 0; i < children.length; i++)
+            nameSoFar = children[i], type = childKey + getElementKey(nameSoFar, i), invokeCallback += mapIntoArray(
+              nameSoFar,
+              array,
+              escapedPrefix,
+              type,
+              callback
+            );
+        else if (i = getIteratorFn(children), "function" === typeof i)
+          for (i === children.entries && (didWarnAboutMaps || console.warn(
+            "Using Maps as children is not supported. Use an array of keyed ReactElements instead."
+          ), didWarnAboutMaps = true), children = i.call(children), i = 0; !(nameSoFar = children.next()).done; )
+            nameSoFar = nameSoFar.value, type = childKey + getElementKey(nameSoFar, i++), invokeCallback += mapIntoArray(
+              nameSoFar,
+              array,
+              escapedPrefix,
+              type,
+              callback
+            );
+        else if ("object" === type) {
+          if ("function" === typeof children.then)
+            return mapIntoArray(
+              resolveThenable(children),
+              array,
+              escapedPrefix,
+              nameSoFar,
+              callback
+            );
+          array = String(children);
+          throw Error(
+            "Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead."
+          );
+        }
+        return invokeCallback;
+      }
+      function mapChildren(children, func, context) {
+        if (null == children) return children;
+        var result = [], count = 0;
+        mapIntoArray(children, result, "", "", function(child) {
+          return func.call(context, child, count++);
+        });
+        return result;
+      }
+      function lazyInitializer(payload) {
+        if (-1 === payload._status) {
+          var resolveDebugValue = null, rejectDebugValue = null, ioInfo = payload._ioInfo;
+          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve, reject) {
+            resolveDebugValue = resolve;
+            rejectDebugValue = reject;
+          }));
+          ioInfo = payload._result;
+          var thenable = ioInfo();
+          thenable.then(
+            function(moduleObject) {
+              if (0 === payload._status || -1 === payload._status) {
+                payload._status = 1;
+                payload._result = moduleObject;
+                var _ioInfo = payload._ioInfo;
+                if (null != _ioInfo) {
+                  _ioInfo.end = performance.now();
+                  var debugValue = null == moduleObject ? void 0 : moduleObject.default;
+                  resolveDebugValue(debugValue);
+                  _ioInfo.value.status = "fulfilled";
+                  _ioInfo.value.value = debugValue;
+                }
+                void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
+              }
+            },
+            function(error) {
+              if (0 === payload._status || -1 === payload._status) {
+                payload._status = 2;
+                payload._result = error;
+                var _ioInfo2 = payload._ioInfo;
+                null != _ioInfo2 && (_ioInfo2.end = performance.now(), _ioInfo2.value.then(noop, noop), rejectDebugValue(error), _ioInfo2.value.status = "rejected", _ioInfo2.value.reason = error);
+                void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+              }
+            }
+          );
+          ioInfo = payload._ioInfo;
+          if (null != ioInfo) {
+            var displayName = thenable.displayName;
+            "string" === typeof displayName && (ioInfo.name = displayName);
+          }
+          -1 === payload._status && (payload._status = 0, payload._result = thenable);
+        }
+        if (1 === payload._status)
+          return ioInfo = payload._result, void 0 === ioInfo && console.error(
+            "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))\n\nDid you accidentally put curly braces around the import?",
+            ioInfo
+          ), "default" in ioInfo || console.error(
+            "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))",
+            ioInfo
+          ), ioInfo.default;
+        throw payload._result;
+      }
+      function resolveDispatcher() {
+        var dispatcher = ReactSharedInternals.H;
+        null === dispatcher && console.error(
+          "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
+        );
+        return dispatcher;
+      }
+      function releaseAsyncTransition() {
+        ReactSharedInternals.asyncTransitions--;
+      }
+      function startTransition(scope) {
+        var prevTransition = ReactSharedInternals.T, currentTransition = {};
+        currentTransition.types = null !== prevTransition ? prevTransition.types : null;
+        currentTransition._updatedFibers = /* @__PURE__ */ new Set();
+        ReactSharedInternals.T = currentTransition;
+        try {
+          var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
+          null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
+          "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && (ReactSharedInternals.asyncTransitions++, returnValue.then(releaseAsyncTransition, releaseAsyncTransition), returnValue.then(noop, reportGlobalError));
+        } catch (error) {
+          reportGlobalError(error);
+        } finally {
+          null === prevTransition && currentTransition._updatedFibers && (scope = currentTransition._updatedFibers.size, currentTransition._updatedFibers.clear(), 10 < scope && console.warn(
+            "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
+          )), null !== prevTransition && null !== currentTransition.types && (null !== prevTransition.types && prevTransition.types !== currentTransition.types && console.error(
+            "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+          ), prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
+        }
+      }
+      function addTransitionType(type) {
+        var transition = ReactSharedInternals.T;
+        if (null !== transition) {
+          var transitionTypes = transition.types;
+          null === transitionTypes ? transition.types = [type] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+        } else
+          0 === ReactSharedInternals.asyncTransitions && console.error(
+            "addTransitionType can only be called inside a `startTransition()` callback. It must be associated with a specific Transition."
+          ), startTransition(addTransitionType.bind(null, type));
+      }
+      function enqueueTask(task) {
+        if (null === enqueueTaskImpl)
+          try {
+            var requireString = ("require" + Math.random()).slice(0, 7);
+            enqueueTaskImpl = (module && module[requireString]).call(
+              module,
+              "timers"
+            ).setImmediate;
+          } catch (_err) {
+            enqueueTaskImpl = function(callback) {
+              false === didWarnAboutMessageChannel && (didWarnAboutMessageChannel = true, "undefined" === typeof MessageChannel && console.error(
+                "This browser does not have a MessageChannel implementation, so enqueuing tasks via await act(async () => ...) will fail. Please file an issue at https://github.com/facebook/react/issues if you encounter this warning."
+              ));
+              var channel = new MessageChannel();
+              channel.port1.onmessage = callback;
+              channel.port2.postMessage(void 0);
+            };
+          }
+        return enqueueTaskImpl(task);
+      }
+      function aggregateErrors(errors) {
+        return 1 < errors.length && "function" === typeof AggregateError ? new AggregateError(errors) : errors[0];
+      }
+      function popActScope(prevActQueue, prevActScopeDepth) {
+        prevActScopeDepth !== actScopeDepth - 1 && console.error(
+          "You seem to have overlapping act() calls, this is not supported. Be sure to await previous act() calls before making a new one. "
+        );
+        actScopeDepth = prevActScopeDepth;
+      }
+      function recursivelyFlushAsyncActWork(returnValue, resolve, reject) {
+        var queue = ReactSharedInternals.actQueue;
+        if (null !== queue)
+          if (0 !== queue.length)
+            try {
+              flushActQueue(queue);
+              enqueueTask(function() {
+                return recursivelyFlushAsyncActWork(returnValue, resolve, reject);
+              });
+              return;
+            } catch (error) {
+              ReactSharedInternals.thrownErrors.push(error);
+            }
+          else ReactSharedInternals.actQueue = null;
+        0 < ReactSharedInternals.thrownErrors.length ? (queue = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue)) : resolve(returnValue);
+      }
+      function flushActQueue(queue) {
+        if (!isFlushing) {
+          isFlushing = true;
+          var i = 0;
+          try {
+            for (; i < queue.length; i++) {
+              var callback = queue[i];
+              do {
+                ReactSharedInternals.didUsePromise = false;
+                var continuation = callback(false);
+                if (null !== continuation) {
+                  if (ReactSharedInternals.didUsePromise) {
+                    queue[i] = callback;
+                    queue.splice(0, i);
+                    return;
+                  }
+                  callback = continuation;
+                } else break;
+              } while (1);
+            }
+            queue.length = 0;
+          } catch (error) {
+            queue.splice(0, i + 1), ReactSharedInternals.thrownErrors.push(error);
+          } finally {
+            isFlushing = false;
+          }
+        }
+      }
+      "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
+      var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = Symbol.for("react.activity"), REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, didWarnStateUpdateForUnmountedComponent = {}, ReactNoopUpdateQueue = {
+        isMounted: function() {
+          return false;
+        },
+        enqueueForceUpdate: function(publicInstance) {
+          warnNoop(publicInstance, "forceUpdate");
+        },
+        enqueueReplaceState: function(publicInstance) {
+          warnNoop(publicInstance, "replaceState");
+        },
+        enqueueSetState: function(publicInstance) {
+          warnNoop(publicInstance, "setState");
+        }
+      }, assign = Object.assign, emptyObject = {};
+      Object.freeze(emptyObject);
+      Component.prototype.isReactComponent = {};
+      Component.prototype.setState = function(partialState, callback) {
+        if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
+          throw Error(
+            "takes an object of state variables to update or a function which returns an object of state variables."
+          );
+        this.updater.enqueueSetState(this, partialState, callback, "setState");
+      };
+      Component.prototype.forceUpdate = function(callback) {
+        this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
+      };
+      var deprecatedAPIs = {
+        isMounted: [
+          "isMounted",
+          "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
+        ],
+        replaceState: [
+          "replaceState",
+          "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
+        ]
+      };
+      for (fnName in deprecatedAPIs)
+        deprecatedAPIs.hasOwnProperty(fnName) && defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
+      ComponentDummy.prototype = Component.prototype;
+      deprecatedAPIs = PureComponent.prototype = new ComponentDummy();
+      deprecatedAPIs.constructor = PureComponent;
+      assign(deprecatedAPIs, Component.prototype);
+      deprecatedAPIs.isPureReactComponent = true;
+      var isArrayImpl = Array.isArray, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = {
+        H: null,
+        A: null,
+        T: null,
+        S: null,
+        actQueue: null,
+        asyncTransitions: 0,
+        isBatchingLegacy: false,
+        didScheduleLegacyUpdate: false,
+        didUsePromise: false,
+        thrownErrors: [],
+        getCurrentStack: null,
+        recentlyCreatedOwnerStacks: 0
+      }, hasOwnProperty = Object.prototype.hasOwnProperty, createTask = console.createTask ? console.createTask : function() {
+        return null;
+      };
+      deprecatedAPIs = {
+        react_stack_bottom_frame: function(callStackForError) {
+          return callStackForError();
+        }
+      };
+      var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
+      var didWarnAboutElementRef = {};
+      var unknownOwnerDebugStack = deprecatedAPIs.react_stack_bottom_frame.bind(
+        deprecatedAPIs,
+        UnknownOwner
+      )();
+      var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
+      var didWarnAboutMaps = false, userProvidedKeyEscapeRegex = /\/+/g, reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
+        if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
+          var event = new window.ErrorEvent("error", {
+            bubbles: true,
+            cancelable: true,
+            message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
+            error
+          });
+          if (!window.dispatchEvent(event)) return;
+        } else if ("object" === typeof process && "function" === typeof process.emit) {
+          process.emit("uncaughtException", error);
+          return;
+        }
+        console.error(error);
+      }, didWarnAboutMessageChannel = false, enqueueTaskImpl = null, actScopeDepth = 0, didWarnNoAwaitAct = false, isFlushing = false, queueSeveralMicrotasks = "function" === typeof queueMicrotask ? function(callback) {
+        queueMicrotask(function() {
+          return queueMicrotask(callback);
+        });
+      } : enqueueTask;
+      deprecatedAPIs = Object.freeze({
+        __proto__: null,
+        c: function(size) {
+          return resolveDispatcher().useMemoCache(size);
+        }
+      });
+      var fnName = {
+        map: mapChildren,
+        forEach: function(children, forEachFunc, forEachContext) {
+          mapChildren(
+            children,
+            function() {
+              forEachFunc.apply(this, arguments);
+            },
+            forEachContext
+          );
+        },
+        count: function(children) {
+          var n = 0;
+          mapChildren(children, function() {
+            n++;
+          });
+          return n;
+        },
+        toArray: function(children) {
+          return mapChildren(children, function(child) {
+            return child;
+          }) || [];
+        },
+        only: function(children) {
+          if (!isValidElement(children))
+            throw Error(
+              "React.Children.only expected to receive a single React element child."
+            );
+          return children;
+        }
+      };
+      exports.Activity = REACT_ACTIVITY_TYPE;
+      exports.Children = fnName;
+      exports.Component = Component;
+      exports.Fragment = REACT_FRAGMENT_TYPE;
+      exports.Profiler = REACT_PROFILER_TYPE;
+      exports.PureComponent = PureComponent;
+      exports.StrictMode = REACT_STRICT_MODE_TYPE;
+      exports.Suspense = REACT_SUSPENSE_TYPE;
+      exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
+      exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
+      exports.__COMPILER_RUNTIME = deprecatedAPIs;
+      exports.act = function(callback) {
+        var prevActQueue = ReactSharedInternals.actQueue, prevActScopeDepth = actScopeDepth;
+        actScopeDepth++;
+        var queue = ReactSharedInternals.actQueue = null !== prevActQueue ? prevActQueue : [], didAwaitActCall = false;
+        try {
+          var result = callback();
+        } catch (error) {
+          ReactSharedInternals.thrownErrors.push(error);
+        }
+        if (0 < ReactSharedInternals.thrownErrors.length)
+          throw popActScope(prevActQueue, prevActScopeDepth), callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
+        if (null !== result && "object" === typeof result && "function" === typeof result.then) {
+          var thenable = result;
+          queueSeveralMicrotasks(function() {
+            didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
+              "You called act(async () => ...) without await. This could lead to unexpected testing behaviour, interleaving multiple act calls and mixing their scopes. You should - await act(async () => ...);"
+            ));
+          });
+          return {
+            then: function(resolve, reject) {
+              didAwaitActCall = true;
+              thenable.then(
+                function(returnValue) {
+                  popActScope(prevActQueue, prevActScopeDepth);
+                  if (0 === prevActScopeDepth) {
+                    try {
+                      flushActQueue(queue), enqueueTask(function() {
+                        return recursivelyFlushAsyncActWork(
+                          returnValue,
+                          resolve,
+                          reject
+                        );
+                      });
+                    } catch (error$0) {
+                      ReactSharedInternals.thrownErrors.push(error$0);
+                    }
+                    if (0 < ReactSharedInternals.thrownErrors.length) {
+                      var _thrownError = aggregateErrors(
+                        ReactSharedInternals.thrownErrors
+                      );
+                      ReactSharedInternals.thrownErrors.length = 0;
+                      reject(_thrownError);
+                    }
+                  } else resolve(returnValue);
+                },
+                function(error) {
+                  popActScope(prevActQueue, prevActScopeDepth);
+                  0 < ReactSharedInternals.thrownErrors.length ? (error = aggregateErrors(
+                    ReactSharedInternals.thrownErrors
+                  ), ReactSharedInternals.thrownErrors.length = 0, reject(error)) : reject(error);
+                }
+              );
+            }
+          };
+        }
+        var returnValue$jscomp$0 = result;
+        popActScope(prevActQueue, prevActScopeDepth);
+        0 === prevActScopeDepth && (flushActQueue(queue), 0 !== queue.length && queueSeveralMicrotasks(function() {
+          didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
+            "A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:\n\nawait act(() => ...)"
+          ));
+        }), ReactSharedInternals.actQueue = null);
+        if (0 < ReactSharedInternals.thrownErrors.length)
+          throw callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
+        return {
+          then: function(resolve, reject) {
+            didAwaitActCall = true;
+            0 === prevActScopeDepth ? (ReactSharedInternals.actQueue = queue, enqueueTask(function() {
+              return recursivelyFlushAsyncActWork(
+                returnValue$jscomp$0,
+                resolve,
+                reject
+              );
+            })) : resolve(returnValue$jscomp$0);
+          }
+        };
+      };
+      exports.addTransitionType = addTransitionType;
+      exports.cache = function(fn) {
+        return function() {
+          return fn.apply(null, arguments);
+        };
+      };
+      exports.cacheSignal = function() {
+        return null;
+      };
+      exports.captureOwnerStack = function() {
+        var getCurrentStack = ReactSharedInternals.getCurrentStack;
+        return null === getCurrentStack ? null : getCurrentStack();
+      };
+      exports.cloneElement = function(element, config, children) {
+        if (null === element || void 0 === element)
+          throw Error(
+            "The argument must be a React element, but you passed " + element + "."
+          );
+        var props = assign({}, element.props), key = element.key, owner = element._owner;
+        if (null != config) {
+          var JSCompiler_inline_result;
+          a: {
+            if (hasOwnProperty.call(config, "ref") && (JSCompiler_inline_result = Object.getOwnPropertyDescriptor(
+              config,
+              "ref"
+            ).get) && JSCompiler_inline_result.isReactWarning) {
+              JSCompiler_inline_result = false;
+              break a;
+            }
+            JSCompiler_inline_result = void 0 !== config.ref;
+          }
+          JSCompiler_inline_result && (owner = getOwner());
+          hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key);
+          for (propName in config)
+            !hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
+        }
+        var propName = arguments.length - 2;
+        if (1 === propName) props.children = children;
+        else if (1 < propName) {
+          JSCompiler_inline_result = Array(propName);
+          for (var i = 0; i < propName; i++)
+            JSCompiler_inline_result[i] = arguments[i + 2];
+          props.children = JSCompiler_inline_result;
+        }
+        props = ReactElement(
+          element.type,
+          key,
+          props,
+          owner,
+          element._debugStack,
+          element._debugTask
+        );
+        for (key = 2; key < arguments.length; key++)
+          validateChildKeys(arguments[key]);
+        return props;
+      };
+      exports.createContext = function(defaultValue) {
+        defaultValue = {
+          $$typeof: REACT_CONTEXT_TYPE,
+          _currentValue: defaultValue,
+          _currentValue2: defaultValue,
+          _threadCount: 0,
+          Provider: null,
+          Consumer: null
+        };
+        defaultValue.Provider = defaultValue;
+        defaultValue.Consumer = {
+          $$typeof: REACT_CONSUMER_TYPE,
+          _context: defaultValue
+        };
+        defaultValue._currentRenderer = null;
+        defaultValue._currentRenderer2 = null;
+        return defaultValue;
+      };
+      exports.createElement = function(type, config, children) {
+        for (var i = 2; i < arguments.length; i++)
+          validateChildKeys(arguments[i]);
+        var propName;
+        i = {};
+        var key = null;
+        if (null != config)
+          for (propName in didWarnAboutOldJSXRuntime || !("__self" in config) || "key" in config || (didWarnAboutOldJSXRuntime = true, console.warn(
+            "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
+          )), hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key), config)
+            hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (i[propName] = config[propName]);
+        var childrenLength = arguments.length - 2;
+        if (1 === childrenLength) i.children = children;
+        else if (1 < childrenLength) {
+          for (var childArray = Array(childrenLength), _i = 0; _i < childrenLength; _i++)
+            childArray[_i] = arguments[_i + 2];
+          Object.freeze && Object.freeze(childArray);
+          i.children = childArray;
+        }
+        if (type && type.defaultProps)
+          for (propName in childrenLength = type.defaultProps, childrenLength)
+            void 0 === i[propName] && (i[propName] = childrenLength[propName]);
+        key && defineKeyPropWarningGetter(
+          i,
+          "function" === typeof type ? type.displayName || type.name || "Unknown" : type
+        );
+        (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++) ? (childArray = Error.stackTraceLimit, Error.stackTraceLimit = 10, childrenLength = Error("react-stack-top-frame"), Error.stackTraceLimit = childArray) : childrenLength = unknownOwnerDebugStack;
+        return ReactElement(
+          type,
+          key,
+          i,
+          getOwner(),
+          childrenLength,
+          propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
+        );
+      };
+      exports.createRef = function() {
+        var refObject = { current: null };
+        Object.seal(refObject);
+        return refObject;
+      };
+      exports.forwardRef = function(render) {
+        null != render && render.$$typeof === REACT_MEMO_TYPE ? console.error(
+          "forwardRef requires a render function but received a `memo` component. Instead of forwardRef(memo(...)), use memo(forwardRef(...))."
+        ) : "function" !== typeof render ? console.error(
+          "forwardRef requires a render function but was given %s.",
+          null === render ? "null" : typeof render
+        ) : 0 !== render.length && 2 !== render.length && console.error(
+          "forwardRef render functions accept exactly two parameters: props and ref. %s",
+          1 === render.length ? "Did you forget to use the ref parameter?" : "Any additional parameter will be undefined."
+        );
+        null != render && null != render.defaultProps && console.error(
+          "forwardRef render functions do not support defaultProps. Did you accidentally pass a React component?"
+        );
+        var elementType = { $$typeof: REACT_FORWARD_REF_TYPE, render }, ownName;
+        Object.defineProperty(elementType, "displayName", {
+          enumerable: false,
+          configurable: true,
+          get: function() {
+            return ownName;
+          },
+          set: function(name) {
+            ownName = name;
+            render.name || render.displayName || (Object.defineProperty(render, "name", { value: name }), render.displayName = name);
+          }
+        });
+        return elementType;
+      };
+      exports.isValidElement = isValidElement;
+      exports.lazy = function(ctor) {
+        ctor = { _status: -1, _result: ctor };
+        var lazyType = {
+          $$typeof: REACT_LAZY_TYPE,
+          _payload: ctor,
+          _init: lazyInitializer
+        }, ioInfo = {
+          name: "lazy",
+          start: -1,
+          end: -1,
+          value: null,
+          owner: null,
+          debugStack: Error("react-stack-top-frame"),
+          debugTask: console.createTask ? console.createTask("lazy()") : null
+        };
+        ctor._ioInfo = ioInfo;
+        lazyType._debugInfo = [{ awaited: ioInfo }];
+        return lazyType;
+      };
+      exports.memo = function(type, compare) {
+        null == type && console.error(
+          "memo: The first argument must be a component. Instead received: %s",
+          null === type ? "null" : typeof type
+        );
+        compare = {
+          $$typeof: REACT_MEMO_TYPE,
+          type,
+          compare: void 0 === compare ? null : compare
+        };
+        var ownName;
+        Object.defineProperty(compare, "displayName", {
+          enumerable: false,
+          configurable: true,
+          get: function() {
+            return ownName;
+          },
+          set: function(name) {
+            ownName = name;
+            type.name || type.displayName || (Object.defineProperty(type, "name", { value: name }), type.displayName = name);
+          }
+        });
+        return compare;
+      };
+      exports.startTransition = startTransition;
+      exports.unstable_useCacheRefresh = function() {
+        return resolveDispatcher().useCacheRefresh();
+      };
+      exports.use = function(usable) {
+        return resolveDispatcher().use(usable);
+      };
+      exports.useActionState = function(action, initialState, permalink) {
+        return resolveDispatcher().useActionState(
+          action,
+          initialState,
+          permalink
+        );
+      };
+      exports.useCallback = function(callback, deps) {
+        return resolveDispatcher().useCallback(callback, deps);
+      };
+      exports.useContext = function(Context) {
+        var dispatcher = resolveDispatcher();
+        Context.$$typeof === REACT_CONSUMER_TYPE && console.error(
+          "Calling useContext(Context.Consumer) is not supported and will cause bugs. Did you mean to call useContext(Context) instead?"
+        );
+        return dispatcher.useContext(Context);
+      };
+      exports.useDebugValue = function(value, formatterFn) {
+        return resolveDispatcher().useDebugValue(value, formatterFn);
+      };
+      exports.useDeferredValue = function(value, initialValue) {
+        return resolveDispatcher().useDeferredValue(value, initialValue);
+      };
+      exports.useEffect = function(create, deps) {
+        null == create && console.warn(
+          "React Hook useEffect requires an effect callback. Did you forget to pass a callback to the hook?"
+        );
+        return resolveDispatcher().useEffect(create, deps);
+      };
+      exports.useEffectEvent = function(callback) {
+        return resolveDispatcher().useEffectEvent(callback);
+      };
+      exports.useId = function() {
+        return resolveDispatcher().useId();
+      };
+      exports.useImperativeHandle = function(ref, create, deps) {
+        return resolveDispatcher().useImperativeHandle(ref, create, deps);
+      };
+      exports.useInsertionEffect = function(create, deps) {
+        null == create && console.warn(
+          "React Hook useInsertionEffect requires an effect callback. Did you forget to pass a callback to the hook?"
+        );
+        return resolveDispatcher().useInsertionEffect(create, deps);
+      };
+      exports.useLayoutEffect = function(create, deps) {
+        null == create && console.warn(
+          "React Hook useLayoutEffect requires an effect callback. Did you forget to pass a callback to the hook?"
+        );
+        return resolveDispatcher().useLayoutEffect(create, deps);
+      };
+      exports.useMemo = function(create, deps) {
+        return resolveDispatcher().useMemo(create, deps);
+      };
+      exports.useOptimistic = function(passthrough, reducer) {
+        return resolveDispatcher().useOptimistic(passthrough, reducer);
+      };
+      exports.useReducer = function(reducer, initialArg, init) {
+        return resolveDispatcher().useReducer(reducer, initialArg, init);
+      };
+      exports.useRef = function(initialValue) {
+        return resolveDispatcher().useRef(initialValue);
+      };
+      exports.useState = function(initialState) {
+        return resolveDispatcher().useState(initialState);
+      };
+      exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
+        return resolveDispatcher().useSyncExternalStore(
+          subscribe,
+          getSnapshot,
+          getServerSnapshot
+        );
+      };
+      exports.useTransition = function() {
+        return resolveDispatcher().useTransition();
+      };
+      exports.version = "19.3.1";
+      "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
+    })();
+  }
+});
+
+// node_modules/react/index.js
+var require_react = __commonJS({
+  "node_modules/react/index.js"(exports, module) {
+    "use strict";
+    if (false) {
+      module.exports = null;
+    } else {
+      module.exports = require_react_development();
+    }
+  }
+});
+
+// node_modules/react/cjs/react-jsx-runtime.development.js
+var require_react_jsx_runtime_development = __commonJS({
+  "node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
+    "use strict";
+    (function() {
+      function getComponentNameFromType(type) {
+        if (null == type) return null;
+        if ("function" === typeof type)
+          return type.$$typeof === REACT_CLIENT_REFERENCE ? null : type.displayName || type.name || null;
+        if ("string" === typeof type) return type;
+        switch (type) {
+          case REACT_FRAGMENT_TYPE:
+            return "Fragment";
+          case REACT_PROFILER_TYPE:
+            return "Profiler";
+          case REACT_STRICT_MODE_TYPE:
+            return "StrictMode";
+          case REACT_SUSPENSE_TYPE:
+            return "Suspense";
+          case REACT_SUSPENSE_LIST_TYPE:
+            return "SuspenseList";
+          case REACT_ACTIVITY_TYPE:
+            return "Activity";
+          case REACT_VIEW_TRANSITION_TYPE:
+            return "ViewTransition";
+        }
+        if ("object" === typeof type)
+          switch ("number" === typeof type.tag && console.error(
+            "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
+          ), type.$$typeof) {
+            case REACT_PORTAL_TYPE:
+              return "Portal";
+            case REACT_CONTEXT_TYPE:
+              return type.displayName || "Context";
+            case REACT_CONSUMER_TYPE:
+              return (type._context.displayName || "Context") + ".Consumer";
+            case REACT_FORWARD_REF_TYPE:
+              var innerType = type.render;
+              type = type.displayName;
+              type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
+              return type;
+            case REACT_MEMO_TYPE:
+              return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
+            case REACT_LAZY_TYPE:
+              innerType = type._payload;
+              type = type._init;
+              try {
+                return getComponentNameFromType(type(innerType));
+              } catch (x) {
+              }
+          }
+        return null;
+      }
+      function testStringCoercion(value) {
+        return "" + value;
+      }
+      function checkKeyStringCoercion(value) {
+        try {
+          testStringCoercion(value);
+          var JSCompiler_inline_result = false;
+        } catch (e) {
+          JSCompiler_inline_result = true;
+        }
+        if (JSCompiler_inline_result) {
+          JSCompiler_inline_result = console;
+          var JSCompiler_temp_const = JSCompiler_inline_result.error;
+          var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
+          JSCompiler_temp_const.call(
+            JSCompiler_inline_result,
+            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+            JSCompiler_inline_result$jscomp$0
+          );
+          return testStringCoercion(value);
+        }
+      }
+      function getTaskName(type) {
+        if (type === REACT_FRAGMENT_TYPE) return "<>";
+        if ("object" === typeof type && null !== type && type.$$typeof === REACT_LAZY_TYPE)
+          return "<...>";
+        try {
+          var name = getComponentNameFromType(type);
+          return name ? "<" + name + ">" : "<...>";
+        } catch (x) {
+          return "<...>";
+        }
+      }
+      function getOwner() {
+        var dispatcher = ReactSharedInternals.A;
+        return null === dispatcher ? null : dispatcher.getOwner();
+      }
+      function UnknownOwner() {
+        return Error("react-stack-top-frame");
+      }
+      function hasValidKey(config) {
+        if (hasOwnProperty.call(config, "key")) {
+          var getter = Object.getOwnPropertyDescriptor(config, "key").get;
+          if (getter && getter.isReactWarning) return false;
+        }
+        return void 0 !== config.key;
+      }
+      function defineKeyPropWarningGetter(props, displayName) {
+        function warnAboutAccessingKey() {
+          specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
+            "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
+            displayName
+          ));
+        }
+        warnAboutAccessingKey.isReactWarning = true;
+        Object.defineProperty(props, "key", {
+          get: warnAboutAccessingKey,
+          configurable: true
+        });
+      }
+      function elementRefGetterWithDeprecationWarning() {
+        var componentName = getComponentNameFromType(this.type);
+        didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
+          "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
+        ));
+        componentName = this.props.ref;
+        return void 0 !== componentName ? componentName : null;
+      }
+      function ReactElement(type, key, props, owner, debugStack, debugTask) {
+        var refProp = props.ref;
+        type = {
+          $$typeof: REACT_ELEMENT_TYPE,
+          type,
+          key,
+          props,
+          _owner: owner
+        };
+        null !== (void 0 !== refProp ? refProp : null) ? Object.defineProperty(type, "ref", {
+          enumerable: false,
+          get: elementRefGetterWithDeprecationWarning
+        }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
+        type._store = {};
+        Object.defineProperty(type._store, "validated", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: 0
+        });
+        Object.defineProperty(type, "_debugInfo", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: null
+        });
+        Object.defineProperty(type, "_debugStack", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: debugStack
+        });
+        Object.defineProperty(type, "_debugTask", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: debugTask
+        });
+        Object.freeze && (Object.freeze(type.props), Object.freeze(type));
+        return type;
+      }
+      function jsxDEVImpl(type, config, maybeKey, isStaticChildren, debugStack, debugTask) {
+        var children = config.children;
+        if (void 0 !== children)
+          if (isStaticChildren)
+            if (isArrayImpl(children)) {
+              for (isStaticChildren = 0; isStaticChildren < children.length; isStaticChildren++)
+                validateChildKeys(children[isStaticChildren]);
+              Object.freeze && Object.freeze(children);
+            } else
+              console.error(
+                "React.jsx: Static children should always be an array. You are likely explicitly calling React.jsxs or React.jsxDEV. Use the Babel transform instead."
+              );
+          else validateChildKeys(children);
+        if (hasOwnProperty.call(config, "key")) {
+          children = getComponentNameFromType(type);
+          var keys = Object.keys(config).filter(function(k) {
+            return "key" !== k;
+          });
+          isStaticChildren = 0 < keys.length ? "{key: someKey, " + keys.join(": ..., ") + ": ...}" : "{key: someKey}";
+          didWarnAboutKeySpread[children + isStaticChildren] || (keys = 0 < keys.length ? "{" + keys.join(": ..., ") + ": ...}" : "{}", console.error(
+            'A props object containing a "key" prop is being spread into JSX:\n  let props = %s;\n  <%s {...props} />\nReact keys must be passed directly to JSX without using spread:\n  let props = %s;\n  <%s key={someKey} {...props} />',
+            isStaticChildren,
+            children,
+            keys,
+            children
+          ), didWarnAboutKeySpread[children + isStaticChildren] = true);
+        }
+        children = null;
+        void 0 !== maybeKey && (checkKeyStringCoercion(maybeKey), children = "" + maybeKey);
+        hasValidKey(config) && (checkKeyStringCoercion(config.key), children = "" + config.key);
+        if ("key" in config) {
+          maybeKey = {};
+          for (var propName in config)
+            "key" !== propName && (maybeKey[propName] = config[propName]);
+        } else maybeKey = config;
+        children && defineKeyPropWarningGetter(
+          maybeKey,
+          "function" === typeof type ? type.displayName || type.name || "Unknown" : type
+        );
+        return ReactElement(
+          type,
+          children,
+          maybeKey,
+          getOwner(),
+          debugStack,
+          debugTask
+        );
+      }
+      function validateChildKeys(node) {
+        isValidElement(node) ? node._store && (node._store.validated = 1) : "object" === typeof node && null !== node && node.$$typeof === REACT_LAZY_TYPE && ("fulfilled" === node._payload.status ? isValidElement(node._payload.value) && node._payload.value._store && (node._payload.value._store.validated = 1) : node._store && (node._store.validated = 1));
+      }
+      function isValidElement(object) {
+        return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+      }
+      var React2 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = Symbol.for("react.activity"), REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"), REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React2.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
+        return null;
+      };
+      React2 = {
+        react_stack_bottom_frame: function(callStackForError) {
+          return callStackForError();
+        }
+      };
+      var specialPropKeyWarningShown;
+      var didWarnAboutElementRef = {};
+      var unknownOwnerDebugStack = React2.react_stack_bottom_frame.bind(
+        React2,
+        UnknownOwner
+      )();
+      var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
+      var didWarnAboutKeySpread = {};
+      exports.Fragment = REACT_FRAGMENT_TYPE;
+      exports.jsx = function(type, config, maybeKey) {
+        var trackActualOwner = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
+        if (trackActualOwner) {
+          var previousStackTraceLimit = Error.stackTraceLimit;
+          Error.stackTraceLimit = 10;
+          var debugStackDEV = Error("react-stack-top-frame");
+          Error.stackTraceLimit = previousStackTraceLimit;
+        } else debugStackDEV = unknownOwnerDebugStack;
+        return jsxDEVImpl(
+          type,
+          config,
+          maybeKey,
+          false,
+          debugStackDEV,
+          trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
+        );
+      };
+      exports.jsxs = function(type, config, maybeKey) {
+        var trackActualOwner = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
+        if (trackActualOwner) {
+          var previousStackTraceLimit = Error.stackTraceLimit;
+          Error.stackTraceLimit = 10;
+          var debugStackDEV = Error("react-stack-top-frame");
+          Error.stackTraceLimit = previousStackTraceLimit;
+        } else debugStackDEV = unknownOwnerDebugStack;
+        return jsxDEVImpl(
+          type,
+          config,
+          maybeKey,
+          true,
+          debugStackDEV,
+          trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
+        );
+      };
+    })();
+  }
+});
+
+// node_modules/react/jsx-runtime.js
+var require_jsx_runtime = __commonJS({
+  "node_modules/react/jsx-runtime.js"(exports, module) {
+    "use strict";
+    if (false) {
+      module.exports = null;
+    } else {
+      module.exports = require_react_jsx_runtime_development();
+    }
+  }
+});
+
+// src/client/samiReactShim.ts
+var getHostReact = () => {
+  const w = typeof window !== "undefined" ? window : {};
+  if (!w.__SamiReact) {
+    throw new Error("Sami host React instance is not initialized yet");
+  }
+  return w.__SamiReact;
+};
+var Fragment = Symbol.for("react.fragment");
+var useState = (initial) => getHostReact().useState(initial);
+var useEffect = (effect, deps) => getHostReact().useEffect(effect, deps);
+var useRef = (initial) => getHostReact().useRef(initial);
+var useCallback = (cb, deps) => getHostReact().useCallback(cb, deps);
+
+// src/client/samiCloudUpdater.tsx
+var import_jszip = __toESM(require_jszip_min(), 1);
+var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+var SAMI_EXPECTED_APP_ID = "com.sami.tradingchallengetracker";
+var SAMI_FALLBACK_VERSION_CODE = 15;
+var SAMI_FALLBACK_VERSION_NAME = "1.3.1";
+var SHARED_FIRESTORE_LATEST_DOC_URL = "https://firestore.googleapis.com/v1/projects/majestic-interface-ksmzh/databases/ai-studio-c1d1b606-9578-42a6-b7b2-17faaec47f72/documents/app_updates/latest";
+function isAndroidLocalAssetOrigin() {
+  try {
+    return typeof window !== "undefined" && (window.location.hostname === "appassets.androidplatform.net" || window.location.protocol === "file:");
+  } catch {
+    return false;
+  }
+}
+function sanitizeProductionServerUrl(rawUrl) {
+  const trimmed = String(rawUrl || "").trim();
+  if (!trimmed || trimmed === "MY_APP_URL") return "";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:") return "";
+    const host = parsed.hostname.toLowerCase();
+    if (!host || host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "appassets.androidplatform.net" || host.startsWith("ais-dev-") || host.startsWith("ais-pre-") || host.endsWith(".usercontent.goog")) {
+      return "";
+    }
+    return parsed.origin.replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
+function persistProductionServerUrlLocally(rawUrl) {
+  const valid = sanitizeProductionServerUrl(rawUrl);
+  if (!valid) return "";
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("sami_push_server_url", valid);
+    }
+    if (typeof window !== "undefined") {
+      const w = window;
+      w.__samiConfiguredServerBase = valid;
+      if (w.SamiBridge && typeof w.SamiBridge.setRemoteServerUrl === "function") {
+        w.SamiBridge.setRemoteServerUrl(valid);
+      }
+    }
+  } catch {
+  }
+  return valid;
+}
+function getSamiServerBaseUrl() {
+  try {
+    if (!isAndroidLocalAssetOrigin()) {
+      return "";
+    }
+    if (typeof window !== "undefined") {
+      const w = window;
+      const winCached = sanitizeProductionServerUrl(w.__samiConfiguredServerBase);
+      if (winCached) return winCached;
+    }
+    if (typeof localStorage !== "undefined") {
+      const rawStored = localStorage.getItem("sami_push_server_url");
+      if (rawStored) {
+        const cleanStored = sanitizeProductionServerUrl(rawStored);
+        if (cleanStored) {
+          return cleanStored;
+        }
+        localStorage.removeItem("sami_push_server_url");
+      }
+    }
+    return "";
+  } catch {
+    return "";
+  }
+}
+async function discoverCloudStateFromFirestore(parentSignal) {
+  const ctrl = new AbortController();
+  const onParentAbort = () => ctrl.abort();
+  if (parentSignal) {
+    if (parentSignal.aborted) return null;
+    parentSignal.addEventListener("abort", onParentAbort, { once: true });
+  }
+  const timer = setTimeout(() => ctrl.abort(), 1e4);
+  try {
+    const res = await fetch(SHARED_FIRESTORE_LATEST_DOC_URL, {
+      method: "GET",
+      cache: "no-store",
+      signal: ctrl.signal
+    });
+    if (!res.ok) return null;
+    const json = await res.json().catch(() => null);
+    const f = json?.fields;
+    if (!f || typeof f !== "object") return null;
+    const readVal = (v) => {
+      if (!v || typeof v !== "object") return void 0;
+      if ("stringValue" in v) return v.stringValue;
+      if ("booleanValue" in v) return Boolean(v.booleanValue);
+      if ("integerValue" in v) return Number(v.integerValue);
+      if ("doubleValue" in v) return Number(v.doubleValue);
+      return void 0;
+    };
+    const raw = {};
+    for (const k of Object.keys(f)) {
+      raw[k] = readVal(f[k]);
+    }
+    const discoveredServerUrl = persistProductionServerUrlLocally(raw.configuredApiServerUrl);
+    const isActive = raw.status === "published" ? raw.isActive !== false && raw.isHidden !== true : raw.isActive === true && raw.isHidden !== true;
+    const latestUpdate = {
+      id: String(raw.id || "latest"),
+      versionName: String(raw.versionName || SAMI_FALLBACK_VERSION_NAME),
+      versionCode: Number(raw.versionCode) || SAMI_FALLBACK_VERSION_CODE,
+      description: String(raw.description || ""),
+      fileSize: raw.fileSize ? Number(raw.fileSize) : void 0,
+      fileName: raw.fileName ? String(raw.fileName) : void 0,
+      applicationId: raw.applicationId ? String(raw.applicationId) : SAMI_EXPECTED_APP_ID,
+      storageSource: raw.storageSource === "github_releases" || Boolean(raw.githubReleaseId) || Boolean(raw.githubAssetId) ? "github_releases" : "legacy",
+      githubOwner: raw.githubOwner ? String(raw.githubOwner) : void 0,
+      githubRepo: raw.githubRepo ? String(raw.githubRepo) : void 0,
+      githubReleaseId: raw.githubReleaseId ? Number(raw.githubReleaseId) : void 0,
+      releaseTag: raw.releaseTag ? String(raw.releaseTag) : void 0,
+      githubAssetId: raw.githubAssetId ? Number(raw.githubAssetId) : void 0,
+      isRepoPrivate: typeof raw.isRepoPrivate === "boolean" ? raw.isRepoPrivate : void 0,
+      downloadUrl: String(raw.downloadUrl || ""),
+      secureDownloadPath: raw.secureDownloadPath ? String(raw.secureDownloadPath) : void 0,
+      sha256: raw.sha256 ? String(raw.sha256) : void 0,
+      signingCertSha256: raw.signingCertSha256 ? String(raw.signingCertSha256) : void 0,
+      status: isActive ? "published" : "paused",
+      isMandatory: Boolean(raw.isMandatory),
+      isActive,
+      isHidden: !isActive,
+      configuredGithubOwner: raw.configuredGithubOwner ? String(raw.configuredGithubOwner).trim() : "",
+      configuredGithubRepo: raw.configuredGithubRepo ? String(raw.configuredGithubRepo).trim() : "",
+      configuredApiServerUrl: discoveredServerUrl
+    };
+    return {
+      configuredGithubOwner: String(raw.configuredGithubOwner || "").trim(),
+      configuredGithubRepo: String(raw.configuredGithubRepo || "").trim(),
+      configuredApiServerUrl: discoveredServerUrl,
+      configuredSettingsUpdatedAt: raw.configuredSettingsUpdatedAt ? Number(raw.configuredSettingsUpdatedAt) : null,
+      latestUpdate
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    if (parentSignal) {
+      parentSignal.removeEventListener("abort", onParentAbort);
+    }
+  }
+}
+var CancelledRequestError = class extends Error {
+  constructor() {
+    super("تم إلغاء الطلب عند مغادرة الصفحة");
+    this.isCancelled = true;
+  }
+};
+function translateNetworkOrHttpErrorAr(err, httpStatus, serverErrorText) {
+  const cleanServerErr = String(serverErrorText || "").trim();
+  if (httpStatus === 401) {
+    return cleanServerErr || "انتهت جلسة تسجيل الدخول أو يلزم الدخول بحساب مالك التطبيق.";
+  }
+  if (httpStatus === 403) {
+    return cleanServerErr || "هذه العملية مخصصة حصرياً لمالك تطبيق Sami (Owner Only).";
+  }
+  if (httpStatus === 404) {
+    return cleanServerErr || "لم يتم العثور على مسار خدمة التحديثات على الخادم المتصل به.";
+  }
+  if (httpStatus && httpStatus >= 500) {
+    return cleanServerErr || `واجه الخادم خطأً داخلياً مؤقتاً (HTTP ${httpStatus}). يرجى المحاولة مرة أخرى.`;
+  }
+  if (cleanServerErr) {
+    return cleanServerErr;
+  }
+  const rawMsg = String(err?.message || err || "").trim();
+  const lower = rawMsg.toLowerCase();
+  if (lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("load failed") || lower.includes("network request failed") || lower.includes("fetch")) {
+    return "تعذر الاتصال بخادم التحديثات المنشور عبر HTTPS. يرجى التحقق من اتصال الإنترنت وعنوان الخادم ثم الضغط على «إعادة المحاولة».";
+  }
+  if (err?.name === "TimeoutError" || lower.includes("timeout") || lower.includes("timed out")) {
+    return "انتهت مهلة الاتصال بالخادم (15 ثانية). تحقق من استقرار الشبكة ثم اضغط «إعادة المحاولة».";
+  }
+  if (!rawMsg || /^[A-Za-z0-9_:\s.,()-]+$/.test(rawMsg)) {
+    return "تعذر إتمام الاتصال بالخادم حالياً. يرجى المحاولة مرة أخرى.";
+  }
+  return rawMsg;
+}
+async function fetchJsonApi(url, options = {}) {
+  const { method = "GET", headers = {}, body, timeoutMs = 15e3, parentSignal } = options;
+  if (parentSignal?.aborted) {
+    throw new CancelledRequestError();
+  }
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const onParentAbort = () => ctrl.abort();
+  if (parentSignal) {
+    parentSignal.addEventListener("abort", onParentAbort, { once: true });
+  }
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Accept: "application/json",
+        ...headers
+      },
+      body,
+      cache: "no-store",
+      signal: ctrl.signal
+    });
+    const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("application/json")) {
+      if (parentSignal?.aborted) throw new CancelledRequestError();
+      throw new Error(
+        "العنوان المتصل به لم يُرجع استجابة API صالحة (JSON). تأكد من الاتصال بالخادم الفعلي المنشور عبر HTTPS وليس عنوان معاينة."
+      );
+    }
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, data };
+  } catch (err) {
+    if (parentSignal?.aborted || err instanceof CancelledRequestError) {
+      throw new CancelledRequestError();
+    }
+    if (timedOut) {
+      const timeoutErr = new Error(
+        "انتهت مهلة الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت ثم الضغط على «إعادة المحاولة»."
+      );
+      timeoutErr.name = "TimeoutError";
+      throw timeoutErr;
+    }
+    throw new Error(translateNetworkOrHttpErrorAr(err));
+  } finally {
+    clearTimeout(timer);
+    if (parentSignal) {
+      parentSignal.removeEventListener("abort", onParentAbort);
+    }
+  }
+}
+function getAuthCredentials() {
+  let token = "";
+  let rawSession = "";
+  try {
+    rawSession = localStorage.getItem("sami_auth_user_session") || "";
+    if (rawSession) {
+      const parsed = JSON.parse(rawSession);
+      if (parsed && parsed.token) {
+        token = String(parsed.token);
+      }
+    }
+  } catch {
+  }
+  const encodedSession = rawSession ? encodeURIComponent(rawSession) : "";
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (encodedSession) headers["X-Sami-Session"] = encodedSession;
+  return { token, encodedSession, headers };
+}
+function getInstalledSamiAppInfo() {
+  const w = typeof window !== "undefined" ? window : {};
+  try {
+    if (w.SamiBridge && typeof w.SamiBridge.getInstalledAppInfo === "function") {
+      const raw = w.SamiBridge.getInstalledAppInfo();
+      if (raw) {
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (parsed && Number(parsed.versionCode) > 0) {
+          w.__samiNativeAppInfo = parsed;
+          return {
+            applicationId: String(parsed.applicationId || SAMI_EXPECTED_APP_ID),
+            versionName: String(parsed.versionName || SAMI_FALLBACK_VERSION_NAME),
+            versionCode: Number(parsed.versionCode),
+            signingCertSha256: String(parsed.signingCertSha256 || ""),
+            canInstallPackages: Boolean(parsed.canInstallPackages),
+            isAndroidNative: true
+          };
+        }
+      }
+    }
+    if (w.__samiNativeAppInfo && Number(w.__samiNativeAppInfo.versionCode) > 0) {
+      const p = w.__samiNativeAppInfo;
+      return {
+        applicationId: String(p.applicationId || SAMI_EXPECTED_APP_ID),
+        versionName: String(p.versionName || SAMI_FALLBACK_VERSION_NAME),
+        versionCode: Number(p.versionCode),
+        signingCertSha256: String(p.signingCertSha256 || ""),
+        canInstallPackages: Boolean(p.canInstallPackages),
+        isAndroidNative: true
+      };
+    }
+  } catch {
+  }
+  return {
+    applicationId: SAMI_EXPECTED_APP_ID,
+    versionName: SAMI_FALLBACK_VERSION_NAME,
+    versionCode: SAMI_FALLBACK_VERSION_CODE,
+    signingCertSha256: "",
+    canInstallPackages: false,
+    isAndroidNative: false
+  };
+}
+function shouldShowCloudAppUpdate(config) {
+  if (!config) return false;
+  if (config.isActive !== true || config.isHidden === true) return false;
+  if (config.status && config.status !== "published") return false;
+  const isGitHubRelease = config.storageSource === "github_releases" || Boolean(config.githubReleaseId) || Boolean(config.githubAssetId) || typeof config.downloadUrl === "string" && config.downloadUrl.includes("/releases/download/");
+  if (!isGitHubRelease) return false;
+  const installed = getInstalledSamiAppInfo();
+  return Number(config.versionCode) > installed.versionCode;
+}
+function formatBytesAr(bytes) {
+  const b = Number(bytes || 0);
+  if (!b || b <= 0) return "0.00 MB";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+}
+function formatSpeedAr(bytesPerSec) {
+  const s = Number(bytesPerSec || 0);
+  if (!s || s <= 0) return "";
+  if (s < 1024 * 1024) return `${(s / 1024).toFixed(0)} KB/s`;
+  return `${(s / (1024 * 1024)).toFixed(2)} MB/s`;
+}
+function encodeUtf8Base64(text) {
+  try {
+    const bytes = new TextEncoder().encode(text);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  } catch {
+    return "";
+  }
+}
+async function computeArrayBufferSha256Hex(buffer) {
+  const hashBuf = await crypto.subtle.digest("SHA-256", buffer);
+  const arr = new Uint8Array(hashBuf);
+  return Array.from(arr).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function normalizeFpHex(fp) {
+  return String(fp || "").replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+}
+function formatColonFp(hex) {
+  const clean = normalizeFpHex(hex).toUpperCase();
+  if (clean.length !== 64) return clean;
+  return clean.match(/.{1,2}/g).join(":");
+}
+function parseBinaryManifestClient(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (u8.byteLength < 16 || dv.getUint16(0, true) !== 3) {
+    throw new Error("ملف AndroidManifest.xml داخل الحزمة ليس بصيغة Android Binary XML صالحة");
+  }
+  let offset = dv.getUint16(2, true);
+  const strings = [];
+  const resIds = [];
+  let applicationId = "";
+  let versionCode = 0;
+  let versionCodeMajor = 0;
+  let versionName = "";
+  while (offset + 8 <= u8.byteLength) {
+    const chunkType = dv.getUint16(offset, true);
+    const headerSize = dv.getUint16(offset + 2, true);
+    const chunkSize = dv.getUint32(offset + 4, true);
+    if (chunkSize < 8 || offset + chunkSize > u8.byteLength) break;
+    if (chunkType === 1) {
+      const stringCount = dv.getUint32(offset + 8, true);
+      const flags = dv.getUint32(offset + 16, true);
+      const stringsStart = dv.getUint32(offset + 20, true);
+      const isUtf8 = (flags & 1 << 8) !== 0;
+      const offsetsBase = offset + headerSize;
+      const poolDataBase = offset + stringsStart;
+      for (let i = 0; i < stringCount; i++) {
+        const strOff = poolDataBase + dv.getUint32(offsetsBase + i * 4, true);
+        if (strOff >= offset + chunkSize) {
+          strings.push("");
+          continue;
+        }
+        if (isUtf8) {
+          let p = strOff;
+          p += (u8[p] & 128) !== 0 ? 2 : 1;
+          let byteLen = u8[p];
+          if ((byteLen & 128) !== 0) {
+            byteLen = (byteLen & 127) << 8 | u8[p + 1];
+            p += 2;
+          } else {
+            p += 1;
+          }
+          strings.push(new TextDecoder("utf-8").decode(u8.subarray(p, p + byteLen)));
+        } else {
+          let p = strOff;
+          let charLen = dv.getUint16(p, true);
+          if ((charLen & 32768) !== 0) {
+            charLen = (charLen & 32767) << 16 | dv.getUint16(p + 2, true);
+            p += 4;
+          } else {
+            p += 2;
+          }
+          strings.push(new TextDecoder("utf-16le").decode(u8.subarray(p, p + charLen * 2)));
+        }
+      }
+    } else if (chunkType === 384) {
+      const count = Math.floor((chunkSize - headerSize) / 4);
+      for (let i = 0; i < count; i++) {
+        resIds.push(dv.getUint32(offset + headerSize + i * 4, true));
+      }
+    } else if (chunkType === 258) {
+      const nameIdx = dv.getInt32(offset + 20, true);
+      const attrStart = dv.getUint16(offset + 24, true);
+      const attrSize = dv.getUint16(offset + 26, true);
+      const attrCount = dv.getUint16(offset + 28, true);
+      const elemName = nameIdx >= 0 && nameIdx < strings.length ? strings[nameIdx] : "";
+      if (elemName === "manifest" && attrSize >= 20) {
+        const attrBase = offset + 16 + attrStart;
+        for (let i = 0; i < attrCount; i++) {
+          const aOff = attrBase + i * attrSize;
+          if (aOff + 20 > offset + chunkSize) break;
+          const aNameIdx = dv.getInt32(aOff + 4, true);
+          const rawValIdx = dv.getInt32(aOff + 8, true);
+          const dataType = u8[aOff + 15];
+          const dataVal = dv.getUint32(aOff + 16, true);
+          const aName = aNameIdx >= 0 && aNameIdx < strings.length ? strings[aNameIdx] : "";
+          const resId = aNameIdx >= 0 && aNameIdx < resIds.length ? resIds[aNameIdx] : 0;
+          const strVal = dataType === 3 && dataVal < strings.length ? strings[dataVal] : rawValIdx >= 0 && rawValIdx < strings.length ? strings[rawValIdx] : "";
+          if (aName === "package" && strVal) {
+            applicationId = strVal;
+          } else if (resId === 16843291 || aName === "versionCode") {
+            versionCode = dataVal;
+          } else if (resId === 16844150 || aName === "versionCodeMajor") {
+            versionCodeMajor = dataVal;
+          } else if (resId === 16843292 || aName === "versionName") {
+            versionName = strVal || String(dataVal);
+          }
+        }
+      }
+    }
+    offset += chunkSize;
+  }
+  const fullCode = versionCodeMajor > 0 ? versionCodeMajor * 4294967296 + versionCode : versionCode;
+  return { applicationId, versionCode: fullCode, versionName };
+}
+async function extractSigningCertSha256Client(buffer) {
+  try {
+    const u8 = new Uint8Array(buffer);
+    const dv = new DataView(buffer);
+    const minSearch = Math.max(0, u8.byteLength - 65557);
+    let eocdOffset = -1;
+    for (let i = u8.byteLength - 22; i >= minSearch; i--) {
+      if (dv.getUint32(i, true) === 101010256) {
+        eocdOffset = i;
+        break;
+      }
+    }
+    if (eocdOffset < 0) return null;
+    const cdOffset = dv.getUint32(eocdOffset + 16, true);
+    if (cdOffset < 32 || cdOffset > u8.byteLength) return null;
+    const magic = new TextDecoder("ascii").decode(u8.subarray(cdOffset - 16, cdOffset));
+    if (magic !== "APK Sig Block 42") return null;
+    const blockSizeFooter = Number(dv.getBigUint64(cdOffset - 24, true));
+    const blockStart = cdOffset - blockSizeFooter - 8;
+    if (blockStart < 0) return null;
+    let pos = blockStart + 8;
+    const pairsEnd = cdOffset - 24;
+    while (pos + 12 <= pairsEnd) {
+      const pairLen = Number(dv.getBigUint64(pos, true));
+      if (pairLen < 4 || pos + 8 + pairLen > pairsEnd) break;
+      const blockId = dv.getUint32(pos + 8, true);
+      if (blockId === 1896449818 || blockId === 4031998144 || blockId === 462663009) {
+        const valOff = pos + 12;
+        const firstSignerOff = valOff + 8;
+        const signedDataOff = firstSignerOff + 4;
+        const digestsLen = dv.getUint32(signedDataOff, true);
+        const certsOff = signedDataOff + 4 + digestsLen;
+        const firstCertLen = dv.getUint32(certsOff + 4, true);
+        const certStart = certsOff + 8;
+        if (firstCertLen > 0 && certStart + firstCertLen <= pos + 8 + pairLen) {
+          const certSlice = u8.slice(certStart, certStart + firstCertLen);
+          const hex = await computeArrayBufferSha256Hex(certSlice.buffer);
+          return formatColonFp(hex);
+        }
+      }
+      pos += 8 + pairLen;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+function GoldProgressBar({
+  percent,
+  variant = "gold"
+}) {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  const fillClass = variant === "emerald" ? "fill-emerald-400" : variant === "rose" ? "fill-rose-500" : "fill-amber-400";
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dir: "ltr", className: "w-full rounded-lg overflow-hidden bg-[#070a12] border border-slate-800 p-0.5", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { viewBox: "0 0 100 4", preserveAspectRatio: "none", className: "w-full h-2.5 block rounded", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "0", y: "0", width: "100", height: "4", className: "fill-slate-900" }),
+    clamped > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "0", y: "0", width: clamped, height: "4", className: `${fillClass} transition-all duration-150` })
+  ] }) });
+}
+var webDownloadMemoryStore = {
+  versionCode: 0,
+  chunks: [],
+  downloadedBytes: 0,
+  totalBytes: 0,
+  verifiedBlob: null,
+  abortCtrl: null,
+  state: {
+    phase: "idle",
+    statusTextAr: "",
+    errorDetailAr: null,
+    targetVersionCode: 0,
+    targetVersionName: "",
+    downloadedBytes: 0,
+    totalBytes: 0,
+    percent: 0,
+    speedBytesPerSec: 0,
+    canInstall: false,
+    canResume: false,
+    verifiedSha256: null,
+    verifiedSigningCertSha256: null
+  },
+  listeners: /* @__PURE__ */ new Set()
+};
+function emitWebUpdateState(patch) {
+  webDownloadMemoryStore.state = {
+    ...webDownloadMemoryStore.state,
+    ...patch
+  };
+  for (const fn of webDownloadMemoryStore.listeners) {
+    try {
+      fn(webDownloadMemoryStore.state);
+    } catch {
+    }
+  }
+}
+function concatUint8Arrays(chunks, totalLength) {
+  const out = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.byteLength;
+  }
+  return out;
+}
+async function runWebResumableDownloadAndVerify(config, isResume) {
+  if (webDownloadMemoryStore.abortCtrl) {
+    return;
+  }
+  if (webDownloadMemoryStore.versionCode !== config.versionCode) {
+    webDownloadMemoryStore.versionCode = config.versionCode;
+    webDownloadMemoryStore.chunks = [];
+    webDownloadMemoryStore.downloadedBytes = 0;
+    webDownloadMemoryStore.verifiedBlob = null;
+  }
+  const abortCtrl = new AbortController();
+  webDownloadMemoryStore.abortCtrl = abortCtrl;
+  const existingOffset = webDownloadMemoryStore.downloadedBytes;
+  const expectedTotal = Number(config.fileSize || 0);
+  emitWebUpdateState({
+    phase: isResume && existingOffset > 0 ? "resuming" : "connecting",
+    statusTextAr: isResume && existingOffset > 0 ? "جارٍ استئناف التنزيل" : "جارٍ الاتصال بالخادم",
+    errorDetailAr: null,
+    targetVersionCode: config.versionCode,
+    targetVersionName: config.versionName,
+    downloadedBytes: existingOffset,
+    totalBytes: expectedTotal,
+    percent: expectedTotal > 0 ? Math.min(99, Math.floor(existingOffset * 99 / expectedTotal)) : 0,
+    speedBytesPerSec: 0,
+    canInstall: false,
+    canResume: false
+  });
+  try {
+    let serverBase = getSamiServerBaseUrl();
+    if (isAndroidLocalAssetOrigin() && !serverBase) {
+      const cloudSnap = await discoverCloudStateFromFirestore(abortCtrl.signal);
+      if (cloudSnap?.configuredApiServerUrl) {
+        serverBase = cloudSnap.configuredApiServerUrl;
+      }
+    }
+    const proxyPath = config.secureDownloadPath || `/api/app-updates/download/v_${config.versionCode}`;
+    const canUseDirectPublicUrl = isAndroidLocalAssetOrigin() && !serverBase && !config.isRepoPrivate && typeof config.downloadUrl === "string" && config.downloadUrl.startsWith("https://github.com/");
+    if (isAndroidLocalAssetOrigin() && !serverBase && !canUseDirectPublicUrl) {
+      throw new Error("لم يتم تسجيل عنوان الخادم المنشور (HTTPS) لتنزيل التحديث حالياً.");
+    }
+    const proxyUrl = canUseDirectPublicUrl ? config.downloadUrl : `${serverBase}${proxyPath}`;
+    const { headers: authHeaders } = getAuthCredentials();
+    const reqHeaders = canUseDirectPublicUrl ? {} : { ...authHeaders };
+    if (existingOffset > 0 && (expectedTotal <= 0 || existingOffset < expectedTotal)) {
+      reqHeaders.Range = `bytes=${existingOffset}-`;
+    }
+    const res = await fetch(proxyUrl, {
+      method: "GET",
+      headers: reqHeaders,
+      signal: abortCtrl.signal
+    });
+    if (!res.ok && res.status !== 206) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(translateNetworkOrHttpErrorAr(null, res.status, errBody?.error));
+    }
+    const isPartial = res.status === 206 && existingOffset > 0;
+    if (!isPartial) {
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+    }
+    const contentLen = parseInt(res.headers.get("content-length") || "0", 10) || 0;
+    const resolvedTotal = expectedTotal > 0 ? expectedTotal : isPartial && contentLen > 0 ? existingOffset + contentLen : contentLen;
+    webDownloadMemoryStore.totalBytes = resolvedTotal;
+    emitWebUpdateState({
+      phase: "starting",
+      statusTextAr: "جارٍ بدء التنزيل",
+      totalBytes: resolvedTotal
+    });
+    if (!res.body) {
+      throw new Error("لم يُرجع الخادم دفق بيانات قابل للقراءة");
+    }
+    const reader = res.body.getReader();
+    let windowStart = Date.now();
+    let windowBytes = 0;
+    let speed = 0;
+    let lastUiTick = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value && value.byteLength > 0) {
+        webDownloadMemoryStore.chunks.push(value);
+        webDownloadMemoryStore.downloadedBytes += value.byteLength;
+        windowBytes += value.byteLength;
+        const now = Date.now();
+        if (now - windowStart >= 500) {
+          speed = Math.round(windowBytes * 1e3 / (now - windowStart));
+          windowStart = now;
+          windowBytes = 0;
+        }
+        if (now - lastUiTick >= 120) {
+          lastUiTick = now;
+          const dl = webDownloadMemoryStore.downloadedBytes;
+          const pct = resolvedTotal > 0 ? Math.min(99, Math.floor(dl * 99 / resolvedTotal)) : 0;
+          emitWebUpdateState({
+            phase: "downloading",
+            statusTextAr: "جارٍ تنزيل التحديث",
+            downloadedBytes: dl,
+            totalBytes: resolvedTotal,
+            percent: pct,
+            speedBytesPerSec: speed
+          });
+        }
+      }
+    }
+    webDownloadMemoryStore.abortCtrl = null;
+    const fullBytes = concatUint8Arrays(
+      webDownloadMemoryStore.chunks,
+      webDownloadMemoryStore.downloadedBytes
+    );
+    emitWebUpdateState({
+      phase: "verifying",
+      statusTextAr: "اكتمل التنزيل — جارٍ التحقق من سلامة الملف وشهادة التوقيع...",
+      downloadedBytes: fullBytes.byteLength,
+      totalBytes: expectedTotal || fullBytes.byteLength,
+      percent: 99,
+      speedBytesPerSec: 0
+    });
+    if (expectedTotal > 0 && fullBytes.byteLength !== expectedTotal) {
+      throw new Error(
+        `حجم الملف المحمّل (${fullBytes.byteLength} بايت) لا يطابق الحجم الرسمي المعتمد (${expectedTotal} بايت)`
+      );
+    }
+    const localSha256 = await computeArrayBufferSha256Hex(fullBytes.buffer);
+    if (config.sha256 && localSha256.toLowerCase() !== config.sha256.toLowerCase()) {
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+      throw new Error("بصمة SHA-256 للملف المحمّل لا تطابق البصمة الرسمية المعتمدة؛ تم حذف الملف التالف.");
+    }
+    let zip;
+    try {
+      zip = await import_jszip.default.loadAsync(fullBytes);
+    } catch {
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+      throw new Error("الملف المحمّل تالف ولا يمثل حزمة Android APK صالحة.");
+    }
+    const manifestFile = zip.file("AndroidManifest.xml");
+    const dexFile = zip.file("classes.dex");
+    if (!manifestFile || !dexFile) {
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+      throw new Error("الحزمة المحمّلة تفتقر إلى ملفات تطبيق Android الأساسية؛ تم رفض التثبيت.");
+    }
+    const manifestU8 = await manifestFile.async("uint8array");
+    const parsedManifest = parseBinaryManifestClient(manifestU8);
+    if (parsedManifest.applicationId !== SAMI_EXPECTED_APP_ID) {
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+      throw new Error(
+        `معرّف الحزمة داخل الملف (${parsedManifest.applicationId}) لا يطابق تطبيق Sami (${SAMI_EXPECTED_APP_ID}).`
+      );
+    }
+    const installed = getInstalledSamiAppInfo();
+    if (parsedManifest.versionCode <= installed.versionCode) {
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+      throw new Error(
+        `كود الإصدار داخل الحزمة (${parsedManifest.versionCode}) ليس أحدث من النسخة المثبتة (${installed.versionCode}).`
+      );
+    }
+    const certColon = await extractSigningCertSha256Client(fullBytes.buffer);
+    if (config.signingCertSha256 && certColon) {
+      if (normalizeFpHex(certColon) !== normalizeFpHex(config.signingCertSha256)) {
+        webDownloadMemoryStore.chunks = [];
+        webDownloadMemoryStore.downloadedBytes = 0;
+        throw new Error("شهادة توقيع التحديث لا تطابق شهادة توقيع تطبيق Sami الأصلية؛ تم حظر التثبيت.");
+      }
+    }
+    webDownloadMemoryStore.verifiedBlob = new Blob([fullBytes.buffer], {
+      type: "application/vnd.android.package-archive"
+    });
+    emitWebUpdateState({
+      phase: "verified",
+      statusTextAr: "اكتمل التنزيل",
+      errorDetailAr: null,
+      downloadedBytes: fullBytes.byteLength,
+      totalBytes: fullBytes.byteLength,
+      percent: 100,
+      speedBytesPerSec: 0,
+      canInstall: true,
+      canResume: false,
+      verifiedSha256: localSha256,
+      verifiedSigningCertSha256: certColon || config.signingCertSha256 || null
+    });
+  } catch (err) {
+    webDownloadMemoryStore.abortCtrl = null;
+    if (abortCtrl.signal.aborted) {
+      return;
+    }
+    const dl = webDownloadMemoryStore.downloadedBytes;
+    const pct = expectedTotal > 0 ? Math.min(99, Math.floor(dl * 99 / expectedTotal)) : 0;
+    emitWebUpdateState({
+      phase: "failed",
+      statusTextAr: "فشل التنزيل",
+      errorDetailAr: translateNetworkOrHttpErrorAr(err),
+      downloadedBytes: dl,
+      totalBytes: expectedTotal,
+      percent: pct,
+      speedBytesPerSec: 0,
+      canInstall: false,
+      canResume: dl > 0
+    });
+  }
+}
+function SamiUserUpdateModal({
+  config,
+  isOpen,
+  onDismiss,
+  isPreview = false
+}) {
+  const installed = getInstalledSamiAppInfo();
+  const isNativeAndroid = installed.isAndroidNative;
+  const [dlState, setDlState] = useState(() => {
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid && w.SamiBridge && typeof w.SamiBridge.getUpdateState === "function") {
+      try {
+        const raw = JSON.parse(w.SamiBridge.getUpdateState());
+        if (raw && (!config || Number(raw.targetVersionCode) === Number(config.versionCode))) {
+          return raw;
+        }
+      } catch {
+      }
+    }
+    if (config && webDownloadMemoryStore.versionCode === Number(config.versionCode)) {
+      return webDownloadMemoryStore.state;
+    }
+    return {
+      phase: "idle",
+      statusTextAr: "",
+      errorDetailAr: null,
+      targetVersionCode: config?.versionCode || 0,
+      targetVersionName: config?.versionName || "",
+      downloadedBytes: 0,
+      totalBytes: config?.fileSize || 0,
+      percent: 0,
+      speedBytesPerSec: 0,
+      canInstall: false,
+      canResume: false,
+      verifiedSha256: null,
+      verifiedSigningCertSha256: null
+    };
+  });
+  const [webInstallNotice, setWebInstallNotice] = useState(null);
+  useEffect(() => {
+    if (!isOpen || !config) return;
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid) {
+      const syncFromNative = (ev) => {
+        try {
+          const detail = ev?.detail || (w.SamiBridge?.getUpdateState ? JSON.parse(w.SamiBridge.getUpdateState()) : null);
+          if (detail && (detail.targetVersionCode === 0 || Number(detail.targetVersionCode) === Number(config.versionCode))) {
+            setDlState(detail);
+          }
+        } catch {
+        }
+      };
+      syncFromNative();
+      window.addEventListener("sami_native_update_state", syncFromNative);
+      return () => {
+        window.removeEventListener("sami_native_update_state", syncFromNative);
+      };
+    } else {
+      const listener = (next) => {
+        if (next.targetVersionCode === 0 || Number(next.targetVersionCode) === Number(config.versionCode)) {
+          setDlState({ ...next });
+        }
+      };
+      webDownloadMemoryStore.listeners.add(listener);
+      if (webDownloadMemoryStore.versionCode === Number(config.versionCode)) {
+        setDlState({ ...webDownloadMemoryStore.state });
+      }
+      return () => {
+        webDownloadMemoryStore.listeners.delete(listener);
+      };
+    }
+  }, [isOpen, config?.versionCode, isNativeAndroid]);
+  if (!isOpen || !config) return null;
+  if (!isPreview && !shouldShowCloudAppUpdate(config)) return null;
+  const isMandatory = Boolean(config.isMandatory);
+  const phase = (dlState.phase || "idle").toLowerCase();
+  const isDownloading = phase === "connecting" || phase === "starting" || phase === "downloading" || phase === "resuming" || phase === "verifying";
+  const isPaused = phase === "paused";
+  const isFailed = phase === "failed";
+  const isVerifiedReady = phase === "verified" && dlState.canInstall === true;
+  const needsPerm = phase === "needs_install_permission";
+  const isInstalling = phase === "installing";
+  const handleStartDownload = () => {
+    setWebInstallNotice(null);
+    if (isPreview && !config.downloadUrl && !config.githubAssetId) {
+      setDlState((prev) => ({
+        ...prev,
+        phase: "failed",
+        statusTextAr: "فشل التنزيل",
+        errorDetailAr: "هذه معاينة تصميمية فقط؛ سيتم تفعيل التنزيل الفعلي فور رفع ملف الـ APK ونشره."
+      }));
+      return;
+    }
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid && w.SamiBridge?.startAppUpdateDownload) {
+      const serverBase = getSamiServerBaseUrl();
+      const { token, encodedSession } = getAuthCredentials();
+      w.SamiBridge.startAppUpdateDownload(
+        JSON.stringify(config),
+        serverBase,
+        JSON.stringify({ token, session: encodedSession })
+      );
+    } else {
+      runWebResumableDownloadAndVerify(config, false);
+    }
+  };
+  const handlePauseDownload = () => {
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid && w.SamiBridge?.pauseAppUpdateDownload) {
+      try {
+        setDlState(JSON.parse(w.SamiBridge.pauseAppUpdateDownload()));
+      } catch {
+      }
+    } else {
+      if (webDownloadMemoryStore.abortCtrl) {
+        webDownloadMemoryStore.abortCtrl.abort();
+        webDownloadMemoryStore.abortCtrl = null;
+      }
+      emitWebUpdateState({
+        phase: "paused",
+        statusTextAr: "تم إيقاف التنزيل مؤقتًا",
+        speedBytesPerSec: 0,
+        canResume: webDownloadMemoryStore.downloadedBytes > 0
+      });
+    }
+  };
+  const handleResumeDownload = () => {
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid && w.SamiBridge?.resumeAppUpdateDownload) {
+      const resStr = w.SamiBridge.resumeAppUpdateDownload();
+      try {
+        const parsed = JSON.parse(resStr);
+        if (!parsed?.ok) {
+          handleStartDownload();
+        }
+      } catch {
+        handleStartDownload();
+      }
+    } else {
+      runWebResumableDownloadAndVerify(config, true);
+    }
+  };
+  const handleCancelDownload = () => {
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid && w.SamiBridge?.cancelAppUpdateDownload) {
+      try {
+        setDlState(JSON.parse(w.SamiBridge.cancelAppUpdateDownload()));
+      } catch {
+      }
+    } else {
+      if (webDownloadMemoryStore.abortCtrl) {
+        webDownloadMemoryStore.abortCtrl.abort();
+        webDownloadMemoryStore.abortCtrl = null;
+      }
+      webDownloadMemoryStore.chunks = [];
+      webDownloadMemoryStore.downloadedBytes = 0;
+      webDownloadMemoryStore.verifiedBlob = null;
+      emitWebUpdateState({
+        phase: "idle",
+        statusTextAr: "",
+        errorDetailAr: null,
+        downloadedBytes: 0,
+        percent: 0,
+        speedBytesPerSec: 0,
+        canInstall: false,
+        canResume: false
+      });
+    }
+  };
+  const handleInstallVerifiedApk = () => {
+    const w = typeof window !== "undefined" ? window : {};
+    if (isNativeAndroid && w.SamiBridge?.installVerifiedAppUpdate) {
+      w.SamiBridge.installVerifiedAppUpdate();
+      return;
+    }
+    if (webDownloadMemoryStore.verifiedBlob) {
+      const blobUrl = URL.createObjectURL(webDownloadMemoryStore.verifiedBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = config.fileName || `Sami-v${config.versionName}.apk`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5e3);
+      setWebInstallNotice(
+        "تم التحقق من سلامة الحزمة وشهادة التوقيع وحفظ ملف الـ APK المعتمد على جهازك. داخل تطبيق Sami على هاتف Android يفتح هذا الزر مثبّت النظام الرسمي مباشرة."
+      );
+    }
+  };
+  const totalSizeDisplay = dlState.totalBytes > 0 ? dlState.totalBytes : config.fileSize || 0;
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    "div",
+    {
+      dir: "rtl",
+      className: "fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200",
+      children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative w-full max-w-md bg-[#090d17] border border-amber-500/40 rounded-2xl p-6 shadow-2xl text-right space-y-4", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-start justify-between gap-3 border-b border-slate-800/80 pb-4", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded-xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0 font-black text-lg", children: isMandatory ? "⚡" : "✦" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-base font-black text-white", children: isMandatory ? "تحديث إلزامي لتطبيق Sami" : "تحديث جديد متاح لتطبيق Sami" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs font-bold mt-0.5 text-amber-300/90", children: isMandatory ? "يلزم تثبيت هذا التحديث للمتابعة وضمان استقرار الحساب والبيانات" : "إصدار محدث جاهز للتنزيل والتثبيت المباشر من داخل التطبيق" })
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "span",
+            {
+              className: `text-[10px] font-black px-2.5 py-1 rounded-md border shrink-0 ${isMandatory ? "bg-rose-500/15 border-rose-500/40 text-rose-300" : "bg-amber-400/10 border-amber-400/30 text-amber-300"}`,
+              children: isMandatory ? "إلزامي" : "اختياري"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-3 gap-2 bg-[#0d1322] border border-slate-800 rounded-xl p-3 text-center", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "border-l border-slate-800/80 pl-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-slate-400 font-bold", children: "الإصدار المثبت" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "span",
+              {
+                dir: "ltr",
+                className: "block text-xs font-black text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",
+                children: [
+                  "v",
+                  installed.versionName
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "block text-[10px] text-slate-500 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+              "Build ",
+              installed.versionCode
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "border-l border-slate-800/80 pl-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-amber-400 font-bold", children: "الإصدار الجديد" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "span",
+              {
+                dir: "ltr",
+                className: "block text-sm font-black text-amber-300 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",
+                children: [
+                  "v",
+                  config.versionName
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "block text-[10px] text-amber-200/70 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+              "Build ",
+              config.versionCode
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-slate-400 font-bold", children: "حجم الحزمة" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "span",
+              {
+                dir: "ltr",
+                className: "block text-xs font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",
+                children: totalSizeDisplay > 0 ? formatBytesAr(totalSizeDisplay) : "APK رسمي"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-emerald-400 font-bold", children: "موقّع وموثّق" })
+          ] })
+        ] }),
+        config.description && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f19] border border-slate-800/90 rounded-xl p-3.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[11px] font-black text-amber-400 mb-1.5", children: "تفاصيل التحديث وما الجديد:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-300 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap", children: config.description })
+        ] }),
+        phase !== "idle" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b101d] border border-slate-800 rounded-xl p-3.5 space-y-2.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2 text-xs", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "span",
+              {
+                className: `font-black ${isFailed ? "text-rose-400" : isVerifiedReady ? "text-emerald-400" : "text-amber-300"}`,
+                children: dlState.statusTextAr || "جارٍ معالجة التحديث"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "span",
+              {
+                dir: "ltr",
+                className: "font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums",
+                children: [
+                  dlState.percent,
+                  "%"
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            GoldProgressBar,
+            {
+              percent: dlState.percent,
+              variant: isFailed ? "rose" : isVerifiedReady ? "emerald" : "gold"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between text-[11px] text-slate-400 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { dir: "ltr", children: [
+              formatBytesAr(dlState.downloadedBytes),
+              " / ",
+              formatBytesAr(totalSizeDisplay)
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dir: "ltr", className: "text-amber-300", children: isDownloading && dlState.speedBytesPerSec > 0 ? formatSpeedAr(dlState.speedBytesPerSec) : "" })
+          ] }),
+          isVerifiedReady && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 text-[11px] text-emerald-300 font-bold", children: "✓ تم التحقق من اكتمال الحجم وبصمة SHA-256 ومطابقة شهادة توقيع Sami الأصلية بنجاح." }),
+          needsPerm && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-amber-400/10 border border-amber-400/30 rounded-lg p-2.5 text-[11px] text-amber-200 font-bold", children: "يرجى تفعيل خيار «السماح من هذا المصدر» في شاشة إعدادات Android ثم العودة لإتمام التثبيت تلقائياً." }),
+          dlState.errorDetailAr && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5 text-[11px] text-rose-300 leading-relaxed", children: dlState.errorDetailAr }),
+          webInstallNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-amber-400/10 border border-amber-400/30 rounded-lg p-2.5 text-[11px] text-amber-200 leading-relaxed", children: webInstallNotice })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-2 pt-1", children: [
+          (isVerifiedReady || needsPerm || isInstalling) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: handleInstallVerifiedApk,
+              className: "w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer",
+              children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "✅ تثبيت التحديث الآن" })
+            }
+          ),
+          phase === "idle" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: handleStartDownload,
+              className: "w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer",
+              children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "تحميل التحديث الآن" })
+            }
+          ),
+          isDownloading && phase !== "verifying" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                type: "button",
+                onClick: handlePauseDownload,
+                className: "flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-400/30 text-amber-300 font-black text-xs transition cursor-pointer",
+                children: "إيقاف مؤقت"
+              }
+            ),
+            !isMandatory && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                type: "button",
+                onClick: handleCancelDownload,
+                className: "py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer",
+                children: "إلغاء"
+              }
+            )
+          ] }),
+          (isPaused || isFailed) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                type: "button",
+                onClick: dlState.canResume ? handleResumeDownload : handleStartDownload,
+                className: "flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs transition cursor-pointer",
+                children: dlState.canResume ? "استئناف التنزيل" : "إعادة المحاولة"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                type: "button",
+                onClick: handleCancelDownload,
+                className: "py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer",
+                children: "إلغاء"
+              }
+            )
+          ] }),
+          (!isMandatory || isPreview) && onDismiss && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: onDismiss,
+              className: "w-full py-2.5 px-4 rounded-xl bg-[#0d121d] hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 font-bold text-xs border border-slate-800 transition cursor-pointer",
+              children: isPreview ? "إغلاق المعاينة" : "لاحقًا"
+            }
+          )
+        ] })
+      ] })
+    }
+  );
+}
+function SamiAdminUpdatePanel({
+  currentUser,
+  onToast
+}) {
+  const onToastRef = useRef(onToast);
+  onToastRef.current = onToast;
+  const notify = useCallback((msg, isError = false) => {
+    if (onToastRef.current) onToastRef.current(msg, isError);
+  }, []);
+  const fileInputRef = useRef(null);
+  const activeXhrRef = useRef(null);
+  const pollTimerRef = useRef(null);
+  const unmountAbortRef = useRef(null);
+  const inFlightBootstrapRef = useRef(false);
+  const mountedRef = useRef(true);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [connectionState, setConnectionState] = useState(
+    "connecting"
+  );
+  const [connectionErrorAr, setConnectionErrorAr] = useState(null);
+  const [githubStatus, setGithubStatus] = useState(null);
+  const [vaultInfo, setVaultInfo] = useState(null);
+  const [signingKeyInfo, setSigningKeyInfo] = useState(null);
+  const [currentPublished, setCurrentPublished] = useState(null);
+  const [effectiveMinVersionCode, setEffectiveMinVersionCode] = useState(SAMI_FALLBACK_VERSION_CODE);
+  const [historyList, setHistoryList] = useState([]);
+  const settingsInitializedRef = useRef(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [ownerInput, setOwnerInput] = useState("");
+  const [repoInput, setRepoInput] = useState("");
+  const [tokenInput, setTokenInput] = useState("");
+  const [serverUrlInput, setServerUrlInput] = useState(() => getSamiServerBaseUrl());
+  const [showToken, setShowToken] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [settingsFeedback, setSettingsFeedback] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [inspectingFile, setInspectingFile] = useState(false);
+  const [inspection, setInspection] = useState(null);
+  const [localError, setLocalError] = useState(null);
+  const [description, setDescription] = useState("");
+  const [isMandatory, setIsMandatory] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [uploadTotalBytes, setUploadTotalBytes] = useState(0);
+  const [uploadSpeedBps, setUploadSpeedBps] = useState(0);
+  const [uploadPhaseText, setUploadPhaseText] = useState("");
+  const [uploadError, setUploadError] = useState(null);
+  const [uploadSuccessInfo, setUploadSuccessInfo] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const installedApp = getInstalledSamiAppInfo();
+  const isLocalAndroidOrigin = isAndroidLocalAssetOrigin();
+  const resolveCallableServerBase = useCallback(
+    async (explicitCandidate, signal) => {
+      if (!isAndroidLocalAssetOrigin()) {
+        return { serverBase: "", cloudSnap: null };
+      }
+      const explicitValid = sanitizeProductionServerUrl(explicitCandidate);
+      if (explicitValid) {
+        return { serverBase: explicitValid, cloudSnap: null };
+      }
+      const cloudSnap = await discoverCloudStateFromFirestore(signal);
+      if (cloudSnap?.configuredApiServerUrl) {
+        return { serverBase: cloudSnap.configuredApiServerUrl, cloudSnap };
+      }
+      const cachedValid = getSamiServerBaseUrl();
+      if (cachedValid) {
+        return { serverBase: cachedValid, cloudSnap };
+      }
+      return { serverBase: null, cloudSnap };
+    },
+    []
+  );
+  const loadCloudStatusAndHistory = useCallback(
+    async (opts) => {
+      if (inFlightBootstrapRef.current) return;
+      inFlightBootstrapRef.current = true;
+      setLoadingStatus(true);
+      setConnectionErrorAr(null);
+      const signal = unmountAbortRef.current?.signal;
+      try {
+        const { serverBase, cloudSnap } = await resolveCallableServerBase(void 0, signal);
+        if (!mountedRef.current || signal?.aborted) return;
+        if (serverBase === null) {
+          if (cloudSnap) {
+            if (cloudSnap.latestUpdate) {
+              setCurrentPublished(cloudSnap.latestUpdate);
+              setEffectiveMinVersionCode(
+                Math.max(cloudSnap.latestUpdate.versionCode || 0, SAMI_FALLBACK_VERSION_CODE)
+              );
+            }
+            const savedOwner = cloudSnap.configuredGithubOwner;
+            const savedRepo = cloudSnap.configuredGithubRepo;
+            if (savedOwner || savedRepo) {
+              setGithubStatus({
+                configured: false,
+                liveTested: false,
+                hasToken: false,
+                owner: savedOwner,
+                repo: savedRepo,
+                fullName: savedOwner && savedRepo ? `${savedOwner}/${savedRepo}` : "",
+                exists: Boolean(savedOwner && savedRepo),
+                canPublishReleases: false
+              });
+              if (!settingsInitializedRef.current) {
+                settingsInitializedRef.current = true;
+                setOwnerInput(savedOwner);
+                setRepoInput(savedRepo);
+              }
+            }
+          }
+          setConnectionState("needs_server_url");
+          setSettingsOpen(true);
+          setConnectionErrorAr(
+            "التطبيق يعمل محلياً من حزمة Android ولم يتم تسجيل عنوان الخادم المنشور (HTTPS) بعد. أدخل عنوان الخادم المنشور في الإعدادات أدناه لربط لوحة التحديثات بالخادم الفعلي."
+          );
+          return;
+        }
+        if (serverBase) {
+          setServerUrlInput(serverBase);
+        }
+        const { headers } = getAuthCredentials();
+        const { ok, status, data } = await fetchJsonApi(
+          `${serverBase}/api/app-updates/admin-bootstrap?_t=${Date.now()}`,
+          {
+            method: "GET",
+            headers,
+            timeoutMs: 15e3,
+            parentSignal: signal
+          }
+        );
+        if (!mountedRef.current || signal?.aborted) return;
+        if (!ok || !data?.success) {
+          const errText = translateNetworkOrHttpErrorAr(null, status, data?.error);
+          setConnectionState("error");
+          setConnectionErrorAr(errText);
+          if (opts?.showToastOnError) {
+            notify(errText, true);
+          }
+          return;
+        }
+        const gh = data.github || null;
+        const vInfo = data.vault || gh?.vault || null;
+        setGithubStatus(gh);
+        setVaultInfo(vInfo);
+        setSigningKeyInfo(data.signingKey || null);
+        setCurrentPublished(data.currentPublished || null);
+        setEffectiveMinVersionCode(Number(data.effectiveMinVersionCode) || SAMI_FALLBACK_VERSION_CODE);
+        if (Array.isArray(data.updates)) {
+          setHistoryList(data.updates);
+        }
+        if (vInfo?.apiServerUrl) {
+          const syncedUrl = persistProductionServerUrlLocally(vInfo.apiServerUrl);
+          if (syncedUrl) setServerUrlInput(syncedUrl);
+        }
+        if (!settingsInitializedRef.current) {
+          settingsInitializedRef.current = true;
+          setOwnerInput(gh?.owner || "");
+          setRepoInput(gh?.repo || "");
+          if (!gh?.configured) {
+            setSettingsOpen(true);
+          }
+        }
+        setConnectionState("connected");
+        setConnectionErrorAr(null);
+      } catch (err) {
+        if (err?.isCancelled || !mountedRef.current || signal?.aborted) {
+          return;
+        }
+        const errText = translateNetworkOrHttpErrorAr(err);
+        setConnectionState("error");
+        setConnectionErrorAr(errText);
+        if (opts?.showToastOnError) {
+          notify(errText, true);
+        }
+      } finally {
+        inFlightBootstrapRef.current = false;
+        if (mountedRef.current) {
+          setLoadingStatus(false);
+        }
+      }
+    },
+    [notify, resolveCallableServerBase]
+  );
+  useEffect(() => {
+    mountedRef.current = true;
+    const ctrl = new AbortController();
+    unmountAbortRef.current = ctrl;
+    const abortAllOnLeave = () => {
+      ctrl.abort();
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      if (activeXhrRef.current) {
+        activeXhrRef.current.abort();
+        activeXhrRef.current = null;
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("pagehide", abortAllOnLeave);
+      window.addEventListener("beforeunload", abortAllOnLeave);
+    }
+    loadCloudStatusAndHistory({ showToastOnError: false });
+    return () => {
+      mountedRef.current = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pagehide", abortAllOnLeave);
+        window.removeEventListener("beforeunload", abortAllOnLeave);
+      }
+      abortAllOnLeave();
+    };
+  }, [loadCloudStatusAndHistory]);
+  const handleSaveGitHubSettings = async () => {
+    if (savingSettings || testingConnection || uploading) return;
+    const cleanOwner = ownerInput.trim();
+    const cleanRepo = repoInput.trim();
+    const cleanTok = tokenInput.trim();
+    const rawServerCandidate = serverUrlInput.trim();
+    const hasExistingServerToken = Boolean(githubStatus?.hasToken || vaultInfo?.hasSavedToken);
+    if (!cleanOwner) {
+      const msg = "يرجى إدخال اسم مالك المستودع في حقل GITHUB_OWNER";
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    if (!cleanRepo) {
+      const msg = "يرجى إدخال اسم المستودع في حقل GITHUB_REPO";
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    let validatedCustomServer = "";
+    if (rawServerCandidate) {
+      validatedCustomServer = sanitizeProductionServerUrl(rawServerCandidate);
+      if (!validatedCustomServer) {
+        const msg = "عنوان الخادم المنشور غير صالح؛ يجب أن يبدأ بـ https:// وألا يكون عنوان معاينة (ais-pre / ais-dev) أو localhost.";
+        setSettingsFeedback({ ok: false, text: msg });
+        notify(msg, true);
+        return;
+      }
+    } else if (isLocalAndroidOrigin && !getSamiServerBaseUrl()) {
+      const msg = "يرجى إدخال عنوان الخادم المنشور (HTTPS) أولاً لحفظ إعدادات GitHub بأمان على الخادم.";
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    if (!cleanTok && !hasExistingServerToken && !isLocalAndroidOrigin) {
+      const msg = "يرجى إدخال التوكن السري في حقل GITHUB_TOKEN لحفظ الإعدادات لأول مرة";
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    setSavingSettings(true);
+    setSettingsFeedback(null);
+    const signal = unmountAbortRef.current?.signal;
+    try {
+      const { serverBase } = await resolveCallableServerBase(validatedCustomServer || void 0, signal);
+      if (serverBase === null) {
+        throw new Error("لم يتم تحديد عنوان الخادم المنشور (HTTPS) للاتصال به.");
+      }
+      const autoDetectedWebOrigin = !isLocalAndroidOrigin && typeof window !== "undefined" ? sanitizeProductionServerUrl(window.location.origin) : "";
+      const effectiveApiServerUrl = validatedCustomServer || serverBase || autoDetectedWebOrigin;
+      const { headers } = getAuthCredentials();
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/github-settings`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          githubOwner: cleanOwner,
+          githubRepo: cleanRepo,
+          ...cleanTok ? { githubToken: cleanTok } : {},
+          ...effectiveApiServerUrl ? { apiServerUrl: effectiveApiServerUrl } : {}
+        }),
+        timeoutMs: 18e3,
+        parentSignal: signal
+      });
+      if (!mountedRef.current || signal?.aborted) return;
+      if (!ok || !data?.success) {
+        throw new Error(translateNetworkOrHttpErrorAr(null, status, data?.error || "تعذر حفظ إعدادات GitHub Releases"));
+      }
+      if (effectiveApiServerUrl) {
+        persistProductionServerUrlLocally(effectiveApiServerUrl);
+        setServerUrlInput(effectiveApiServerUrl);
+      }
+      setTokenInput("");
+      setShowToken(false);
+      if (data.github) {
+        setGithubStatus(data.github);
+        setOwnerInput(data.github.owner || cleanOwner);
+        setRepoInput(data.github.repo || cleanRepo);
+      }
+      if (data.vault || data.github?.vault) {
+        setVaultInfo(data.vault || data.github?.vault);
+      }
+      setConnectionState("connected");
+      setConnectionErrorAr(null);
+      const feedbackMsg = data.message || `تم حفظ إعدادات GitHub Releases (${cleanOwner}/${cleanRepo}) في السحابة بشكل دائم بنجاح.`;
+      setSettingsFeedback({ ok: true, text: feedbackMsg });
+      notify(feedbackMsg, false);
+    } catch (err) {
+      if (err?.isCancelled || !mountedRef.current) return;
+      const msg = translateNetworkOrHttpErrorAr(err);
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+    } finally {
+      if (mountedRef.current) {
+        setSavingSettings(false);
+      }
+    }
+  };
+  const handleTestGitHubConnection = async () => {
+    if (testingConnection || savingSettings || uploading) return;
+    const cleanOwner = ownerInput.trim();
+    const cleanRepo = repoInput.trim();
+    const cleanTok = tokenInput.trim();
+    const rawServerCandidate = serverUrlInput.trim();
+    if (!cleanOwner || !cleanRepo) {
+      const msg = "يرجى إدخال GITHUB_OWNER وGITHUB_REPO أولاً لاختبار الاتصال";
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    let validatedCustomServer = "";
+    if (rawServerCandidate) {
+      validatedCustomServer = sanitizeProductionServerUrl(rawServerCandidate);
+      if (!validatedCustomServer) {
+        const msg = "عنوان الخادم المنشور غير صالح؛ يجب أن يبدأ بـ https:// وألا يكون عنوان معاينة (ais-pre / ais-dev) أو localhost.";
+        setSettingsFeedback({ ok: false, text: msg });
+        notify(msg, true);
+        return;
+      }
+    }
+    setTestingConnection(true);
+    setSettingsFeedback(null);
+    const signal = unmountAbortRef.current?.signal;
+    try {
+      const { serverBase } = await resolveCallableServerBase(validatedCustomServer || void 0, signal);
+      if (serverBase === null) {
+        throw new Error("يرجى إدخال عنوان الخادم المنشور (HTTPS) أولاً لاختبار اتصال GitHub.");
+      }
+      const { headers } = getAuthCredentials();
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/github-test`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          githubOwner: cleanOwner,
+          githubRepo: cleanRepo,
+          ...cleanTok ? { githubToken: cleanTok } : {}
+        }),
+        timeoutMs: 2e4,
+        parentSignal: signal
+      });
+      if (!mountedRef.current || signal?.aborted) return;
+      if (validatedCustomServer) {
+        persistProductionServerUrlLocally(validatedCustomServer);
+      }
+      setConnectionState("connected");
+      setConnectionErrorAr(null);
+      if (data.github) {
+        setGithubStatus(data.github);
+      }
+      if (data.vault || data.github?.vault) {
+        setVaultInfo(data.vault || data.github?.vault);
+      }
+      const testPassed = Boolean(ok && data.success && data.github?.canPublishReleases);
+      const msg = data.message || translateNetworkOrHttpErrorAr(null, status, data.error) || (testPassed ? "الاتصال بمستودع GitHub ناجح وجاهز للنشر ✓" : "فشل التحقق من الاتصال بمستودع GitHub");
+      setSettingsFeedback({ ok: testPassed, text: msg });
+      notify(msg, !testPassed);
+    } catch (err) {
+      if (err?.isCancelled || !mountedRef.current) return;
+      const msg = translateNetworkOrHttpErrorAr(err);
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+    } finally {
+      if (mountedRef.current) {
+        setTestingConnection(false);
+      }
+    }
+  };
+  const handleChooseApkClick = () => {
+    if (uploading) return;
+    fileInputRef.current?.click();
+  };
+  const inspectSelectedApk = async (file) => {
+    setSelectedFile(file);
+    setInspection(null);
+    setLocalError(null);
+    setUploadError(null);
+    setUploadSuccessInfo(null);
+    if (!file.name.toLowerCase().endsWith(".apk")) {
+      const msg = "يرجى اختيار ملف بصيغة .apk فقط. تم رفض الملف المختار.";
+      setLocalError(msg);
+      notify(msg, true);
+      return;
+    }
+    if (file.size <= 64) {
+      const msg = "ملف الـ APK المختار فارغ أو تالف.";
+      setLocalError(msg);
+      notify(msg, true);
+      return;
+    }
+    setInspectingFile(true);
+    const signal = unmountAbortRef.current?.signal;
+    try {
+      const arrayBuf = await file.arrayBuffer();
+      const localSha256 = await computeArrayBufferSha256Hex(arrayBuf);
+      const { serverBase } = await resolveCallableServerBase(void 0, signal);
+      if (serverBase === null) {
+        throw new Error("يرجى إدخال وحفظ عنوان الخادم المنشور (HTTPS) في إعدادات GitHub Releases أولاً لفحص ورفع ملف الـ APK.");
+      }
+      const { headers } = getAuthCredentials();
+      const { data, status } = await fetchJsonApi(`${serverBase}/api/app-updates/inspect-apk`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/vnd.android.package-archive",
+          "X-File-Name": encodeURIComponent(file.name)
+        },
+        body: file,
+        timeoutMs: 6e4,
+        parentSignal: signal
+      });
+      if (!mountedRef.current || signal?.aborted) return;
+      if (data?.inspection) {
+        const srvInsp = {
+          ...data.inspection,
+          sha256: data.inspection.sha256 || localSha256
+        };
+        setInspection(srvInsp);
+        if (!srvInsp.canPublish && srvInsp.errors?.length > 0) {
+          setLocalError(srvInsp.errors[0]);
+          notify(srvInsp.errors[0], true);
+        } else {
+          if (!description.trim()) {
+            setDescription(`تحديث تطبيق Sami الإصدار ${srvInsp.versionName} — تحسينات في الأداء والاستقرار.`);
+          }
+          notify(`تم فحص حزمة APK (v${srvInsp.versionName} - كود ${srvInsp.versionCode}) بنجاح ✅`);
+        }
+      } else {
+        const errMsg = translateNetworkOrHttpErrorAr(null, status, data?.error || "تعذر قراءة بيانات ملف الـ APK المختار");
+        setLocalError(errMsg);
+        notify(errMsg, true);
+      }
+    } catch (err) {
+      if (err?.isCancelled || !mountedRef.current) return;
+      const msg = translateNetworkOrHttpErrorAr(err);
+      setLocalError(msg);
+      notify(msg, true);
+    } finally {
+      if (mountedRef.current) {
+        setInspectingFile(false);
+      }
+    }
+  };
+  const handleFileInputChange = (e) => {
+    const file = e.target?.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    inspectSelectedApk(file);
+  };
+  const handleStartUploadAndPublish = () => {
+    if (!selectedFile || !inspection) {
+      notify("يرجى اختيار ملف APK صالح أولاً", true);
+      return;
+    }
+    if (!inspection.canPublish) {
+      notify(inspection.errors[0] || "لا يمكن نشر هذا الملف لوجود تعارض في الإصدار أو التوقيع", true);
+      return;
+    }
+    if (!description.trim()) {
+      notify("يرجى كتابة وصف مختصر للتحديث قبل النشر", true);
+      return;
+    }
+    const serverBase = getSamiServerBaseUrl();
+    if (isLocalAndroidOrigin && !serverBase) {
+      const msg = "يرجى حفظ عنوان الخادم المنشور (HTTPS) في إعدادات GitHub Releases أولاً قبل النشر.";
+      setUploadError(msg);
+      notify(msg, true);
+      return;
+    }
+    const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const { headers } = getAuthCredentials();
+    setUploading(true);
+    setUploadError(null);
+    setUploadSuccessInfo(null);
+    setUploadPercent(0);
+    setUploadedBytes(0);
+    setUploadTotalBytes(selectedFile.size);
+    setUploadSpeedBps(0);
+    setUploadPhaseText("جارٍ رفع ملف الـ APK من جهازك إلى الخادم (0%)...");
+    const xhr = new XMLHttpRequest();
+    activeXhrRef.current = xhr;
+    let speedStartMs = Date.now();
+    let speedStartBytes = 0;
+    pollTimerRef.current = setInterval(async () => {
+      if (!mountedRef.current) return;
+      try {
+        const { ok, data } = await fetchJsonApi(
+          `${serverBase}/api/app-updates/upload-status/${encodeURIComponent(uploadId)}`,
+          {
+            method: "GET",
+            headers,
+            timeoutMs: 8e3,
+            parentSignal: unmountAbortRef.current?.signal
+          }
+        );
+        if (!ok || !mountedRef.current) return;
+        const job = data?.job;
+        if (!job) return;
+        if (job.phase !== "receiving_apk" && typeof job.percent === "number") {
+          const mappedPct = Math.max(50, Math.min(99, Math.round(50 + job.percent / 100 * 50)));
+          setUploadPercent((prev) => Math.max(prev, mappedPct));
+          if (job.phaseLabelAr) {
+            setUploadPhaseText(job.phaseLabelAr);
+          }
+        }
+      } catch {
+      }
+    }, 1e3);
+    xhr.upload.onprogress = (ev) => {
+      if (!ev.lengthComputable || !mountedRef.current) return;
+      setUploadedBytes(ev.loaded);
+      setUploadTotalBytes(ev.total);
+      const now = Date.now();
+      if (now - speedStartMs >= 400) {
+        const bps = Math.round((ev.loaded - speedStartBytes) * 1e3 / (now - speedStartMs));
+        setUploadSpeedBps(Math.max(0, bps));
+        speedStartMs = now;
+        speedStartBytes = ev.loaded;
+      }
+      const transferRatio = ev.total > 0 ? ev.loaded / ev.total : 0;
+      const uiPct = Math.min(50, Math.round(transferRatio * 50));
+      setUploadPercent(uiPct);
+      if (ev.loaded < ev.total) {
+        setUploadPhaseText(`جارٍ رفع حزمة الـ APK (${Math.round(transferRatio * 100)}% من النقل)...`);
+      } else {
+        setUploadSpeedBps(0);
+        setUploadPhaseText("اكتمل إرسال الملف للخادم — جارٍ الرفع والتحقق على GitHub Releases...");
+      }
+    };
+    xhr.onload = () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      activeXhrRef.current = null;
+      if (!mountedRef.current) return;
+      setUploading(false);
+      setUploadSpeedBps(0);
+      let resp = {};
+      try {
+        resp = JSON.parse(xhr.responseText || "{}");
+      } catch {
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && resp.success && resp.update) {
+        setUploadPercent(100);
+        setUploadedBytes(selectedFile.size);
+        setUploadPhaseText("اكتمل الرفع والتحقق ونشر الإصدار على GitHub Releases وFirestore بنجاح (100%)");
+        setUploadSuccessInfo(resp);
+        setCurrentPublished(resp.update);
+        setSelectedFile(null);
+        setInspection(null);
+        notify(resp.message || "تم نشر التحديث بنجاح 🚀");
+        loadCloudStatusAndHistory({ showToastOnError: false });
+      } else {
+        const msg = translateNetworkOrHttpErrorAr(null, xhr.status, resp?.error);
+        setUploadError(msg);
+        setUploadPhaseText("توقف النشر بسبب خطأ");
+        notify(msg, true);
+      }
+    };
+    xhr.onerror = () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      activeXhrRef.current = null;
+      if (!mountedRef.current) return;
+      setUploading(false);
+      setUploadSpeedBps(0);
+      const msg = "انقطع الاتصال بالشبكة أثناء رفع ملف الـ APK عبر HTTPS. يمكنك الضغط على «إعادة المحاولة» دون إعادة اختيار الملف.";
+      setUploadError(msg);
+      setUploadPhaseText("فشل الاتصال أثناء الرفع");
+      notify(msg, true);
+    };
+    xhr.onabort = () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      activeXhrRef.current = null;
+      if (!mountedRef.current) return;
+      setUploading(false);
+      setUploadSpeedBps(0);
+      setUploadPercent(0);
+      setUploadedBytes(0);
+      setUploadPhaseText("تم إلغاء عملية الرفع بناءً على طلبك");
+      notify("تم إلغاء رفع ملف الـ APK");
+    };
+    xhr.open("POST", `${serverBase}/api/app-updates/upload-release`, true);
+    for (const [k, v] of Object.entries(headers)) {
+      xhr.setRequestHeader(k, v);
+    }
+    xhr.setRequestHeader("Content-Type", "application/vnd.android.package-archive");
+    xhr.setRequestHeader("X-Upload-Id", uploadId);
+    xhr.setRequestHeader("X-File-Name", encodeURIComponent(selectedFile.name));
+    xhr.setRequestHeader("X-Expected-Sha256", inspection.sha256);
+    xhr.setRequestHeader("X-Description-B64", encodeUtf8Base64(description.trim()));
+    xhr.setRequestHeader("X-Is-Mandatory", isMandatory ? "true" : "false");
+    xhr.send(selectedFile);
+  };
+  const handleCancelActiveUpload = () => {
+    if (activeXhrRef.current) {
+      activeXhrRef.current.abort();
+    }
+  };
+  const handleToggleVisibility = async () => {
+    if (!currentPublished || actionBusy) return;
+    setActionBusy(true);
+    const signal = unmountAbortRef.current?.signal;
+    try {
+      const { serverBase } = await resolveCallableServerBase(void 0, signal);
+      if (serverBase === null) {
+        throw new Error("يرجى حفظ عنوان الخادم المنشور (HTTPS) في الإعدادات أولاً.");
+      }
+      const { headers } = getAuthCredentials();
+      const nextActive = !(currentPublished.isActive === true && !currentPublished.isHidden);
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/toggle`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isActive: nextActive,
+          versionCode: currentPublished.versionCode
+        }),
+        timeoutMs: 15e3,
+        parentSignal: signal
+      });
+      if (!mountedRef.current || signal?.aborted) return;
+      if (!ok || !data.success) {
+        throw new Error(translateNetworkOrHttpErrorAr(null, status, data.error || "تعذر تغيير حالة ظهور الإصدار"));
+      }
+      setCurrentPublished(data.update);
+      notify(data.message || "تم تحديث حالة الإصدار بنجاح");
+      loadCloudStatusAndHistory({ showToastOnError: false });
+    } catch (err) {
+      if (err?.isCancelled || !mountedRef.current) return;
+      notify(translateNetworkOrHttpErrorAr(err), true);
+    } finally {
+      if (mountedRef.current) {
+        setActionBusy(false);
+      }
+    }
+  };
+  const handleRollbackToVersion = async (targetVersionCode) => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    const signal = unmountAbortRef.current?.signal;
+    try {
+      const { serverBase } = await resolveCallableServerBase(void 0, signal);
+      if (serverBase === null) {
+        throw new Error("يرجى حفظ عنوان الخادم المنشور (HTTPS) في الإعدادات أولاً.");
+      }
+      const { headers } = getAuthCredentials();
+      const { ok, status, data } = await fetchJsonApi(`${serverBase}/api/app-updates/rollback`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ versionCode: targetVersionCode }),
+        timeoutMs: 2e4,
+        parentSignal: signal
+      });
+      if (!mountedRef.current || signal?.aborted) return;
+      if (!ok || !data.success) {
+        throw new Error(translateNetworkOrHttpErrorAr(null, status, data.error || "تعذر الرجوع إلى الإصدار المحدد"));
+      }
+      setCurrentPublished(data.update);
+      notify(data.message || "تم الرجوع إلى الإصدار السابق بنجاح");
+      loadCloudStatusAndHistory({ showToastOnError: false });
+    } catch (err) {
+      if (err?.isCancelled || !mountedRef.current) return;
+      notify(translateNetworkOrHttpErrorAr(err), true);
+    } finally {
+      if (mountedRef.current) {
+        setActionBusy(false);
+      }
+    }
+  };
+  const isCurrentActive = Boolean(
+    currentPublished && currentPublished.isActive === true && !currentPublished.isHidden && currentPublished.storageSource === "github_releases"
+  );
+  const hasSavedServerToken = Boolean(githubStatus?.hasToken || vaultInfo?.hasSavedToken);
+  const isGitHubReady = Boolean(githubStatus?.canPublishReleases || githubStatus?.configured && hasSavedServerToken);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { dir: "rtl", className: "space-y-4 text-right", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#121824] border border-amber-500/40 rounded-2xl p-5 space-y-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-sm font-black text-amber-300", children: "نظام التحديثات السحابي عبر GitHub Releases" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-400 mt-0.5", children: "رفع مباشر لملف الـ APK، فحص آلي للتوقيع وSHA-256، وتثبيت داخلي دون روابط يدوية" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            type: "button",
+            disabled: loadingStatus,
+            onClick: () => loadCloudStatusAndHistory({ showToastOnError: true }),
+            className: "px-3 py-1.5 rounded-lg bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-amber-300 transition cursor-pointer disabled:opacity-50",
+            children: loadingStatus ? "جارٍ التحديث..." : "تحديث الحالة"
+          }
+        )
+      ] }),
+      (connectionState === "error" || connectionState === "needs_server_url") && connectionErrorAr && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "div",
+        {
+          className: `rounded-xl p-3.5 border text-xs space-y-2.5 ${connectionState === "needs_server_url" ? "bg-amber-500/10 border-amber-500/40 text-amber-200" : "bg-rose-500/10 border-rose-500/40 text-rose-200"}`,
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-black", children: connectionState === "needs_server_url" ? "مطلوب تحديد عنوان الخادم المنشور (HTTPS)" : "تنبيه اتصال بالخادم" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  type: "button",
+                  disabled: loadingStatus,
+                  onClick: () => loadCloudStatusAndHistory({ showToastOnError: true }),
+                  className: "shrink-0 px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] transition cursor-pointer disabled:opacity-50",
+                  children: loadingStatus ? "جارٍ الاتصال..." : "إعادة المحاولة"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-[11px] leading-relaxed", children: connectionErrorAr })
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-slate-400", children: "المستودع المستخدم حالياً:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "span",
+            {
+              dir: "ltr",
+              className: `font-bold font-['JetBrains_Mono',monospace] truncate ${githubStatus?.fullName ? "text-slate-100" : "text-slate-500"}`,
+              children: githubStatus?.fullName || "غير محدد بعد"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-slate-400", children: "حالة إعدادات GitHub:" }),
+          loadingStatus && connectionState === "connecting" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-black text-amber-300", children: "جارٍ قراءة الإعدادات السحابية..." }) : githubStatus?.liveTested && githubStatus?.canPublishReleases ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "font-black text-emerald-400", children: [
+            "متصل وجاهز للنشر (",
+            githubStatus.isPrivate ? "خاص" : "عام",
+            ") ✓"
+          ] }) : isGitHubReady ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-black text-emerald-400", children: "الإعدادات والتوكن محفوظان ✓" }) : githubStatus?.exists ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-black text-amber-400", children: "يلزم حفظ التوكن أو اختبار الصلاحية" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-black text-rose-400", children: "غير مكتمل" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-slate-400", children: "النسخة المثبتة على هذا الجهاز:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { dir: "ltr", className: "font-bold text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+            "v",
+            installedApp.versionName,
+            " (Code ",
+            installedApp.versionCode,
+            ")"
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-slate-400", children: "الإصدار النشط للمستخدمين:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `font-black ${isCurrentActive ? "text-emerald-400" : "text-slate-400"}`, children: isCurrentActive && currentPublished ? `v${currentPublished.versionName} (Code ${currentPublished.versionCode})` : "لا يوجد تحديث نشط حالياً" })
+        ] })
+      ] }),
+      signingKeyInfo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f17] border border-slate-800 rounded-xl p-3 text-[11px] space-y-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-slate-400 font-bold", children: "شهادة توقيع Sami المعتمدة:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: signingKeyInfo.available ? "text-emerald-400 font-black" : "text-rose-400 font-black", children: signingKeyInfo.available ? "متوفرة ومطابقة ✓" : "مفقودة ✗" })
+        ] }),
+        signingKeyInfo.sha256Fingerprint && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "div",
+          {
+            dir: "ltr",
+            className: "text-[10px] text-slate-400 font-['JetBrains_Mono',monospace] break-all",
+            children: [
+              "SHA-256: ",
+              signingKeyInfo.sha256Fingerprint
+            ]
+          }
+        )
+      ] }),
+      githubStatus && !isGitHubReady && (githubStatus.setupInstructionsAr || githubStatus.error) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 text-xs space-y-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "font-black text-amber-300", children: "تنبيه إعداد GitHub Releases:" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-slate-300 leading-relaxed text-[11px]", children: githubStatus.setupInstructionsAr || githubStatus.error })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#121824] border border-amber-400/30 rounded-2xl overflow-hidden", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "button",
+        {
+          type: "button",
+          onClick: () => setSettingsOpen((prev) => !prev),
+          className: "w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-right hover:bg-slate-800/50 transition cursor-pointer",
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-1 min-w-0", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "text-xs sm:text-sm font-black text-amber-300", children: "⚙️ إعدادات GitHub Releases" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-wrap items-center gap-2 text-[11px] text-slate-400", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+                  "المستودع الحالي:",
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { dir: "ltr", className: "text-slate-200 font-['JetBrains_Mono',monospace]", children: githubStatus?.fullName || "غير محدد" })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "aria-hidden": "true", children: "·" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: hasSavedServerToken ? "text-emerald-400 font-bold" : "text-amber-400 font-bold", children: hasSavedServerToken ? "التوكن محفوظ ✓" : "التوكن غير محفوظ" })
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "shrink-0 px-3 py-1.5 rounded-lg bg-[#0b0f17] border border-slate-700 text-[11px] font-bold text-amber-300", children: settingsOpen ? "إخفاء ▲" : "تعديل الإعدادات ▼" })
+          ]
+        }
+      ),
+      settingsOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p-4 sm:p-5 border-t border-slate-800/80 space-y-4 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f17] border border-slate-800 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-slate-400", children: "المستودع المحفوظ في السحابة" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "span",
+              {
+                dir: "ltr",
+                className: "block mt-0.5 font-black text-slate-100 font-['JetBrains_Mono',monospace] break-all",
+                children: githubStatus?.fullName || "لم يتم الحفظ بعد"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-slate-400", children: "حالة الاتصال بـ GitHub" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "span",
+              {
+                className: `block mt-0.5 font-black ${githubStatus?.liveTested && githubStatus?.canPublishReleases ? "text-emerald-400" : isGitHubReady ? "text-amber-300" : "text-rose-400"}`,
+                children: githubStatus?.liveTested && githubStatus?.canPublishReleases ? `متصل (${githubStatus.isPrivate ? "مستودع خاص" : "مستودع عام"}) ✓` : isGitHubReady ? "محفوظ سحابياً — اضغط «اختبار اتصال GitHub» للتحقق الحي" : "غير متصل"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-slate-400", children: "حالة التوكن السري" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "span",
+              {
+                className: `block mt-0.5 font-black ${hasSavedServerToken ? "text-emerald-400" : "text-amber-400"}`,
+                children: hasSavedServerToken ? "التوكن محفوظ ✓" : "غير محفوظ بعد"
+              }
+            )
+          ] })
+        ] }),
+        (isLocalAndroidOrigin || Boolean(serverUrlInput)) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "block text-slate-300 font-bold mb-1.5", children: [
+            "عنوان خادم التحديثات المنشور (",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dir: "ltr", className: "text-amber-300 font-['JetBrains_Mono',monospace]", children: "HTTPS" }),
+            ")"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "input",
+            {
+              type: "url",
+              dir: "ltr",
+              disabled: savingSettings || uploading,
+              value: serverUrlInput,
+              onChange: (e) => setServerUrlInput(e.target.value),
+              placeholder: "https://your-deployed-sami-server.run.app",
+              autoComplete: "off",
+              spellCheck: false,
+              className: "w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-[11px] text-slate-400 mt-1 leading-relaxed", children: "يُستخدم للاتصال المباشر بالخادم الفعلي المنشور عبر HTTPS من تطبيق الهاتف (يرفض عناوين localhost ومعاينة AI Studio تلقائياً)." })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "block text-slate-300 font-bold mb-1.5", children: [
+              "1. ",
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dir: "ltr", className: "font-['JetBrains_Mono',monospace] text-amber-300", children: "GITHUB_OWNER" }),
+              " ",
+              "(اسم مالك المستودع)"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: "text",
+                dir: "ltr",
+                disabled: savingSettings || uploading,
+                value: ownerInput,
+                onChange: (e) => setOwnerInput(e.target.value),
+                placeholder: "owner-username",
+                autoComplete: "off",
+                spellCheck: false,
+                className: "w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "block text-slate-300 font-bold mb-1.5", children: [
+              "2. ",
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dir: "ltr", className: "font-['JetBrains_Mono',monospace] text-amber-300", children: "GITHUB_REPO" }),
+              " ",
+              "(اسم المستودع)"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: "text",
+                dir: "ltr",
+                disabled: savingSettings || uploading,
+                value: repoInput,
+                onChange: (e) => setRepoInput(e.target.value),
+                placeholder: "repository-name",
+                autoComplete: "off",
+                spellCheck: false,
+                className: "w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+              }
+            )
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "block text-slate-300 font-bold mb-1.5", children: [
+            "3. ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dir: "ltr", className: "font-['JetBrains_Mono',monospace] text-amber-300", children: "GITHUB_TOKEN" }),
+            " ",
+            "(التوكن السري — صلاحية Contents: Read and write)"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: showToken ? "text" : "password",
+                dir: "ltr",
+                disabled: savingSettings || uploading,
+                value: tokenInput,
+                onChange: (e) => setTokenInput(e.target.value),
+                placeholder: hasSavedServerToken ? "التوكن محفوظ — اتركه فارغاً للإبقاء عليه أو أدخل توكن جديداً لاستبداله" : "github_pat_...",
+                autoComplete: "new-password",
+                spellCheck: false,
+                className: "flex-1 min-w-0 bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                type: "button",
+                disabled: !tokenInput || savingSettings,
+                onClick: () => setShowToken((prev) => !prev),
+                className: "shrink-0 px-3.5 py-3 rounded-xl bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-amber-300 font-bold text-xs transition cursor-pointer disabled:opacity-40",
+                children: showToken ? "إخفاء" : "إظهار"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-[11px] text-slate-400 mt-1.5 leading-relaxed", children: "يُحفظ اسما المالك والمستودع بشكل دائم في السحابة (Firestore)، بينما يُحفظ التوكن في مخزن الأسرار السحابي للخادم فقط ولا يُعاد للواجهة أبداً." })
+        ] }),
+        settingsFeedback && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "div",
+          {
+            className: `rounded-xl p-3 border text-xs font-bold leading-relaxed ${settingsFeedback.ok ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300" : "bg-rose-500/10 border-rose-500/40 text-rose-300"}`,
+            children: settingsFeedback.text
+          }
+        ),
+        vaultInfo?.hostingVaultNoticeAr && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-[#0b0f17] border border-amber-500/30 rounded-xl p-3 text-[11px] text-amber-200 leading-relaxed", children: vaultInfo.hostingVaultNoticeAr }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              disabled: savingSettings || testingConnection || uploading,
+              onClick: handleSaveGitHubSettings,
+              className: "w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer",
+              children: savingSettings ? "جارٍ الحفظ السحابي الدائم..." : "حفظ إعدادات GitHub"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              disabled: testingConnection || savingSettings || uploading,
+              onClick: handleTestGitHubConnection,
+              className: "w-full py-3 px-4 rounded-xl bg-[#0b0f17] hover:bg-slate-800 disabled:opacity-40 border border-amber-400/40 text-amber-300 font-black text-xs transition cursor-pointer",
+              children: testingConnection ? "جارٍ اختبار الاتصال..." : "اختبار اتصال GitHub"
+            }
+          )
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#121824] border border-slate-800 rounded-2xl p-5 space-y-4", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", { className: "text-xs font-black text-amber-400", children: [
+          "رفع ونشر إصدار APK جديد (يجب أن يكون كود الإصدار أكبر من ",
+          effectiveMinVersionCode,
+          ")"
+        ] }),
+        currentUser?.displayName && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[11px] text-slate-400", children: [
+          "المسؤول: ",
+          currentUser.displayName
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          ref: fileInputRef,
+          type: "file",
+          accept: ".apk,application/vnd.android.package-archive",
+          onChange: handleFileInputChange,
+          className: "hidden"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          type: "button",
+          disabled: uploading || inspectingFile,
+          onClick: handleChooseApkClick,
+          className: "w-full py-4 px-4 rounded-xl bg-[#0b101c] hover:bg-[#101829] border-2 border-dashed border-amber-400/50 hover:border-amber-400 text-amber-300 font-black text-sm flex items-center justify-center gap-2.5 transition cursor-pointer disabled:opacity-50",
+          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📦 اختيار ملف APK ورفعه" })
+        }
+      ),
+      inspectingFile && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-[#0b0f17] border border-amber-400/30 rounded-xl p-3.5 text-xs text-amber-300 font-bold text-center", children: "جارٍ قراءة حزمة الـ APK واستخراج البيانات وشهادة التوقيع وحساب SHA-256..." }),
+      localError && !inspection && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-rose-500/10 border border-rose-500/40 rounded-xl p-3.5 text-xs text-rose-300 font-bold", children: localError }),
+      inspection && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "div",
+        {
+          className: `rounded-xl p-4 border space-y-3 text-xs ${inspection.canPublish ? "bg-[#0b111d] border-emerald-500/40" : "bg-[#140c12] border-rose-500/40"}`,
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between border-b border-slate-800 pb-2.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-black text-slate-100", children: "بيانات حزمة الـ APK المستخرجة:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "span",
+                {
+                  className: `text-[11px] font-black px-2.5 py-0.5 rounded-md border ${inspection.canPublish ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : "bg-rose-500/15 border-rose-500/40 text-rose-300"}`,
+                  children: inspection.canPublish ? "جاهز ومطابق للنشر ✓" : "مرفوض للنشر ✗"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-2 gap-2.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-slate-400", children: "معرّف التطبيق (applicationId)" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  "span",
+                  {
+                    dir: "ltr",
+                    className: `block font-bold font-['JetBrains_Mono',monospace] text-[11px] mt-0.5 break-all ${inspection.applicationIdMatchesSami ? "text-emerald-400" : "text-rose-400"}`,
+                    children: inspection.applicationId || "غير معروف"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-slate-400", children: "الإصدار وكود البناء" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  "span",
+                  {
+                    dir: "ltr",
+                    className: `block font-black font-['JetBrains_Mono',monospace] tabular-nums mt-0.5 ${inspection.isHigherThanPublished ? "text-amber-300" : "text-rose-400"}`,
+                    children: [
+                      "v",
+                      inspection.versionName || "?",
+                      " (Code ",
+                      inspection.versionCode || 0,
+                      ")"
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-slate-400", children: "حجم ملف الـ APK" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                  "span",
+                  {
+                    dir: "ltr",
+                    className: "block font-bold text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums mt-0.5",
+                    children: [
+                      formatBytesAr(inspection.fileSize),
+                      " (",
+                      inspection.fileSize.toLocaleString(),
+                      " B)"
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block text-[10px] text-slate-400", children: "تطابق شهادة التوقيع" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  "span",
+                  {
+                    className: `block font-black mt-0.5 ${inspection.signatureMatchesOriginal ? "text-emerald-400" : "text-rose-400"}`,
+                    children: inspection.signatureMatchesOriginal ? `مطابق لشهادة Sami (${inspection.signingCertificate?.scheme.toUpperCase()}) ✓` : "غير مطابق أو غير موقّع ✗"
+                  }
+                )
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#080c14] p-2.5 rounded-lg border border-slate-800/80 space-y-1 text-[10px]", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "text-slate-400", children: "بصمة الملف (SHA-256):" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dir: "ltr", className: "text-slate-200 font-['JetBrains_Mono',monospace] break-all", children: inspection.sha256 }),
+              inspection.signingCertificate?.sha256Fingerprint && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "text-slate-400 pt-1", children: "بصمة شهادة التوقيع (X.509 SHA-256):" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { dir: "ltr", className: "text-amber-300 font-['JetBrains_Mono',monospace] break-all", children: inspection.signingCertificate.sha256Fingerprint })
+              ] })
+            ] }),
+            inspection.errors?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-rose-500/15 border border-rose-500/40 rounded-lg p-3 space-y-1 text-rose-200", children: inspection.errors.map((errStr, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "font-bold", children: [
+              "• ",
+              errStr
+            ] }, i)) })
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-3 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-slate-300 font-bold mb-1.5", children: "نوع التحديث للمستخدمين:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "button",
+              {
+                type: "button",
+                disabled: uploading,
+                onClick: () => setIsMandatory(false),
+                className: `p-3 rounded-xl border text-right transition cursor-pointer ${!isMandatory ? "bg-amber-400/15 border-amber-400 text-amber-200" : "bg-[#0b0f17] border-slate-800 text-slate-400 hover:border-slate-700"}`,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "font-black text-xs", children: "تحديث اختياري مع إمكانية اختيار «لاحقًا»" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "text-[10px] opacity-80 mt-0.5", children: "يسمح للمستخدم بتأجيل التحديث ومتابعة التصفح" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "button",
+              {
+                type: "button",
+                disabled: uploading,
+                onClick: () => setIsMandatory(true),
+                className: `p-3 rounded-xl border text-right transition cursor-pointer ${isMandatory ? "bg-rose-500/15 border-rose-500 text-rose-200" : "bg-[#0b0f17] border-slate-800 text-slate-400 hover:border-slate-700"}`,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "font-black text-xs", children: "تحديث إلزامي" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "text-[10px] opacity-80 mt-0.5", children: "يلزم المستخدم بتحميل وتثبيت التحديث قبل المتابعة" })
+                ]
+              }
+            )
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-slate-300 font-bold mb-1.5", children: "وصف التحديث وما الجديد:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "textarea",
+            {
+              rows: 3,
+              disabled: uploading,
+              value: description,
+              onChange: (e) => setDescription(e.target.value),
+              placeholder: "اكتب ميزات وتحسينات هذا الإصدار التي ستظهر للمستخدمين داخل نافذة التحديث...",
+              className: "w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
+            }
+          )
+        ] })
+      ] }),
+      (uploading || uploadError || uploadSuccessInfo) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#0b0f19] border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "span",
+            {
+              className: `font-black ${uploadError ? "text-rose-400" : uploadSuccessInfo ? "text-emerald-400" : "text-amber-300"}`,
+              children: uploadPhaseText
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { dir: "ltr", className: "font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+            uploadPercent,
+            "%"
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          GoldProgressBar,
+          {
+            percent: uploadPercent,
+            variant: uploadError ? "rose" : uploadSuccessInfo ? "emerald" : "gold"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between text-[11px] text-slate-400 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { dir: "ltr", children: [
+            formatBytesAr(uploadedBytes),
+            " / ",
+            formatBytesAr(uploadTotalBytes)
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dir: "ltr", className: "text-amber-300", children: uploading && uploadSpeedBps > 0 ? formatSpeedAr(uploadSpeedBps) : "" })
+        ] }),
+        uploadError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5 text-rose-300 font-bold leading-relaxed", children: uploadError }),
+        uploadSuccessInfo?.githubRelease && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-emerald-200 space-y-1 text-[11px]", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "font-black", children: [
+            "✓ تم النشر رسمياً على GitHub Releases (",
+            uploadSuccessInfo.githubRelease.releaseTag,
+            ") وحفظ السجل في Firestore!"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { dir: "ltr", className: "text-[10px] font-['JetBrains_Mono',monospace] text-emerald-300/90 break-all", children: [
+            "Asset: ",
+            uploadSuccessInfo.githubRelease.assetName,
+            " | Verified SHA-256: ",
+            uploadSuccessInfo.githubRelease.sha256
+          ] })
+        ] }),
+        uploading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            type: "button",
+            onClick: handleCancelActiveUpload,
+            className: "w-full py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-black text-xs transition cursor-pointer",
+            children: "إلغاء الرفع"
+          }
+        ),
+        !uploading && uploadError && selectedFile && inspection?.canPublish && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            type: "button",
+            onClick: handleStartUploadAndPublish,
+            className: "w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition cursor-pointer",
+            children: "إعادة المحاولة لرفع ونشر الملف"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-2 pt-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            type: "button",
+            disabled: uploading || inspectingFile || !selectedFile || !inspection?.canPublish,
+            onClick: handleStartUploadAndPublish,
+            className: "w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer",
+            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: uploading ? "جارٍ الرفع والتحقق والنشر..." : "رفع ونشر التحديث عبر GitHub Releases 🚀" })
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: () => setShowPreviewModal(true),
+              className: "flex-1 py-2.5 rounded-xl bg-[#0b0f17] hover:bg-slate-800 text-amber-300 font-bold text-xs border border-amber-400/30 transition cursor-pointer",
+              children: "معاينة نافذة التحديث للمستخدم"
+            }
+          ),
+          currentPublished && currentPublished.storageSource === "github_releases" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              disabled: actionBusy || uploading,
+              onClick: handleToggleVisibility,
+              className: `flex-1 py-2.5 rounded-xl font-black text-xs border transition cursor-pointer disabled:opacity-50 ${isCurrentActive ? "bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" : "bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300"}`,
+              children: isCurrentActive ? "⏸️ إيقاف الإصدار مؤقتاً" : "▶️ تفعيل الإصدار للمستخدمين"
+            }
+          )
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-[#121824] border border-slate-800 rounded-2xl p-5 space-y-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "text-xs font-black text-amber-400", children: "سجل الإصدارات المنشورة والرجوع لإصدار سابق (Rollback)" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[11px] text-slate-400 font-['JetBrains_Mono',monospace] tabular-nums", children: [
+          historyList.length,
+          " إصدار"
+        ] })
+      ] }),
+      historyList.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-400 py-2", children: "لا توجد سجلات إصدارات محفوظة بعد." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "space-y-2 max-h-72 overflow-y-auto", children: historyList.map((item) => {
+        const isItemActive = item.isActive === true && !item.isHidden && currentPublished?.versionCode === item.versionCode && item.storageSource === "github_releases";
+        const isGitHubBacked = item.storageSource === "github_releases" && Boolean(item.sha256);
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "div",
+          {
+            className: "bg-[#0b0f17] border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-0.5", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                    "span",
+                    {
+                      dir: "ltr",
+                      className: "font-black text-slate-100 font-['JetBrains_Mono',monospace] tabular-nums",
+                      children: [
+                        "v",
+                        item.versionName,
+                        " (Code ",
+                        item.versionCode,
+                        ")"
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "span",
+                    {
+                      className: `text-[10px] font-black px-2 py-0.5 rounded border ${isItemActive ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300" : isGitHubBacked ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-900 border-slate-800 text-slate-500"}`,
+                      children: isItemActive ? "منشور ونشط" : isGitHubBacked ? "متوقف (GitHub Release)" : "سجل قديم (متوقف)"
+                    }
+                  ),
+                  item.releaseTag && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "span",
+                    {
+                      dir: "ltr",
+                      className: "text-[10px] text-amber-300 font-['JetBrains_Mono',monospace]",
+                      children: item.releaseTag
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "text-[11px] text-slate-400", children: [
+                  item.fileSize ? `${formatBytesAr(item.fileSize)} • ` : "",
+                  item.isMandatory ? "إلزامي" : "اختياري",
+                  item.description ? ` • ${item.description.slice(0, 70)}` : ""
+                ] })
+              ] }),
+              isGitHubBacked && !isItemActive && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  type: "button",
+                  disabled: actionBusy || uploading,
+                  onClick: () => handleRollbackToVersion(item.versionCode),
+                  className: "px-3 py-1.5 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/40 text-amber-300 font-black text-[11px] transition cursor-pointer disabled:opacity-50",
+                  children: "اعتماد هذا الإصدار"
+                }
+              )
+            ]
+          },
+          `${item.versionCode}_${item.id}`
+        );
+      }) })
+    ] }),
+    showPreviewModal && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      SamiUserUpdateModal,
+      {
+        isOpen: showPreviewModal,
+        isPreview: true,
+        onDismiss: () => setShowPreviewModal(false),
+        config: inspection ? {
+          versionName: inspection.versionName || "1.3.2",
+          versionCode: inspection.versionCode || effectiveMinVersionCode + 1,
+          description: description.trim() || "تحديث تجريبي للمعاينة داخل لوحة الإدارة",
+          fileSize: inspection.fileSize,
+          sha256: inspection.sha256,
+          signingCertSha256: inspection.signingCertificate?.sha256Fingerprint,
+          applicationId: inspection.applicationId,
+          storageSource: "github_releases",
+          downloadUrl: "",
+          isMandatory,
+          isActive: true,
+          isHidden: false
+        } : currentPublished && currentPublished.storageSource === "github_releases" ? currentPublished : {
+          versionName: "1.3.2",
+          versionCode: effectiveMinVersionCode + 1,
+          description: description.trim() || "تحسينات شاملة في الأداء وتثبيت التحديثات المباشر من داخل تطبيق Sami.",
+          fileSize: 28 * 1024 * 1024,
+          storageSource: "github_releases",
+          downloadUrl: "",
+          isMandatory,
+          isActive: true,
+          isHidden: false
+        }
+      }
+    )
+  ] });
+}
+if (typeof window !== "undefined") {
+  const w = window;
+  w.SamiUserUpdateModal = SamiUserUpdateModal;
+  w.SamiAdminUpdatePanel = SamiAdminUpdatePanel;
+  w.shouldShowSamiCloudUpdate = shouldShowCloudAppUpdate;
+  w.getInstalledSamiAppInfo = getInstalledSamiAppInfo;
+  w.getSamiServerBaseUrl = getSamiServerBaseUrl;
+}
+export {
+  SAMI_EXPECTED_APP_ID,
+  SAMI_FALLBACK_VERSION_CODE,
+  SAMI_FALLBACK_VERSION_NAME,
+  SamiAdminUpdatePanel,
+  SamiUserUpdateModal,
+  getInstalledSamiAppInfo,
+  getSamiServerBaseUrl,
+  isAndroidLocalAssetOrigin,
+  sanitizeProductionServerUrl,
+  shouldShowCloudAppUpdate
+};
 /*! Bundled license information:
 
 jszip/dist/jszip.min.js:
@@ -15,10 +6220,21 @@ jszip/dist/jszip.min.js:
   https://github.com/nodeca/pako/blob/main/LICENSE
   *)
 
-react/cjs/react-jsx-runtime.production.js:
+react/cjs/react.development.js:
   (**
    * @license React
-   * react-jsx-runtime.production.js
+   * react.development.js
+   *
+   * Copyright (c) Meta Platforms, Inc. and affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   *)
+
+react/cjs/react-jsx-runtime.development.js:
+  (**
+   * @license React
+   * react-jsx-runtime.development.js
    *
    * Copyright (c) Meta Platforms, Inc. and affiliates.
    *

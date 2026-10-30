@@ -109,7 +109,12 @@
         "updatedAt": { "type": "number", "description": "Last record update timestamp (ms)" },
         "status": { "type": "string", "enum": ["draft", "published", "paused"], "description": "Release lifecycle status" },
         "isMandatory": { "type": "boolean", "description": "Whether update is compulsory" },
-        "isActive": { "type": "boolean", "description": "Whether release is active and visible to users" }
+        "isActive": { "type": "boolean", "description": "Whether release is active and visible to users" },
+        "configuredGithubOwner": { "type": "string", "maxLength": 128, "description": "Owner-configured GitHub repository owner persisted in Cloud Firestore" },
+        "configuredGithubRepo": { "type": "string", "maxLength": 128, "description": "Owner-configured GitHub repository name persisted in Cloud Firestore" },
+        "configuredSettingsUpdatedAt": { "type": "number", "description": "Timestamp (ms) when cloud GitHub settings were last saved" },
+        "configuredSettingsUpdatedBy": { "type": "string", "maxLength": 100, "description": "Display name of Owner who saved cloud GitHub settings" },
+        "configuredApiServerUrl": { "type": "string", "maxLength": 512, "description": "Deployed HTTPS production server base URL for Android/external clients" }
       },
       "required": [
         "versionName",

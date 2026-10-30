@@ -49,7 +49,7 @@ object FirebaseCloudHelper {
     private const val SHARED_FIREBASE_SENDER_ID = "462035009117"
 
     private const val SHARED_FIRESTORE_APP_NAME = "sami_shared_firestore"
-    const val DEFAULT_REMOTE_SERVER_URL = "https://ais-pre-v2pd4io33vpee4p7cqhqoz-27831794049.europe-west2.run.app"
+    private const val PREF_KEY_PROD_SERVER_URL = "configured_prod_server_url"
 
     // Shared Firestore collections
     const val COLLECTION_NOTIFICATIONS = "community_notifications"
@@ -175,13 +175,56 @@ object FirebaseCloudHelper {
         return "fcm_tok_${userId}_$safeDev"
     }
 
+    fun sanitizeProductionHttpsServerUrl(rawUrl: String?): String {
+        val trimmed = rawUrl?.trim().orEmpty()
+        if (trimmed.isEmpty() || !trimmed.startsWith("https://")) return ""
+        return try {
+            val parsed = URL(trimmed)
+            val host = parsed.host?.lowercase().orEmpty()
+            if (
+                host.isEmpty() ||
+                host == "localhost" ||
+                host == "127.0.0.1" ||
+                host == "0.0.0.0" ||
+                host == "appassets.androidplatform.net" ||
+                host.startsWith("ais-pre-") ||
+                host.startsWith("ais-dev-") ||
+                host.endsWith(".usercontent.goog")
+            ) {
+                ""
+            } else {
+                "${parsed.protocol}://$host${if (parsed.port > 0 && parsed.port != 443) ":${parsed.port}" else ""}"
+            }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    fun saveConfiguredRemoteServerUrl(context: Context, rawUrl: String?) {
+        val valid = sanitizeProductionHttpsServerUrl(rawUrl)
+        if (valid.isNotEmpty()) {
+            context.getSharedPreferences(SamiFirebaseMessagingService.PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PREF_KEY_PROD_SERVER_URL, valid)
+                .apply()
+        }
+    }
+
+    fun getConfiguredRemoteServerUrl(context: Context): String {
+        val prefs = context.getSharedPreferences(SamiFirebaseMessagingService.PREFS_NAME, Context.MODE_PRIVATE)
+        return sanitizeProductionHttpsServerUrl(prefs.getString(PREF_KEY_PROD_SERVER_URL, ""))
+    }
+
     private fun postFcmApiSync(
+        context: Context,
         endpointPath: String,
         userId: Int,
         username: String,
         bodyJson: String
     ) {
         if (userId <= 0 || username.isBlank()) return
+        val remoteBase = getConfiguredRemoteServerUrl(context)
+        if (remoteBase.isEmpty()) return
         try {
             val sessionJson = org.json.JSONObject()
                 .put("id", userId)
@@ -189,7 +232,7 @@ object FirebaseCloudHelper {
                 .put("displayName", username)
                 .toString()
             val encodedSession = java.net.URLEncoder.encode(sessionJson, "UTF-8")
-            val conn = (URL("$DEFAULT_REMOTE_SERVER_URL$endpointPath").openConnection() as HttpURLConnection).apply {
+            val conn = (URL("$remoteBase$endpointPath").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8_000
                 readTimeout = 8_000
@@ -303,7 +346,7 @@ object FirebaseCloudHelper {
             .put("platform", "android")
             .put("deviceModel", model)
             .toString()
-        postFcmApiSync("/api/fcm/register", userId, username, reqBody)
+        postFcmApiSync(context, "/api/fcm/register", userId, username, reqBody)
 
         if (firestoreOk) {
             prefs.edit()
@@ -333,7 +376,7 @@ object FirebaseCloudHelper {
                 .put("deviceId", deviceId)
                 .apply { if (savedTok.isNotBlank()) put("token", savedTok) }
                 .toString()
-            postFcmApiSync("/api/fcm/unregister", userId, savedUser, reqBody)
+            postFcmApiSync(context, "/api/fcm/unregister", userId, savedUser, reqBody)
         }
 
         val db = runCatching { getFirestore(context) }.getOrNull() ?: return@withContext false

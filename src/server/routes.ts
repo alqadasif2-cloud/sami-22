@@ -38,6 +38,7 @@ import {
   triggerFullDataSyncToSupabase,
   getDatabaseReconciliationReport,
   invalidateUserCache,
+  isValidProductionServerUrl,
 } from './db.ts';
 import { testSupabaseConnection, isSupabaseConfigured } from './supabase.ts';
 import { authenticateToken, requireAuth, requireRole, generateToken, verifyToken, clearAuthSessionCache } from './auth.ts';
@@ -60,9 +61,11 @@ import {
 import {
   SERVER_MAX_APK_UPLOAD_BYTES,
   checkGitHubRepositoryStatus,
+  getSavedGitHubSettingsSummary,
   getUploadJobProgress,
   publishApkToGitHubRelease,
   redactGitHubSecrets,
+  resolveGitHubConfig,
   setUploadJobProgress,
   streamGitHubReleaseAssetToResponse,
   verifyExistingGitHubReleaseAsset,
@@ -1358,12 +1361,92 @@ const handleGetLatestUpdate = async (_req: Request, res: Response) => {
 apiRouter.get('/app-updates', handleGetLatestUpdate);
 apiRouter.get('/app-updates/latest', handleGetLatestUpdate);
 
-// GET /api/app-updates/github-status - Real GitHub Releases & Signing Key readiness (OWNER ONLY)
-apiRouter.get('/app-updates/github-status', requireAuth, requireStrictOwner, async (_req, res) => {
+function resolveRequestPublicHttpsOrigin(req: Request): string | undefined {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0]
+    .trim();
+  if (proto !== 'https' || !host) return undefined;
+  return isValidProductionServerUrl(`https://${host}`) || undefined;
+}
+
+// GET /api/app-updates/admin-bootstrap - Single atomic admin bootstrap (Saved cloud settings + history, ZERO live GitHub API calls)
+apiRouter.get('/app-updates/admin-bootstrap', requireAuth, requireStrictOwner, async (_req, res) => {
   setNoCacheHeaders(res);
   try {
+    const [github, currentUpdate, updates] = await Promise.all([
+      getSavedGitHubSettingsSummary(),
+      getLatestAppUpdate(),
+      getAppUpdatesHistory(),
+    ]);
+    const signingKey = getOriginalSamiSigningKeyStatus();
+    const effectiveMinVersionCode = Math.max(
+      currentUpdate?.storageSource === 'github_releases' ? currentUpdate.versionCode : 0,
+      currentUpdate?.versionCode || 0,
+      SAMI_INSTALLED_BASELINE_VERSION_CODE
+    );
+
+    res.json({
+      success: true,
+      github,
+      vault: github.vault || null,
+      signingKey: {
+        available: signingKey.available,
+        sha256Fingerprint: signingKey.sha256Fingerprint,
+        subject: signingKey.subject,
+        error: signingKey.error || null,
+      },
+      currentPublished: currentUpdate,
+      effectiveMinVersionCode,
+      baseline: buildBaselinePayload(),
+      updates,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'فشل تحميل بيانات إدارة التحديثات من السحابة: ' + redactGitHubSecrets(err),
+    });
+  }
+});
+
+// GET /api/app-updates/settings - Read saved cloud GitHub settings without exposing GITHUB_TOKEN (OWNER ONLY)
+apiRouter.get('/app-updates/settings', requireAuth, requireStrictOwner, async (_req, res) => {
+  setNoCacheHeaders(res);
+  try {
+    const github = await getSavedGitHubSettingsSummary();
+    res.json({
+      success: true,
+      settings: {
+        githubOwner: github.owner,
+        githubRepo: github.repo,
+        fullName: github.fullName,
+        hasSavedToken: github.hasToken,
+        tokenStatusAr: github.hasToken ? 'التوكن محفوظ' : 'التوكن غير محفوظ',
+        apiServerUrl: github.vault?.apiServerUrl || '',
+        updatedAt: github.vault?.updatedAt || null,
+        updatedBy: github.vault?.updatedBy || null,
+      },
+      github,
+      vault: github.vault || null,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'فشل استرجاع إعدادات GitHub السحابية: ' + redactGitHubSecrets(err),
+    });
+  }
+});
+
+// GET /api/app-updates/github-status - Saved cloud readiness by default; live GitHub probe only when ?live=1 (OWNER ONLY)
+apiRouter.get('/app-updates/github-status', requireAuth, requireStrictOwner, async (req, res) => {
+  setNoCacheHeaders(res);
+  try {
+    const runLiveProbe = req.query?.live === '1' || req.query?.live === 'true';
     const [github, currentUpdate] = await Promise.all([
-      checkGitHubRepositoryStatus(),
+      runLiveProbe ? checkGitHubRepositoryStatus() : getSavedGitHubSettingsSummary(),
       getLatestAppUpdate(),
     ]);
     const signingKey = getOriginalSamiSigningKeyStatus();
@@ -1392,7 +1475,7 @@ apiRouter.get('/app-updates/github-status', requireAuth, requireStrictOwner, asy
   }
 });
 
-// POST /api/app-updates/github-settings - Save GitHub Owner, Repo, and Secret Token in isolated server vault (OWNER ONLY)
+// POST /api/app-updates/github-settings - Permanently save GITHUB_OWNER & GITHUB_REPO in Firestore and GITHUB_TOKEN in permanent server vault (OWNER ONLY)
 apiRouter.post('/app-updates/github-settings', requireAuth, requireStrictOwner, async (req, res) => {
   setNoCacheHeaders(res);
   try {
@@ -1400,17 +1483,21 @@ apiRouter.post('/app-updates/github-settings', requireAuth, requireStrictOwner, 
     const rawOwner = typeof body.githubOwner === 'string' ? body.githubOwner : '';
     const rawRepo = typeof body.githubRepo === 'string' ? body.githubRepo : '';
     const rawToken = typeof body.githubToken === 'string' ? body.githubToken : undefined;
+    const rawApiServerUrl =
+      typeof body.apiServerUrl === 'string' && body.apiServerUrl.trim() !== ''
+        ? body.apiServerUrl.trim()
+        : resolveRequestPublicHttpsOrigin(req);
 
     const saved = await saveGitHubCredentialsToVault({
       owner: rawOwner,
       repo: rawRepo,
       token: rawToken,
+      apiServerUrl: rawApiServerUrl,
+      updatedBy: req.user!.displayName || req.user!.username || 'Sami',
     });
 
-    const github = await checkGitHubRepositoryStatus();
-    const message = github.canPublishReleases
-      ? `تم حفظ إعدادات GitHub Releases والاتصال بالمستودع ${github.fullName} بنجاح.`
-      : `تم حفظ الإعدادات على الخادم، ولكن تعذر التحقق الكامل من صلاحية النشر على ${saved.owner}/${saved.repo}: ${github.error || ''}`;
+    const github = await getSavedGitHubSettingsSummary();
+    const message = `تم حفظ إعدادات GitHub Releases (${saved.owner}/${saved.repo}) في السحابة بشكل دائم بنجاح.`;
 
     res.json({
       success: true,
@@ -1426,7 +1513,7 @@ apiRouter.post('/app-updates/github-settings', requireAuth, requireStrictOwner, 
   }
 });
 
-// POST /api/app-updates/github-test - Test GitHub Releases connectivity & write permissions (OWNER ONLY)
+// POST /api/app-updates/github-test - Explicit live test of GitHub Releases connectivity & write permissions (OWNER ONLY)
 apiRouter.post('/app-updates/github-test', requireAuth, requireStrictOwner, async (req, res) => {
   setNoCacheHeaders(res);
   try {
@@ -1445,7 +1532,7 @@ apiRouter.post('/app-updates/github-test', requireAuth, requireStrictOwner, asyn
     res.status(ok ? 200 : 400).json({
       success: ok,
       message: ok
-        ? `الاتصال ناجح بالمستودع ${github.fullName} وصلاحيات إنشاء الإصدارات (Releases) جاهزة.`
+        ? `الاتصال ناجح بالمستودع ${github.fullName} وصلاحيات إنشاء الإصدارات (Releases) جاهزة ✓`
         : github.setupInstructionsAr || github.error || 'تعذر التحقق من الاتصال بمستودع GitHub.',
       error: ok ? null : github.setupInstructionsAr || github.error || 'تعذر الاتصال بمستودع GitHub',
       github,
@@ -1812,10 +1899,19 @@ apiRouter.post('/app-updates/rollback', requireAuth, requireStrictOwner, async (
       });
     }
 
+    const activeGhCfg = await resolveGitHubConfig();
+    const resolvedOwner = targetRecord.githubOwner || activeGhCfg.owner;
+    const resolvedRepo = targetRecord.githubRepo || activeGhCfg.repo;
+    if (!resolvedOwner || !resolvedRepo) {
+      return res.status(400).json({
+        error: 'تعذر تحديد مستودع GitHub المرتبط بهذا الإصدار؛ يرجى حفظ إعدادات GitHub Releases أولاً.',
+      });
+    }
+
     // Confirm the GitHub Release Asset is still live and intact before activating rollback
     const assetVerification = await verifyExistingGitHubReleaseAsset({
-      owner: targetRecord.githubOwner || 'alqadasif2-cloud',
-      repo: targetRecord.githubRepo || 'samii-21',
+      owner: resolvedOwner,
+      repo: resolvedRepo,
       releaseId: targetRecord.githubReleaseId || 0,
       assetId: targetRecord.githubAssetId || 0,
       expectedSize: targetRecord.fileSize || 0,
@@ -1861,9 +1957,18 @@ apiRouter.get('/app-updates/download/:target', async (req, res) => {
       });
     }
 
+    const activeGhCfg = await resolveGitHubConfig();
+    const resolvedOwner = record.githubOwner || activeGhCfg.owner;
+    const resolvedRepo = record.githubRepo || activeGhCfg.repo;
+    if (!resolvedOwner || !resolvedRepo) {
+      return res.status(503).json({
+        error: 'إعدادات مستودع GitHub غير مكتملة على الخادم حالياً',
+      });
+    }
+
     await streamGitHubReleaseAssetToResponse({
-      owner: record.githubOwner || 'alqadasif2-cloud',
-      repo: record.githubRepo || 'samii-21',
+      owner: resolvedOwner,
+      repo: resolvedRepo,
       assetId: record.githubAssetId || 0,
       browserDownloadUrl: record.downloadUrl,
       isRepoPrivate: Boolean(record.isRepoPrivate),

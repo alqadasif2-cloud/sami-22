@@ -378,6 +378,52 @@ export async function getUserById(userId: number): Promise<UserRecord | null> {
     }
   }
 
+  // 2.5 Cloud Firestore REST fallback on `community_users/{userId}` (critical for cold-start Cloud Run containers)
+  if (userId > 0 && !isFirestoreRestBackoffActive()) {
+    try {
+      const dbSegment = encodeURIComponent(databaseId || '(default)');
+      const restUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/${dbSegment}/documents/community_users/${encodeURIComponent(String(userId))}`;
+      const resp = await fetch(restUrl, {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (resp.status === 429) {
+        setFirestoreRestBackoff(FIRESTORE_BACKOFF_DURATION_MS);
+      } else if (resp.ok) {
+        const docJson: any = await resp.json();
+        const f = docJson?.fields;
+        if (f && f.username?.stringValue) {
+          const uname = String(f.username.stringValue);
+          const rawRole = String(f.role?.stringValue || 'user');
+          const resolvedRole: UserRecord['role'] =
+            userId === 1 || rawRole === 'owner'
+              ? 'owner'
+              : rawRole === 'moderator'
+                ? 'moderator'
+                : rawRole === 'guest'
+                  ? 'guest'
+                  : 'user';
+          const cloudUser: UserRecord = {
+            id: userId,
+            username: uname,
+            displayName: String(f.displayName?.stringValue || uname || 'متداول'),
+            passwordHash: String(f.passwordHash?.stringValue || ''),
+            salt: String(f.salt?.stringValue || ''),
+            role: resolvedRole,
+            avatarUrl: f.avatarUrl?.stringValue || null,
+            warningsCount: f.warningsCount?.integerValue ? Number(f.warningsCount.integerValue) : 0,
+            createdAt: f.createdAt?.integerValue ? Number(f.createdAt.integerValue) : Date.now(),
+            updatedAt: f.updatedAt?.integerValue ? Number(f.updatedAt.integerValue) : Date.now(),
+          };
+          userCache.set(userId, { user: cloudUser, cachedAt: Date.now() });
+          firestoreMetrics.recordRead('getUserById', 'community_users', 'getDoc', 1, false);
+          return cloudUser;
+        }
+      }
+    } catch {}
+  }
+
   // 3. Persistent disk fallback
   const diskFallback = diskStore.users[String(userId)] || null;
   if (diskFallback) {
@@ -1747,6 +1793,12 @@ export interface AppUpdateRecord {
   publishedBy?: string;
   isActive: boolean;
   isHidden?: boolean;
+  // Non-secret cloud configuration persisted in Cloud Firestore (`app_updates/latest`)
+  configuredGithubOwner?: string;
+  configuredGithubRepo?: string;
+  configuredSettingsUpdatedAt?: number;
+  configuredSettingsUpdatedBy?: string;
+  configuredApiServerUrl?: string;
 }
 
 const DEFAULT_APP_UPDATE: AppUpdateRecord = {
@@ -1756,8 +1808,6 @@ const DEFAULT_APP_UPDATE: AppUpdateRecord = {
   description: 'إصدار Sami 1.3.1 مستقر ومحدّث.',
   applicationId: 'com.sami.tradingchallengetracker',
   storageSource: 'github_releases',
-  githubOwner: 'alqadasif2-cloud',
-  githubRepo: 'samii-21',
   downloadUrl: '',
   status: 'paused',
   isMandatory: false,
@@ -1852,6 +1902,28 @@ function normalizeAppUpdateRecord(data: any, fallbackId = 'latest'): AppUpdateRe
   if (data?.minSupportedVersionCode !== undefined && data?.minSupportedVersionCode !== null) {
     rec.minSupportedVersionCode = Math.floor(Number(data.minSupportedVersionCode));
   }
+  if (typeof data?.configuredGithubOwner === 'string' && data.configuredGithubOwner.trim()) {
+    rec.configuredGithubOwner = data.configuredGithubOwner.trim();
+  }
+  if (typeof data?.configuredGithubRepo === 'string' && data.configuredGithubRepo.trim()) {
+    rec.configuredGithubRepo = data.configuredGithubRepo.trim();
+  }
+  if (
+    data?.configuredSettingsUpdatedAt !== undefined &&
+    data?.configuredSettingsUpdatedAt !== null &&
+    Number(data.configuredSettingsUpdatedAt) > 0
+  ) {
+    rec.configuredSettingsUpdatedAt = Math.floor(Number(data.configuredSettingsUpdatedAt));
+  }
+  if (typeof data?.configuredSettingsUpdatedBy === 'string' && data.configuredSettingsUpdatedBy.trim()) {
+    rec.configuredSettingsUpdatedBy = data.configuredSettingsUpdatedBy.trim();
+  }
+  if (typeof data?.configuredApiServerUrl === 'string' && data.configuredApiServerUrl.trim()) {
+    const cleanServerUrl = isValidProductionServerUrl(data.configuredApiServerUrl);
+    if (cleanServerUrl) {
+      rec.configuredApiServerUrl = cleanServerUrl;
+    }
+  }
 
   return rec;
 }
@@ -1944,15 +2016,35 @@ function toFirestoreRestFields(record: AppUpdateRecord): Record<string, any> {
   if (record.minSupportedVersionCode !== undefined) {
     fields.minSupportedVersionCode = { integerValue: String(Math.floor(Number(record.minSupportedVersionCode))) };
   }
+  if (record.configuredGithubOwner) {
+    fields.configuredGithubOwner = { stringValue: record.configuredGithubOwner };
+  }
+  if (record.configuredGithubRepo) {
+    fields.configuredGithubRepo = { stringValue: record.configuredGithubRepo };
+  }
+  if (record.configuredSettingsUpdatedAt !== undefined && record.configuredSettingsUpdatedAt > 0) {
+    fields.configuredSettingsUpdatedAt = {
+      integerValue: String(Math.floor(Number(record.configuredSettingsUpdatedAt))),
+    };
+  }
+  if (record.configuredSettingsUpdatedBy) {
+    fields.configuredSettingsUpdatedBy = { stringValue: record.configuredSettingsUpdatedBy };
+  }
+  if (record.configuredApiServerUrl) {
+    const cleanServerUrl = isValidProductionServerUrl(record.configuredApiServerUrl);
+    if (cleanServerUrl) {
+      fields.configuredApiServerUrl = { stringValue: cleanServerUrl };
+    }
+  }
   return fields;
 }
 
 let cachedAppUpdate: { record: AppUpdateRecord; cachedAt: number } | null = null;
 const APP_UPDATE_CACHE_TTL_MS = 30_000; // 30s responsive cache (invalidated immediately on writes)
 
-async function readSharedAppUpdateDoc(docId = 'latest'): Promise<AppUpdateRecord | null> {
+async function readSharedAppUpdateDoc(docId = 'latest', bypassCache = false): Promise<AppUpdateRecord | null> {
   // Check memory cache first
-  if (docId === 'latest' && cachedAppUpdate && Date.now() - cachedAppUpdate.cachedAt < APP_UPDATE_CACHE_TTL_MS) {
+  if (!bypassCache && docId === 'latest' && cachedAppUpdate && Date.now() - cachedAppUpdate.cachedAt < APP_UPDATE_CACHE_TTL_MS) {
     return cachedAppUpdate.record;
   }
 
@@ -1996,6 +2088,7 @@ async function readSharedAppUpdateDoc(docId = 'latest'): Promise<AppUpdateRecord
     const res = await fetch(getFirestoreRestDocUrl(docId), {
       method: 'GET',
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (res.status === 404) {
@@ -2044,7 +2137,24 @@ async function readSharedAppUpdateDoc(docId = 'latest'): Promise<AppUpdateRecord
 }
 
 async function writeAndVerifySharedAppUpdateDoc(docId: string, record: AppUpdateRecord): Promise<AppUpdateRecord> {
-  const normalized = normalizeAppUpdateRecord(record, docId);
+  // Preserve non-secret cloud GitHub & API server configuration on `latest` across release writes/toggles/rollbacks
+  let mergedInput: AppUpdateRecord = record;
+  if (docId === 'latest') {
+    const existingLatest =
+      cachedAppUpdate?.record || (await readSharedAppUpdateDoc('latest').catch(() => null)) || diskStore.appUpdates || null;
+    if (existingLatest) {
+      mergedInput = {
+        ...record,
+        configuredGithubOwner: record.configuredGithubOwner ?? existingLatest.configuredGithubOwner,
+        configuredGithubRepo: record.configuredGithubRepo ?? existingLatest.configuredGithubRepo,
+        configuredSettingsUpdatedAt: record.configuredSettingsUpdatedAt ?? existingLatest.configuredSettingsUpdatedAt,
+        configuredSettingsUpdatedBy: record.configuredSettingsUpdatedBy ?? existingLatest.configuredSettingsUpdatedBy,
+        configuredApiServerUrl: record.configuredApiServerUrl ?? existingLatest.configuredApiServerUrl,
+      };
+    }
+  }
+
+  const normalized = normalizeAppUpdateRecord(mergedInput, docId);
   const cleanForAdmin = JSON.parse(JSON.stringify(normalized));
 
   // Always commit locally first so local state and visibility toggles are instantly persistent
@@ -2070,6 +2180,7 @@ async function writeAndVerifySharedAppUpdateDoc(docId: string, record: AppUpdate
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
         body: JSON.stringify({ fields: toFirestoreRestFields(normalized) }),
+        signal: AbortSignal.timeout(10_000),
       });
       if (res.status === 429) {
         setFirestoreRestBackoff(FIRESTORE_BACKOFF_DURATION_MS);
@@ -2088,11 +2199,258 @@ async function writeAndVerifySharedAppUpdateDoc(docId: string, record: AppUpdate
   if (docId === 'latest') {
     cachedAppUpdate = null;
   }
-  const verified = await readSharedAppUpdateDoc(docId);
+  const verified = await readSharedAppUpdateDoc(docId, true);
   if (docId === 'latest') {
     cachedAppUpdate = { record: verified || normalized, cachedAt: Date.now() };
   }
   return verified || normalized;
+}
+
+// ============================================================================
+// PERMANENT CLOUD GITHUB SETTINGS & PRODUCTION SERVER URL PERSISTENCE
+// (Strictly non-secret fields ONLY — GITHUB_TOKEN is NEVER stored here!)
+// ============================================================================
+
+export function isValidProductionServerUrl(rawUrl: string | undefined | null): string | null {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed || trimmed === 'MY_APP_URL') return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'https:') return null;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      !host ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host === 'appassets.androidplatform.net' ||
+      host.startsWith('ais-dev-') ||
+      host.startsWith('ais-pre-') ||
+      host.endsWith('.usercontent.goog')
+    ) {
+      return null;
+    }
+    return parsed.origin.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
+}
+
+export interface CloudGitHubSettings {
+  githubOwner: string;
+  githubRepo: string;
+  apiServerUrl: string;
+  updatedAt: number | null;
+  updatedBy: string | null;
+  source: 'firestore' | 'none';
+}
+
+export async function getCloudGitHubSettings(forceFresh = false): Promise<CloudGitHubSettings> {
+  // Always read from authoritative Cloud Firestore (`app_updates/latest`)
+  let rec: AppUpdateRecord | null = null;
+  try {
+    rec = await readSharedAppUpdateDoc('latest', forceFresh);
+  } catch {
+    rec = null;
+  }
+
+  const owner = String(rec?.configuredGithubOwner || '').trim();
+  const repo = String(rec?.configuredGithubRepo || '').trim();
+  const apiServerUrl = isValidProductionServerUrl(rec?.configuredApiServerUrl) || '';
+  const updatedAt = rec?.configuredSettingsUpdatedAt && rec.configuredSettingsUpdatedAt > 0 ? rec.configuredSettingsUpdatedAt : null;
+  const updatedBy = rec?.configuredSettingsUpdatedBy ? String(rec.configuredSettingsUpdatedBy) : null;
+
+  if (owner || repo || apiServerUrl) {
+    return {
+      githubOwner: owner,
+      githubRepo: repo,
+      apiServerUrl,
+      updatedAt,
+      updatedBy,
+      source: 'firestore',
+    };
+  }
+
+  return {
+    githubOwner: '',
+    githubRepo: '',
+    apiServerUrl: '',
+    updatedAt: null,
+    updatedBy: null,
+    source: 'none',
+  };
+}
+
+export async function saveCloudGitHubSettings(input: {
+  githubOwner: string;
+  githubRepo: string;
+  apiServerUrl?: string;
+  updatedBy?: string;
+}): Promise<CloudGitHubSettings> {
+  const cleanOwner = String(input.githubOwner || '').trim();
+  const cleanRepo = String(input.githubRepo || '').trim();
+  if (!cleanOwner || !cleanRepo) {
+    throw new Error('يرجى إدخال GITHUB_OWNER وGITHUB_REPO بشكل صحيح قبل الحفظ في السحابة');
+  }
+
+  let cleanServerUrl: string | undefined;
+  if (input.apiServerUrl !== undefined && String(input.apiServerUrl).trim() !== '') {
+    const validated = isValidProductionServerUrl(input.apiServerUrl);
+    if (!validated) {
+      throw new Error(
+        'عنوان الخادم المنشور غير صالح؛ يجب أن يبدأ بـ https:// وألا يكون عنوان معاينة (ais-pre / ais-dev) أو localhost.'
+      );
+    }
+    cleanServerUrl = validated;
+  }
+
+  const now = Date.now();
+  const actor = String(input.updatedBy || 'Sami').trim() || 'Sami';
+  let wroteToCloud = false;
+
+  if (firestoreClient) {
+    try {
+      const mergePayload: Record<string, unknown> = {
+        configuredGithubOwner: cleanOwner,
+        configuredGithubRepo: cleanRepo,
+        configuredSettingsUpdatedAt: now,
+        configuredSettingsUpdatedBy: actor,
+      };
+      if (cleanServerUrl) {
+        mergePayload.configuredApiServerUrl = cleanServerUrl;
+      }
+      await firestoreClient.collection('app_updates').doc('latest').set(mergePayload, { merge: true });
+      wroteToCloud = true;
+    } catch (err: any) {
+      console.warn('[Sami DB] Admin SDK cloud settings write notice, falling back to REST:', err?.message);
+    }
+  }
+
+  if (!wroteToCloud) {
+    const maskParams = [
+      'updateMask.fieldPaths=configuredGithubOwner',
+      'updateMask.fieldPaths=configuredGithubRepo',
+      'updateMask.fieldPaths=configuredSettingsUpdatedAt',
+      'updateMask.fieldPaths=configuredSettingsUpdatedBy',
+    ];
+    const patchFields: Record<string, any> = {
+      configuredGithubOwner: { stringValue: cleanOwner },
+      configuredGithubRepo: { stringValue: cleanRepo },
+      configuredSettingsUpdatedAt: { integerValue: String(now) },
+      configuredSettingsUpdatedBy: { stringValue: actor },
+    };
+    if (cleanServerUrl) {
+      maskParams.push('updateMask.fieldPaths=configuredApiServerUrl');
+      patchFields.configuredApiServerUrl = { stringValue: cleanServerUrl };
+    }
+
+    const patchUrl = `${getFirestoreRestDocUrl('latest')}?${maskParams.join('&')}`;
+    const res = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+      body: JSON.stringify({ fields: patchFields }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (res.status === 404) {
+      // Create baseline paused `latest` doc if not yet present in Firestore
+      const initRec: AppUpdateRecord = {
+        ...DEFAULT_APP_UPDATE,
+        configuredGithubOwner: cleanOwner,
+        configuredGithubRepo: cleanRepo,
+        configuredSettingsUpdatedAt: now,
+        configuredSettingsUpdatedBy: actor,
+        ...(cleanServerUrl ? { configuredApiServerUrl: cleanServerUrl } : {}),
+      };
+      const createRes = await fetch(getFirestoreRestDocUrl('latest'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+        body: JSON.stringify({ fields: toFirestoreRestFields(initRec) }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!createRes.ok) {
+        throw new Error(`تعذر إنشاء سجل إعدادات السحابة في Firestore (HTTP ${createRes.status})`);
+      }
+      wroteToCloud = true;
+    } else if (!res.ok) {
+      if (res.status === 429) {
+        setFirestoreRestBackoff(FIRESTORE_BACKOFF_DURATION_MS);
+      }
+      throw new Error(`تعذر حفظ إعدادات المستودع في قاعدة بيانات السحابة Firestore (HTTP ${res.status})`);
+    } else {
+      wroteToCloud = true;
+    }
+  }
+
+  // Invalidate cache and perform strict read-after-write verification from live Cloud Firestore
+  cachedAppUpdate = null;
+  const verifiedRec = await readSharedAppUpdateDoc('latest', true);
+  if (
+    !verifiedRec ||
+    verifiedRec.configuredGithubOwner !== cleanOwner ||
+    verifiedRec.configuredGithubRepo !== cleanRepo
+  ) {
+    throw new Error('لم يتم التحقق من ثبات إعدادات GitHub في قاعدة بيانات السحابة (Firestore)؛ لم يتم مسح الإعدادات السابقة.');
+  }
+
+  diskStore.appUpdates = { ...verifiedRec };
+  saveLocalDiskStore(diskStore);
+
+  return {
+    githubOwner: verifiedRec.configuredGithubOwner,
+    githubRepo: verifiedRec.configuredGithubRepo,
+    apiServerUrl: isValidProductionServerUrl(verifiedRec.configuredApiServerUrl) || '',
+    updatedAt: verifiedRec.configuredSettingsUpdatedAt || now,
+    updatedBy: verifiedRec.configuredSettingsUpdatedBy || actor,
+    source: 'firestore',
+  };
+}
+
+let lastSyncedProdServerUrl = '';
+
+export async function syncProductionApiServerUrlToCloud(rawOrigin: string): Promise<boolean> {
+  const validOrigin = isValidProductionServerUrl(rawOrigin);
+  if (!validOrigin) return false;
+  if (lastSyncedProdServerUrl === validOrigin) return true;
+
+  try {
+    const existing = await getCloudGitHubSettings(false);
+    if (existing.apiServerUrl === validOrigin) {
+      lastSyncedProdServerUrl = validOrigin;
+      return true;
+    }
+
+    lastSyncedProdServerUrl = validOrigin;
+    if (firestoreClient) {
+      await firestoreClient
+        .collection('app_updates')
+        .doc('latest')
+        .set({ configuredApiServerUrl: validOrigin }, { merge: true });
+      cachedAppUpdate = null;
+      return true;
+    }
+
+    const patchUrl = `${getFirestoreRestDocUrl('latest')}?updateMask.fieldPaths=configuredApiServerUrl`;
+    const res = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+      body: JSON.stringify({
+        fields: {
+          configuredApiServerUrl: { stringValue: validOrigin },
+        },
+      }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.ok) {
+      cachedAppUpdate = null;
+      return true;
+    }
+    lastSyncedProdServerUrl = '';
+    return false;
+  } catch {
+    lastSyncedProdServerUrl = '';
+    return false;
+  }
 }
 
 export async function getLatestAppUpdate(): Promise<AppUpdateRecord> {

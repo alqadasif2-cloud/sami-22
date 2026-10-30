@@ -1,49 +1,49 @@
 import crypto from 'crypto';
+import {
+  getCloudGitHubSettings,
+  isValidProductionServerUrl,
+  saveCloudGitHubSettings,
+} from './db.ts';
 
 /**
- * Isolated Server-Only Secret Vault for GitHub Releases Credentials
+ * Permanent & Isolated Server-Only Secret Vault for GitHub Releases Credentials
  *
- * Security Invariants:
- * 1. NEVER stores GITHUB_TOKEN in Firestore, Supabase, SQLite, LocalStorage, project files, or APK.
- * 2. NEVER contains hardcoded repository or owner names.
- * 3. NEVER returns the raw token to client/API responses or error logs.
- * 4. Tier 1: Uses Google Cloud Secret Manager (`secretmanager.googleapis.com`) when available and permitted on the host.
- * 5. Tier 2: When Google Cloud Secret Manager is disabled by the hosting sandbox (e.g. 403 PERMISSION_DENIED),
- *    refuses to fall back to any database or file, seals credentials in isolated Node.js RAM using AES-256-GCM,
- *    and exposes an honest hosting capability notice to the application Owner.
+ * Security & Persistence Invariants:
+ * 1. `GITHUB_OWNER` and `GITHUB_REPO` (non-secret) are persisted permanently in Cloud Firestore (`app_updates/latest`).
+ * 2. `GITHUB_TOKEN` is NEVER stored in Firestore, Supabase, SQLite, disk files, LocalStorage, or APK.
+ * 3. `GITHUB_TOKEN` is NEVER stored in ephemeral RAM-only storage that disappears on server restart.
+ * 4. `GITHUB_TOKEN` is NEVER returned to the client, logs, or API error responses.
+ * 5. Permanent Token Storage Tiers:
+ *    - Tier 1 (`gcp_secret_manager`): Google Cloud Secret Manager (`secretmanager.googleapis.com`) with version superseding.
+ *    - Tier 2 (`server_env`): Permanent Cloud Run / AI Studio Server Environment Secret (`GITHUB_TOKEN` / `GITHUB_RELEASES_TOKEN`).
+ *    If a new/different token is submitted while Google Cloud Secret Manager is disabled on the host, the server refuses
+ *    ephemeral or database storage, preserves previous settings untouched, and returns actionable instructions to enable it.
  */
 
 const GCP_SECRET_ID = 'sami-github-releases-credentials';
 const METADATA_BASE = 'http://metadata.google.internal/computeMetadata/v1';
+const GCP_CACHE_TTL_MS = 30_000;
 
-// Process-ephemeral 256-bit key generated strictly inside isolated server RAM
-const RAM_VAULT_KEY = crypto.randomBytes(32);
-
-interface SealedRamBlob {
-  iv: Buffer;
-  authTag: Buffer;
-  ciphertext: Buffer;
-  updatedAt: number;
-}
-
-interface StoredVaultPayload {
-  owner: string;
-  repo: string;
+interface StoredSecretPayload {
   token: string;
   updatedAt: number;
 }
 
 export type VaultStorageMode =
   | 'gcp_secret_manager'
-  | 'server_encrypted_memory'
   | 'server_env'
   | 'unconfigured';
 
 export interface VaultPublicStatus {
   storageMode: VaultStorageMode;
   persistentVaultAvailable: boolean;
+  secretManagerEnabled: boolean;
+  cloudSettingsPersisted: boolean;
   hasSavedToken: boolean;
+  tokenStatusAr: string;
   updatedAt: number | null;
+  updatedBy: string | null;
+  apiServerUrl: string;
   hostingVaultNoticeAr: string | null;
 }
 
@@ -52,15 +52,14 @@ export interface ResolvedGitHubVaultCredentials {
   repo: string;
   token: string;
   hasToken: boolean;
+  apiServerUrl: string;
   vault: VaultPublicStatus;
 }
 
-let sealedRamVault: SealedRamBlob | null = null;
-let gcpProbeDone = false;
+let gcpProbeDoneAt = 0;
 let gcpSecretManagerAvailable = false;
 let gcpTargetProjectId: string | null = null;
-let gcpUnavailableReason: string | null = null;
-let gcpInitialLoadAttempted = false;
+let gcpCachedPayload: { payload: StoredSecretPayload | null; cachedAt: number } | null = null;
 
 // Isolated server-only set of active token strings used strictly by redactGitHubSecrets()
 const redactionTokenSet = new Set<string>();
@@ -78,6 +77,13 @@ export function getKnownSecretTokensForRedaction(): string[] {
   if (envTok1.length >= 4) redactionTokenSet.add(envTok1);
   if (envTok2.length >= 4) redactionTokenSet.add(envTok2);
   return Array.from(redactionTokenSet);
+}
+
+function sha256ConstantTimeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const hashA = crypto.createHash('sha256').update(a, 'utf8').digest();
+  const hashB = crypto.createHash('sha256').update(b, 'utf8').digest();
+  return crypto.timingSafeEqual(hashA, hashB);
 }
 
 export function sanitizeGitHubSlug(val: string | undefined | null): string {
@@ -125,54 +131,19 @@ export function parseOwnerAndRepoInput(rawOwner: string, rawRepo: string): { own
   return { owner, repo };
 }
 
-function sealPayloadInRam(payload: StoredVaultPayload): void {
-  // Zero previous ciphertext buffer before replacing
-  if (sealedRamVault) {
-    sealedRamVault.ciphertext.fill(0);
-    sealedRamVault.iv.fill(0);
-    sealedRamVault.authTag.fill(0);
-  }
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', RAM_VAULT_KEY, iv);
-  const plainBuf = Buffer.from(JSON.stringify(payload), 'utf8');
-  const encrypted = Buffer.concat([cipher.update(plainBuf), cipher.final()]);
-  plainBuf.fill(0);
-  const authTag = cipher.getAuthTag();
-  sealedRamVault = {
-    iv,
-    authTag,
-    ciphertext: encrypted,
-    updatedAt: payload.updatedAt,
-  };
-  if (payload.token) {
-    registerTokenForRedaction(payload.token);
-  }
-}
-
-function unsealPayloadFromRam(): StoredVaultPayload | null {
-  if (!sealedRamVault) return null;
-  try {
-    const decipher = crypto.createDecipheriv('aes-256-gcm', RAM_VAULT_KEY, sealedRamVault.iv);
-    decipher.setAuthTag(sealedRamVault.authTag);
-    const decrypted = Buffer.concat([decipher.update(sealedRamVault.ciphertext), decipher.final()]);
-    const parsed = JSON.parse(decrypted.toString('utf8')) as StoredVaultPayload;
-    decrypted.fill(0);
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 async function fetchMetadataAccessToken(): Promise<{ accessToken: string; projectId: string } | null> {
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 2500);
     const headers = { 'Metadata-Flavor': 'Google' };
     const [projRes, tokRes] = await Promise.all([
-      fetch(`${METADATA_BASE}/project/project-id`, { headers, signal: ctrl.signal }),
-      fetch(`${METADATA_BASE}/instance/service-accounts/default/token`, { headers, signal: ctrl.signal }),
+      fetch(`${METADATA_BASE}/project/project-id`, {
+        headers,
+        signal: AbortSignal.timeout(2_500),
+      }),
+      fetch(`${METADATA_BASE}/instance/service-accounts/default/token`, {
+        headers,
+        signal: AbortSignal.timeout(2_500),
+      }),
     ]);
-    clearTimeout(timer);
     if (!tokRes.ok) return null;
     const tokJson: any = await tokRes.json().catch(() => null);
     const metaProj = projRes.ok ? (await projRes.text()).trim() : '';
@@ -184,14 +155,15 @@ async function fetchMetadataAccessToken(): Promise<{ accessToken: string; projec
   }
 }
 
-async function probeGcpSecretManager(): Promise<boolean> {
-  if (gcpProbeDone) return gcpSecretManagerAvailable;
-  gcpProbeDone = true;
+async function probeGcpSecretManager(force = false): Promise<boolean> {
+  if (!force && gcpProbeDoneAt > 0 && Date.now() - gcpProbeDoneAt < 60_000) {
+    return gcpSecretManagerAvailable;
+  }
+  gcpProbeDoneAt = Date.now();
 
   const meta = await fetchMetadataAccessToken();
   if (!meta) {
     gcpSecretManagerAvailable = false;
-    gcpUnavailableReason = 'metadata_unavailable';
     return false;
   }
 
@@ -201,26 +173,28 @@ async function probeGcpSecretManager(): Promise<boolean> {
       {
         method: 'GET',
         headers: { Authorization: `Bearer ${meta.accessToken}` },
+        signal: AbortSignal.timeout(4_000),
       }
     );
     if (res.ok) {
       gcpSecretManagerAvailable = true;
       gcpTargetProjectId = meta.projectId;
-      gcpUnavailableReason = null;
       return true;
     }
     gcpSecretManagerAvailable = false;
-    gcpUnavailableReason = `http_${res.status}`;
     return false;
   } catch {
     gcpSecretManagerAvailable = false;
-    gcpUnavailableReason = 'network_error';
     return false;
   }
 }
 
-async function readFromGcpSecretManager(): Promise<StoredVaultPayload | null> {
-  const ok = await probeGcpSecretManager();
+async function readFromGcpSecretManager(bypassCache = false): Promise<StoredSecretPayload | null> {
+  if (!bypassCache && gcpCachedPayload && Date.now() - gcpCachedPayload.cachedAt < GCP_CACHE_TTL_MS) {
+    return gcpCachedPayload.payload;
+  }
+
+  const ok = await probeGcpSecretManager(bypassCache);
   if (!ok || !gcpTargetProjectId) return null;
   const meta = await fetchMetadataAccessToken();
   if (!meta) return null;
@@ -231,23 +205,34 @@ async function readFromGcpSecretManager(): Promise<StoredVaultPayload | null> {
       {
         method: 'GET',
         headers: { Authorization: `Bearer ${meta.accessToken}` },
+        signal: AbortSignal.timeout(5_000),
       }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      gcpCachedPayload = { payload: null, cachedAt: Date.now() };
+      return null;
+    }
     const data: any = await res.json();
     const b64 = data?.payload?.data;
     if (!b64) return null;
     const jsonStr = Buffer.from(String(b64), 'base64').toString('utf8');
-    const parsed = JSON.parse(jsonStr) as StoredVaultPayload;
-    if (parsed?.token) registerTokenForRedaction(parsed.token);
-    return parsed;
+    const parsed = JSON.parse(jsonStr) as any;
+    const cleanTok = sanitizeGitHubSlug(parsed?.token);
+    if (!cleanTok) return null;
+    registerTokenForRedaction(cleanTok);
+    const result: StoredSecretPayload = {
+      token: cleanTok,
+      updatedAt: Number(parsed?.updatedAt) || Date.now(),
+    };
+    gcpCachedPayload = { payload: result, cachedAt: Date.now() };
+    return result;
   } catch {
     return null;
   }
 }
 
-async function writeToGcpSecretManager(payload: StoredVaultPayload): Promise<boolean> {
-  const ok = await probeGcpSecretManager();
+async function writeToGcpSecretManager(payload: StoredSecretPayload): Promise<boolean> {
+  const ok = await probeGcpSecretManager(true);
   if (!ok || !gcpTargetProjectId) return false;
   const meta = await fetchMetadataAccessToken();
   if (!meta) return false;
@@ -260,10 +245,10 @@ async function writeToGcpSecretManager(payload: StoredVaultPayload): Promise<boo
   };
 
   try {
-    // Ensure secret container exists
     const getSec = await fetch(`https://secretmanager.googleapis.com/v1/${secretName}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${meta.accessToken}` },
+      signal: AbortSignal.timeout(5_000),
     });
     if (getSec.status === 404) {
       const createSec = await fetch(
@@ -272,6 +257,7 @@ async function writeToGcpSecretManager(payload: StoredVaultPayload): Promise<boo
           method: 'POST',
           headers: authHeaders,
           body: JSON.stringify({ replication: { automatic: {} } }),
+          signal: AbortSignal.timeout(6_000),
         }
       );
       if (!createSec.ok) return false;
@@ -279,28 +265,53 @@ async function writeToGcpSecretManager(payload: StoredVaultPayload): Promise<boo
       return false;
     }
 
-    // Add new secret version
     const b64Data = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
     const addVer = await fetch(`https://secretmanager.googleapis.com/v1/${secretName}:addVersion`, {
       method: 'POST',
       headers: authHeaders,
       body: JSON.stringify({ payload: { data: b64Data } }),
+      signal: AbortSignal.timeout(6_000),
     });
-    return addVer.ok;
+    if (!addVer.ok) return false;
+
+    const addedMeta: any = await addVer.json().catch(() => null);
+    const addedVersionName = String(addedMeta?.name || '');
+
+    // Best-effort disable superseded enabled versions so old tokens cannot be reused accidentally
+    if (addedVersionName) {
+      try {
+        const listVer = await fetch(`https://secretmanager.googleapis.com/v1/${secretName}/versions?pageSize=10`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${meta.accessToken}` },
+          signal: AbortSignal.timeout(4_000),
+        });
+        if (listVer.ok) {
+          const listJson: any = await listVer.json().catch(() => ({}));
+          const versions: any[] = Array.isArray(listJson?.versions) ? listJson.versions : [];
+          for (const v of versions) {
+            if (v?.name && v.name !== addedVersionName && v.state === 'ENABLED') {
+              await fetch(`https://secretmanager.googleapis.com/v1/${v.name}:disable`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: '{}',
+                signal: AbortSignal.timeout(3_500),
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Read-after-write verification in Secret Manager
+    gcpCachedPayload = null;
+    const verified = await readFromGcpSecretManager(true);
+    return Boolean(verified && sha256ConstantTimeEqual(verified.token, payload.token));
   } catch {
     return false;
   }
 }
 
-function buildHostingNotice(persistentAvailable: boolean, mode: VaultStorageMode): string | null {
-  if (persistentAvailable) return null;
-  if (mode === 'server_encrypted_memory') {
-    return 'ملاحظة أمنية: بيئة الاستضافة الحالية لا تفعّل خدمة مخزن الأسرار السحابي الدائم (Google Cloud Secret Manager)؛ والتزاماً بحماية التوكن لم يتم حفظه في قاعدة البيانات (Firestore) أو ملفات التطبيق، بل حُفظ مشفراً (AES-256-GCM) في ذاكرة الخادم المعزولة فقط وسيعمل تلقائياً طوال فترة تشغيل الخادم الحالي.';
-  }
-  return 'ملاحظة أمنية: خدمة Google Cloud Secret Manager غير مفعّلة في بيئة الاستضافة الحالية؛ عند حفظ الإعدادات من هذه الواجهة سيُحفظ التوكن مشفراً (AES-256-GCM) في ذاكرة الخادم المعزولة فقط دون تخزينه في قاعدة البيانات أو الملفات.';
-}
-
-function readEnvFallback(): { owner: string; repo: string; token: string } {
+function readPermanentEnvCredentials(): { owner: string; repo: string; token: string } {
   const rawOwner = (process.env.GITHUB_RELEASES_OWNER || process.env.GITHUB_OWNER || '').trim();
   const rawRepo = (process.env.GITHUB_RELEASES_REPO || process.env.GITHUB_REPO || '').trim();
   const parsed = parseOwnerAndRepoInput(rawOwner, rawRepo);
@@ -313,53 +324,68 @@ function readEnvFallback(): { owner: string; repo: string; token: string } {
   };
 }
 
-export async function getResolvedGitHubCredentials(): Promise<ResolvedGitHubVaultCredentials> {
-  const persistentAvailable = await probeGcpSecretManager();
+function buildHostingNotice(params: {
+  secretManagerEnabled: boolean;
+  hasPermanentEnvToken: boolean;
+}): string | null {
+  if (params.secretManagerEnabled) {
+    return null;
+  }
+  if (params.hasPermanentEnvToken) {
+    return 'الحفظ السحابي الدائم مفعّل: يُحفظ اسما المالك والمستودع في Cloud Firestore بشكل دائم، بينما يُقرأ التوكن من مخزن الأسرار البيئي الدائم للخادم (GITHUB_TOKEN). لتبديل قيمة التوكن مستقبلاً من المتصفح مباشرة، فعّل Secret Manager API على مشروع Google Cloud أو حدّث GITHUB_TOKEN في لوحة أسرار الخادم.';
+  }
+  return 'تنبيه إعداد الأسرار الدائمة: لتخزين GITHUB_TOKEN بشكل دائم وآمن دون استخدام تخزين مؤقت، يرجى تفعيل خدمة Secret Manager API في مشروع Google Cloud (مع صلاحية Secret Manager Admin لحساب خدمة Cloud Run) أو إضافة GITHUB_TOKEN في مخزن أسرار بيئة الخادم الدائمة.';
+}
 
-  if (persistentAvailable && !gcpInitialLoadAttempted && !sealedRamVault) {
-    gcpInitialLoadAttempted = true;
-    const fromGcp = await readFromGcpSecretManager();
-    if (fromGcp) {
-      sealPayloadInRam(fromGcp);
-    }
+export async function getResolvedGitHubCredentials(forceFresh = false): Promise<ResolvedGitHubVaultCredentials> {
+  const [secretManagerEnabled, cloudSettings] = await Promise.all([
+    probeGcpSecretManager(forceFresh),
+    getCloudGitHubSettings(forceFresh),
+  ]);
+
+  const gcpSecret = secretManagerEnabled ? await readFromGcpSecretManager(forceFresh) : null;
+  const envCreds = readPermanentEnvCredentials();
+
+  // Non-secret Owner & Repo come primarily from Cloud Firestore (`app_updates/latest`), with env fallback only if cloud is unset
+  const resolvedOwner = cloudSettings.githubOwner || envCreds.owner;
+  const resolvedRepo = cloudSettings.githubRepo || envCreds.repo;
+
+  // Secret Token comes ONLY from permanent Secret Manager or permanent Server Environment Secret
+  let resolvedToken = '';
+  let storageMode: VaultStorageMode = 'unconfigured';
+
+  if (gcpSecret?.token) {
+    resolvedToken = gcpSecret.token;
+    storageMode = 'gcp_secret_manager';
+  } else if (envCreds.token) {
+    resolvedToken = envCreds.token;
+    storageMode = 'server_env';
   }
 
-  const ramData = unsealPayloadFromRam();
-  const envData = readEnvFallback();
+  const hasSavedToken = resolvedToken.length > 0;
+  const persistentVaultAvailable = secretManagerEnabled || envCreds.token.length > 0;
+  const updatedAt = cloudSettings.updatedAt || gcpSecret?.updatedAt || null;
 
-  if (ramData) {
-    const mergedOwner = ramData.owner || envData.owner;
-    const mergedRepo = ramData.repo || envData.repo;
-    const mergedToken = ramData.token || envData.token;
-    const mode: VaultStorageMode = persistentAvailable ? 'gcp_secret_manager' : 'server_encrypted_memory';
-    return {
-      owner: mergedOwner,
-      repo: mergedRepo,
-      token: mergedToken,
-      hasToken: mergedToken.length > 0,
-      vault: {
-        storageMode: mode,
-        persistentVaultAvailable: persistentAvailable,
-        hasSavedToken: mergedToken.length > 0,
-        updatedAt: ramData.updatedAt,
-        hostingVaultNoticeAr: buildHostingNotice(persistentAvailable, mode),
-      },
-    };
-  }
-
-  const hasAnyEnv = Boolean(envData.owner || envData.repo || envData.token);
-  const mode: VaultStorageMode = hasAnyEnv ? 'server_env' : 'unconfigured';
   return {
-    owner: envData.owner,
-    repo: envData.repo,
-    token: envData.token,
-    hasToken: envData.token.length > 0,
+    owner: resolvedOwner,
+    repo: resolvedRepo,
+    token: resolvedToken,
+    hasToken: hasSavedToken,
+    apiServerUrl: cloudSettings.apiServerUrl,
     vault: {
-      storageMode: mode,
-      persistentVaultAvailable: persistentAvailable,
-      hasSavedToken: envData.token.length > 0,
-      updatedAt: null,
-      hostingVaultNoticeAr: buildHostingNotice(persistentAvailable, mode),
+      storageMode,
+      persistentVaultAvailable,
+      secretManagerEnabled,
+      cloudSettingsPersisted: cloudSettings.source === 'firestore',
+      hasSavedToken,
+      tokenStatusAr: hasSavedToken ? 'التوكن محفوظ' : 'التوكن غير محفوظ',
+      updatedAt,
+      updatedBy: cloudSettings.updatedBy,
+      apiServerUrl: cloudSettings.apiServerUrl,
+      hostingVaultNoticeAr: buildHostingNotice({
+        secretManagerEnabled,
+        hasPermanentEnvToken: envCreds.token.length > 0,
+      }),
     },
   };
 }
@@ -368,10 +394,13 @@ export async function saveGitHubCredentialsToVault(input: {
   owner: string;
   repo: string;
   token?: string;
+  apiServerUrl?: string;
+  updatedBy?: string;
 }): Promise<{
   owner: string;
   repo: string;
   hasToken: boolean;
+  apiServerUrl: string;
   vault: VaultPublicStatus;
 }> {
   const parsed = parseOwnerAndRepoInput(input.owner, input.repo);
@@ -384,39 +413,71 @@ export async function saveGitHubCredentialsToVault(input: {
     throw new Error('يرجى إدخال اسم مستودع GitHub صالح في حقل GITHUB_REPO');
   }
 
-  const current = await getResolvedGitHubCredentials();
-  const incomingToken = sanitizeGitHubSlug(input.token);
+  if (input.apiServerUrl !== undefined && String(input.apiServerUrl).trim() !== '') {
+    if (!isValidProductionServerUrl(input.apiServerUrl)) {
+      throw new Error(
+        'عنوان الخادم المنشور غير صالح؛ يجب أن يكون عنوان HTTPS فعليًا (لا يقبل localhost أو عناوين معاينة Google AI Studio).'
+      );
+    }
+  }
 
+  const incomingToken = sanitizeGitHubSlug(input.token);
   if (incomingToken && /\s/.test(incomingToken)) {
     throw new Error('صيغة التوكن المدخل في GITHUB_TOKEN غير صالحة (يجب ألا يحتوي على مسافات)');
   }
 
-  const effectiveToken = incomingToken || current.token;
-  if (!effectiveToken) {
-    throw new Error('يرجى إدخال التوكن السري (GITHUB_TOKEN) لحفظ الإعدادات لأول مرة');
+  const current = await getResolvedGitHubCredentials(true);
+  const envCreds = readPermanentEnvCredentials();
+
+  // STEP 1: Verify permanent secret storage BEFORE modifying Cloud Firestore (never wipe previous settings on failure!)
+  if (!incomingToken) {
+    if (!current.hasToken) {
+      if (!current.vault.secretManagerEnabled) {
+        throw new Error(
+          'لا يوجد توكن محفوظ حالياً، وخدمة Secret Manager API غير مفعّلة في مشروع Google Cloud. يرجى إضافة GITHUB_TOKEN في مخزن أسرار الخادم الدائم أو تفعيل Secret Manager API أولاً.'
+        );
+      }
+      throw new Error('يرجى إدخال التوكن السري (GITHUB_TOKEN) لحفظ الإعدادات لأول مرة');
+    }
+  } else {
+    registerTokenForRedaction(incomingToken);
+    const secretManagerSaved = await writeToGcpSecretManager({
+      token: incomingToken,
+      updatedAt: Date.now(),
+    });
+
+    if (!secretManagerSaved) {
+      // Check if the submitted token already matches the permanent server environment secret (`GITHUB_TOKEN`)
+      const matchesPermanentEnvToken =
+        envCreds.token.length > 0 && sha256ConstantTimeEqual(incomingToken, envCreds.token);
+
+      if (!matchesPermanentEnvToken) {
+        throw new Error(
+          'تم إيقاف الحفظ لأن التوكن الجديد لا يمكن تخزينه بشكل دائم في بيئة الاستضافة الحالية (خدمة Google Cloud Secret Manager غير مفعّلة، والتخزين المؤقت أو في قاعدة البيانات محظور أمنياً). لتفعيل الحفظ الدائم للتوكن الجديد: (1) فعّل Secret Manager API في مشروع Google Cloud وامنح حساب خدمة Cloud Run صلاحية Secret Manager Admin، أو (2) حدّث قيمة السر الدائم GITHUB_TOKEN في إعدادات أسرار الخادم ثم احفظ GITHUB_OWNER وGITHUB_REPO مع ترك حقل التوكن فارغاً.'
+        );
+      }
+    }
   }
 
-  const payload: StoredVaultPayload = {
-    owner: parsed.owner,
-    repo: parsed.repo,
-    token: effectiveToken,
-    updatedAt: Date.now(),
-  };
+  // STEP 2: Persist non-secret GITHUB_OWNER, GITHUB_REPO, and optional API Server URL permanently in Cloud Firestore
+  await saveCloudGitHubSettings({
+    githubOwner: parsed.owner,
+    githubRepo: parsed.repo,
+    apiServerUrl: input.apiServerUrl,
+    updatedBy: input.updatedBy,
+  });
 
-  const persistedInGcp = await writeToGcpSecretManager(payload);
-  sealPayloadInRam(payload);
+  // STEP 3: Read back fresh verified state from both Cloud Firestore & permanent secret vault
+  const verified = await getResolvedGitHubCredentials(true);
+  if (!verified.hasToken || verified.owner !== parsed.owner || verified.repo !== parsed.repo) {
+    throw new Error('تعذر التحقق النهائي من حفظ الإعدادات الدائمة في السحابة');
+  }
 
-  const mode: VaultStorageMode = persistedInGcp ? 'gcp_secret_manager' : 'server_encrypted_memory';
   return {
-    owner: payload.owner,
-    repo: payload.repo,
+    owner: verified.owner,
+    repo: verified.repo,
     hasToken: true,
-    vault: {
-      storageMode: mode,
-      persistentVaultAvailable: persistedInGcp,
-      hasSavedToken: true,
-      updatedAt: payload.updatedAt,
-      hostingVaultNoticeAr: buildHostingNotice(persistedInGcp, mode),
-    },
+    apiServerUrl: verified.apiServerUrl,
+    vault: verified.vault,
   };
 }

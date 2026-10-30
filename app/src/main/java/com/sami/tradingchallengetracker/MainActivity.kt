@@ -828,6 +828,16 @@ class SamiAndroidBridge(
         }
         return resultStr
     }
+
+    @JavascriptInterface
+    fun setRemoteServerUrl(url: String) {
+        FirebaseCloudHelper.saveConfiguredRemoteServerUrl(activity.applicationContext, url)
+    }
+
+    @JavascriptInterface
+    fun getRemoteServerUrl(): String {
+        return FirebaseCloudHelper.getConfiguredRemoteServerUrl(activity.applicationContext)
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
