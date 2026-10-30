@@ -1216,10 +1216,22 @@ export function SamiAdminUpdatePanel({
 
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [githubStatus, setGithubStatus] = useState<any>(null);
+  const [vaultInfo, setVaultInfo] = useState<any>(null);
   const [signingKeyInfo, setSigningKeyInfo] = useState<any>(null);
   const [currentPublished, setCurrentPublished] = useState<CloudAppUpdateConfig | null>(null);
   const [effectiveMinVersionCode, setEffectiveMinVersionCode] = useState<number>(SAMI_FALLBACK_VERSION_CODE);
   const [historyList, setHistoryList] = useState<CloudAppUpdateConfig[]>([]);
+
+  // Collapsible GitHub Releases Settings State (Never persisted in localStorage; token cleared after save)
+  const settingsInitializedRef = useRef(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [ownerInput, setOwnerInput] = useState('');
+  const [repoInput, setRepoInput] = useState('');
+  const [tokenInput, setTokenInput] = useState('');
+  const [showToken, setShowToken] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [settingsFeedback, setSettingsFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [inspectingFile, setInspectingFile] = useState(false);
@@ -1263,10 +1275,21 @@ export function SamiAdminUpdatePanel({
 
       const statusData = await statusRes.json().catch(() => ({}));
       if (statusRes.ok && statusData.success) {
-        setGithubStatus(statusData.github || null);
+        const gh = statusData.github || null;
+        setGithubStatus(gh);
+        setVaultInfo(statusData.vault || gh?.vault || null);
         setSigningKeyInfo(statusData.signingKey || null);
         setCurrentPublished(statusData.currentPublished || null);
         setEffectiveMinVersionCode(Number(statusData.effectiveMinVersionCode) || SAMI_FALLBACK_VERSION_CODE);
+
+        if (!settingsInitializedRef.current) {
+          settingsInitializedRef.current = true;
+          setOwnerInput(gh?.owner || '');
+          setRepoInput(gh?.repo || '');
+          if (!gh?.canPublishReleases) {
+            setSettingsOpen(true);
+          }
+        }
       }
 
       const histData = await histRes.json().catch(() => ({}));
@@ -1287,6 +1310,138 @@ export function SamiAdminUpdatePanel({
       if (activeXhrRef.current) activeXhrRef.current.abort();
     };
   }, [loadCloudStatusAndHistory]);
+
+  const handleSaveGitHubSettings = async () => {
+    if (savingSettings || testingConnection || uploading) return;
+    const cleanOwner = ownerInput.trim();
+    const cleanRepo = repoInput.trim();
+    const cleanTok = tokenInput.trim();
+    const hasExistingServerToken = Boolean(githubStatus?.hasToken || vaultInfo?.hasSavedToken);
+
+    if (!cleanOwner) {
+      const msg = 'يرجى إدخال اسم مالك المستودع في حقل GITHUB_OWNER';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    if (!cleanRepo) {
+      const msg = 'يرجى إدخال اسم المستودع في حقل GITHUB_REPO';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+    if (!cleanTok && !hasExistingServerToken) {
+      const msg = 'يرجى إدخال التوكن السري في حقل GITHUB_TOKEN لحفظ الإعدادات لأول مرة';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+
+    setSavingSettings(true);
+    setSettingsFeedback(null);
+    try {
+      const serverBase = getSamiServerBaseUrl();
+      const { headers } = getAuthCredentials();
+      const res = await fetch(`${serverBase}/api/app-updates/github-settings`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          githubOwner: cleanOwner,
+          githubRepo: cleanRepo,
+          ...(cleanTok ? { githubToken: cleanTok } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'تعذر حفظ إعدادات GitHub Releases');
+      }
+
+      // Immediately purge token from UI memory/DOM after server save
+      setTokenInput('');
+      setShowToken(false);
+
+      if (data.github) {
+        setGithubStatus(data.github);
+        setOwnerInput(data.github.owner || cleanOwner);
+        setRepoInput(data.github.repo || cleanRepo);
+      }
+      if (data.vault || data.github?.vault) {
+        setVaultInfo(data.vault || data.github?.vault);
+      }
+
+      const ready = Boolean(data.github?.canPublishReleases);
+      const feedbackMsg =
+        data.message ||
+        (ready
+          ? `تم حفظ الإعدادات والاتصال بالمستودع ${data.github?.fullName} بنجاح`
+          : 'تم حفظ الإعدادات على الخادم');
+      setSettingsFeedback({ ok: ready, text: feedbackMsg });
+      notify(feedbackMsg, !ready);
+    } catch (err: any) {
+      const msg = err?.message || 'فشل حفظ إعدادات GitHub Releases';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleTestGitHubConnection = async () => {
+    if (testingConnection || savingSettings || uploading) return;
+    const cleanOwner = ownerInput.trim();
+    const cleanRepo = repoInput.trim();
+    const cleanTok = tokenInput.trim();
+
+    if (!cleanOwner || !cleanRepo) {
+      const msg = 'يرجى إدخال GITHUB_OWNER وGITHUB_REPO أولاً لاختبار الاتصال';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+      return;
+    }
+
+    setTestingConnection(true);
+    setSettingsFeedback(null);
+    try {
+      const serverBase = getSamiServerBaseUrl();
+      const { headers } = getAuthCredentials();
+      const res = await fetch(`${serverBase}/api/app-updates/github-test`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          githubOwner: cleanOwner,
+          githubRepo: cleanRepo,
+          ...(cleanTok ? { githubToken: cleanTok } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.github) {
+        setGithubStatus(data.github);
+      }
+      if (data.vault || data.github?.vault) {
+        setVaultInfo(data.vault || data.github?.vault);
+      }
+
+      const ok = Boolean(res.ok && data.success && data.github?.canPublishReleases);
+      const msg =
+        data.message ||
+        data.error ||
+        (ok ? 'الاتصال بمستودع GitHub ناجح وجاهز للنشر' : 'فشل التحقق من الاتصال بمستودع GitHub');
+      setSettingsFeedback({ ok, text: msg });
+      notify(msg, !ok);
+    } catch (err: any) {
+      const msg = err?.message || 'فشل اختبار الاتصال بـ GitHub';
+      setSettingsFeedback({ ok: false, text: msg });
+      notify(msg, true);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const handleChooseApkClick = () => {
     if (uploading) return;
@@ -1614,14 +1769,19 @@ export function SamiAdminUpdatePanel({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between">
-            <span className="text-slate-400">مستودع التخزين المعتمد:</span>
-            <span dir="ltr" className="font-bold text-slate-100 font-['JetBrains_Mono',monospace]">
-              {githubStatus?.fullName || 'alqadasif2-cloud/samii-21'}
+          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+            <span className="text-slate-400">المستودع المستخدم حالياً:</span>
+            <span
+              dir="ltr"
+              className={`font-bold font-['JetBrains_Mono',monospace] truncate ${
+                githubStatus?.fullName ? 'text-slate-100' : 'text-slate-500'
+              }`}
+            >
+              {githubStatus?.fullName || 'غير محدد بعد'}
             </span>
           </div>
 
-          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
             <span className="text-slate-400">حالة اتصال GitHub API:</span>
             {githubStatus?.canPublishReleases ? (
               <span className="font-black text-emerald-400">
@@ -1629,21 +1789,21 @@ export function SamiAdminUpdatePanel({
               </span>
             ) : githubStatus?.exists ? (
               <span className="font-black text-amber-400">
-                قراءة متاحة — ينقص GITHUB_TOKEN للنشر
+                قراءة متاحة — يلزم التوكن أو صلاحية الكتابة
               </span>
             ) : (
               <span className="font-black text-rose-400">غير متصل</span>
             )}
           </div>
 
-          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
             <span className="text-slate-400">النسخة المثبتة على هذا الجهاز:</span>
             <span dir="ltr" className="font-bold text-slate-200 font-['JetBrains_Mono',monospace] tabular-nums">
               v{installedApp.versionName} (Code {installedApp.versionCode})
             </span>
           </div>
 
-          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+          <div className="bg-[#0b0f17] p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
             <span className="text-slate-400">الإصدار النشط للمستخدمين:</span>
             <span className={`font-black ${isCurrentActive ? 'text-emerald-400' : 'text-slate-400'}`}>
               {isCurrentActive && currentPublished
@@ -1673,15 +1833,220 @@ export function SamiAdminUpdatePanel({
           </div>
         )}
 
-        {/* Clear Honest Warning When GITHUB_TOKEN Is Missing */}
+        {/* Clear Honest Warning When GitHub Connection Needs Setup */}
         {githubStatus && !githubStatus.canPublishReleases && (
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 text-xs space-y-1.5">
             <div className="font-black text-amber-300">
-              تنبيه إعداد بيئة الخادم (مطلوب لرفع الإصدارات إلى GitHub Releases):
+              تنبيه إعداد GitHub Releases:
             </div>
             <p className="text-slate-300 leading-relaxed text-[11px]">
               {githubStatus.setupInstructionsAr || githubStatus.error}
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* 1.5 Collapsible GitHub Releases Settings Section (Inside Same Page — Owner Only) */}
+      <div className="bg-[#121824] border border-amber-400/30 rounded-2xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((prev) => !prev)}
+          className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-right hover:bg-slate-800/50 transition cursor-pointer"
+        >
+          <div className="space-y-1 min-w-0">
+            <div className="text-xs sm:text-sm font-black text-amber-300">
+              ⚙️ إعدادات GitHub Releases
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+              <span>
+                المستودع الحالي:{' '}
+                <strong dir="ltr" className="text-slate-200 font-['JetBrains_Mono',monospace]">
+                  {githubStatus?.fullName || 'غير محدد'}
+                </strong>
+              </span>
+              <span aria-hidden="true">·</span>
+              <span
+                className={
+                  githubStatus?.canPublishReleases
+                    ? 'text-emerald-400 font-bold'
+                    : githubStatus?.exists
+                      ? 'text-amber-400 font-bold'
+                      : 'text-rose-400 font-bold'
+                }
+              >
+                {githubStatus?.canPublishReleases
+                  ? 'متصل وجاهز للنشر'
+                  : githubStatus?.exists
+                    ? 'يتطلب صلاحية كتابة / توكن'
+                    : 'غير متصل'}
+              </span>
+            </div>
+          </div>
+
+          <span className="shrink-0 px-3 py-1.5 rounded-lg bg-[#0b0f17] border border-slate-700 text-[11px] font-bold text-amber-300">
+            {settingsOpen ? 'إخفاء ▲' : 'تعديل الإعدادات ▼'}
+          </span>
+        </button>
+
+        {settingsOpen && (
+          <div className="p-4 sm:p-5 border-t border-slate-800/80 space-y-4 text-xs">
+            {/* Active Repository & Connection Live Summary */}
+            <div className="bg-[#0b0f17] border border-slate-800 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+              <div>
+                <span className="block text-slate-400">المستودع المستخدم حالياً</span>
+                <span
+                  dir="ltr"
+                  className="block mt-0.5 font-black text-slate-100 font-['JetBrains_Mono',monospace] break-all"
+                >
+                  {githubStatus?.fullName || 'لم يتم الحفظ بعد'}
+                </span>
+              </div>
+              <div>
+                <span className="block text-slate-400">حالة الاتصال بـ GitHub</span>
+                <span
+                  className={`block mt-0.5 font-black ${
+                    githubStatus?.canPublishReleases
+                      ? 'text-emerald-400'
+                      : githubStatus?.exists
+                        ? 'text-amber-400'
+                        : 'text-rose-400'
+                  }`}
+                >
+                  {githubStatus?.canPublishReleases
+                    ? `متصل (${githubStatus.isPrivate ? 'مستودع خاص' : 'مستودع عام'}) ✓`
+                    : githubStatus?.exists
+                      ? 'المستودع موجود — ينقص التوكن أو صلاحية الكتابة'
+                      : 'غير متصل'}
+                </span>
+              </div>
+              <div>
+                <span className="block text-slate-400">حالة التوكن على الخادم</span>
+                <span
+                  className={`block mt-0.5 font-black ${
+                    githubStatus?.hasToken || vaultInfo?.hasSavedToken ? 'text-emerald-400' : 'text-amber-400'
+                  }`}
+                >
+                  {githubStatus?.hasToken || vaultInfo?.hasSavedToken
+                    ? 'محفوظ ومؤمّن على الخادم ✓'
+                    : 'غير محفوظ بعد'}
+                </span>
+              </div>
+            </div>
+
+            {/* 3 Editable Inputs: GITHUB_OWNER, GITHUB_REPO, GITHUB_TOKEN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5">
+                  1. <span dir="ltr" className="font-['JetBrains_Mono',monospace] text-amber-300">GITHUB_OWNER</span>{' '}
+                  (اسم مالك المستودع)
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  disabled={savingSettings || uploading}
+                  value={ownerInput}
+                  onChange={(e) => setOwnerInput(e.target.value)}
+                  placeholder="owner-username"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1.5">
+                  2. <span dir="ltr" className="font-['JetBrains_Mono',monospace] text-amber-300">GITHUB_REPO</span>{' '}
+                  (اسم المستودع)
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  disabled={savingSettings || uploading}
+                  value={repoInput}
+                  onChange={(e) => setRepoInput(e.target.value)}
+                  placeholder="repository-name"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-full bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-300 font-bold mb-1.5">
+                3. <span dir="ltr" className="font-['JetBrains_Mono',monospace] text-amber-300">GITHUB_TOKEN</span>{' '}
+                (التوكن السري — صلاحية Contents: Read and write)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  dir="ltr"
+                  disabled={savingSettings || uploading}
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder={
+                    githubStatus?.hasToken || vaultInfo?.hasSavedToken
+                      ? 'محفوظ على الخادم — اتركه فارغاً للإبقاء عليه أو أدخل توكن جديداً لاستبداله'
+                      : 'github_pat_...'
+                  }
+                  autoComplete="new-password"
+                  spellCheck={false}
+                  className="flex-1 min-w-0 bg-[#0b0f17] border border-slate-700 rounded-xl p-3 text-slate-100 text-xs font-['JetBrains_Mono',monospace] focus:outline-none focus:border-amber-400"
+                />
+                <button
+                  type="button"
+                  disabled={!tokenInput || savingSettings}
+                  onClick={() => setShowToken((prev) => !prev)}
+                  className="shrink-0 px-3.5 py-3 rounded-xl bg-[#0b0f17] hover:bg-slate-800 border border-slate-700 text-amber-300 font-bold text-xs transition cursor-pointer disabled:opacity-40"
+                >
+                  {showToken ? 'إخفاء' : 'إظهار'}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                يُرسل التوكن عبر اتصال مشفر إلى الخادم فقط ولا يُعاد إرساله للواجهة أو حفظه في المتصفح أو قاعدة البيانات.
+              </p>
+            </div>
+
+            {/* Feedback Banner from Save / Test */}
+            {settingsFeedback && (
+              <div
+                className={`rounded-xl p-3 border text-xs font-bold leading-relaxed ${
+                  settingsFeedback.ok
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                    : 'bg-rose-500/10 border-rose-500/40 text-rose-300'
+                }`}
+              >
+                {settingsFeedback.text}
+              </div>
+            )}
+
+            {/* Honest Hosting Secret Vault Capability Notice */}
+            {vaultInfo?.hostingVaultNoticeAr && (
+              <div className="bg-[#0b0f17] border border-amber-500/30 rounded-xl p-3 text-[11px] text-amber-200 leading-relaxed">
+                {vaultInfo.hostingVaultNoticeAr}
+              </div>
+            )}
+
+            {/* Action Buttons: Save GitHub Settings & Test GitHub Connection */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <button
+                type="button"
+                disabled={savingSettings || testingConnection || uploading}
+                onClick={handleSaveGitHubSettings}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer"
+              >
+                {savingSettings ? 'جارٍ حفظ الإعدادات...' : 'حفظ إعدادات GitHub'}
+              </button>
+
+              <button
+                type="button"
+                disabled={testingConnection || savingSettings || uploading}
+                onClick={handleTestGitHubConnection}
+                className="w-full py-3 px-4 rounded-xl bg-[#0b0f17] hover:bg-slate-800 disabled:opacity-40 border border-amber-400/40 text-amber-300 font-black text-xs transition cursor-pointer"
+              >
+                {testingConnection ? 'جارٍ اختبار الاتصال...' : 'اختبار اتصال GitHub'}
+              </button>
+            </div>
           </div>
         )}
       </div>

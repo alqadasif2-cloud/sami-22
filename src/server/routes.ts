@@ -67,6 +67,7 @@ import {
   streamGitHubReleaseAssetToResponse,
   verifyExistingGitHubReleaseAsset,
 } from './githubReleases.ts';
+import { saveGitHubCredentialsToVault } from './githubSecretVault.ts';
 
 export const apiRouter = Router();
 
@@ -1375,6 +1376,7 @@ apiRouter.get('/app-updates/github-status', requireAuth, requireStrictOwner, asy
     res.json({
       success: true,
       github,
+      vault: github.vault || null,
       signingKey: {
         available: signingKey.available,
         sha256Fingerprint: signingKey.sha256Fingerprint,
@@ -1387,6 +1389,73 @@ apiRouter.get('/app-updates/github-status', requireAuth, requireStrictOwner, asy
     });
   } catch (err: any) {
     res.status(500).json({ error: 'فشل فحص حالة مستودع GitHub Releases: ' + redactGitHubSecrets(err) });
+  }
+});
+
+// POST /api/app-updates/github-settings - Save GitHub Owner, Repo, and Secret Token in isolated server vault (OWNER ONLY)
+apiRouter.post('/app-updates/github-settings', requireAuth, requireStrictOwner, async (req, res) => {
+  setNoCacheHeaders(res);
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const rawOwner = typeof body.githubOwner === 'string' ? body.githubOwner : '';
+    const rawRepo = typeof body.githubRepo === 'string' ? body.githubRepo : '';
+    const rawToken = typeof body.githubToken === 'string' ? body.githubToken : undefined;
+
+    const saved = await saveGitHubCredentialsToVault({
+      owner: rawOwner,
+      repo: rawRepo,
+      token: rawToken,
+    });
+
+    const github = await checkGitHubRepositoryStatus();
+    const message = github.canPublishReleases
+      ? `تم حفظ إعدادات GitHub Releases والاتصال بالمستودع ${github.fullName} بنجاح.`
+      : `تم حفظ الإعدادات على الخادم، ولكن تعذر التحقق الكامل من صلاحية النشر على ${saved.owner}/${saved.repo}: ${github.error || ''}`;
+
+    res.json({
+      success: true,
+      message,
+      github,
+      vault: saved.vault,
+    });
+  } catch (err: any) {
+    res.status(400).json({
+      success: false,
+      error: redactGitHubSecrets(err),
+    });
+  }
+});
+
+// POST /api/app-updates/github-test - Test GitHub Releases connectivity & write permissions (OWNER ONLY)
+apiRouter.post('/app-updates/github-test', requireAuth, requireStrictOwner, async (req, res) => {
+  setNoCacheHeaders(res);
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const overrideOwner = typeof body.githubOwner === 'string' ? body.githubOwner : undefined;
+    const overrideRepo = typeof body.githubRepo === 'string' ? body.githubRepo : undefined;
+    const overrideToken = typeof body.githubToken === 'string' ? body.githubToken : undefined;
+
+    const github = await checkGitHubRepositoryStatus({
+      owner: overrideOwner,
+      repo: overrideRepo,
+      token: overrideToken,
+    });
+
+    const ok = Boolean(github.exists && github.canPublishReleases);
+    res.status(ok ? 200 : 400).json({
+      success: ok,
+      message: ok
+        ? `الاتصال ناجح بالمستودع ${github.fullName} وصلاحيات إنشاء الإصدارات (Releases) جاهزة.`
+        : github.setupInstructionsAr || github.error || 'تعذر التحقق من الاتصال بمستودع GitHub.',
+      error: ok ? null : github.setupInstructionsAr || github.error || 'تعذر الاتصال بمستودع GitHub',
+      github,
+      vault: github.vault || null,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: 'فشل اختبار الاتصال بـ GitHub: ' + redactGitHubSecrets(err),
+    });
   }
 });
 

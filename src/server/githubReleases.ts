@@ -2,11 +2,19 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { Readable } from 'stream';
 import type { Response } from 'express';
+import {
+  getKnownSecretTokensForRedaction,
+  getResolvedGitHubCredentials,
+  parseOwnerAndRepoInput,
+  sanitizeGitHubSlug,
+  type VaultPublicStatus,
+} from './githubSecretVault.ts';
 
 /**
  * GitHub Releases Cloud Update Storage Service (Sole APK Storage Backend)
  * - Uses GitHub REST API (2022-11-28) exclusively for storing Sami APK releases
  * - Never exposes GITHUB_TOKEN to clients, logs, error messages, or Firestore
+ * - Contains zero hardcoded repository or owner names
  * - Enforces atomic Draft -> Upload Asset -> Verify Asset & SHA-256 -> Undraft Release flow
  * - Cleans up incomplete Draft Releases automatically if any step fails or is aborted
  * - Supports both Public repositories (direct official Release Asset URL) and Private repositories (authenticated server streaming proxy with HTTP Range support)
@@ -14,8 +22,6 @@ import type { Response } from 'express';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const GITHUB_API_VERSION = '2022-11-28';
-const PROJECT_DEFAULT_OWNER = 'alqadasif2-cloud';
-const PROJECT_DEFAULT_REPO = 'samii-21';
 
 export const GITHUB_MAX_RELEASE_ASSET_BYTES = 2 * 1024 * 1024 * 1024 - 1; // 2 GiB GitHub Releases limit
 export const SERVER_MAX_APK_UPLOAD_BYTES = 350 * 1024 * 1024; // 350 MB practical Cloud Run streaming limit
@@ -25,22 +31,17 @@ export interface GitHubConfig {
   repo: string;
   token: string;
   hasToken: boolean;
-  ownerSource: 'env' | 'project_config';
-  repoSource: 'env' | 'project_config';
+  vault: VaultPublicStatus;
 }
 
-export function getGitHubConfig(): GitHubConfig {
-  const envOwner = (process.env.GITHUB_OWNER || '').trim();
-  const envRepo = (process.env.GITHUB_REPO || '').trim();
-  const token = (process.env.GITHUB_TOKEN || '').trim();
-
+export async function resolveGitHubConfig(): Promise<GitHubConfig> {
+  const resolved = await getResolvedGitHubCredentials();
   return {
-    owner: envOwner || PROJECT_DEFAULT_OWNER,
-    repo: envRepo || PROJECT_DEFAULT_REPO,
-    token,
-    hasToken: token.length > 0,
-    ownerSource: envOwner ? 'env' : 'project_config',
-    repoSource: envRepo ? 'env' : 'project_config',
+    owner: resolved.owner,
+    repo: resolved.repo,
+    token: resolved.token,
+    hasToken: resolved.hasToken,
+    vault: resolved.vault,
   };
 }
 
@@ -49,9 +50,11 @@ export function getGitHubConfig(): GitHubConfig {
  */
 export function redactGitHubSecrets(input: unknown): string {
   let msg = input instanceof Error ? input.message : String(input || '');
-  const token = (process.env.GITHUB_TOKEN || '').trim();
-  if (token && token.length >= 4) {
-    msg = msg.split(token).join('[REDACTED_GITHUB_TOKEN]');
+  const tokens = getKnownSecretTokensForRedaction();
+  for (const token of tokens) {
+    if (token && token.length >= 4) {
+      msg = msg.split(token).join('[REDACTED_GITHUB_TOKEN]');
+    }
   }
   msg = msg.replace(/github_pat_[A-Za-z0-9_]+/g, '[REDACTED_GITHUB_PAT]');
   msg = msg.replace(/gh[pousr]_[A-Za-z0-9_]+/g, '[REDACTED_GITHUB_TOKEN]');
@@ -90,18 +93,70 @@ export interface GitHubRepositoryStatus {
   missingEnvVars: string[];
   setupInstructionsAr: string | null;
   error: string | null;
+  vault?: VaultPublicStatus;
 }
 
-export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositoryStatus> {
-  const cfg = getGitHubConfig();
-  const fullName = `${cfg.owner}/${cfg.repo}`;
+export async function checkGitHubRepositoryStatus(override?: {
+  owner?: string;
+  repo?: string;
+  token?: string;
+}): Promise<GitHubRepositoryStatus> {
+  const baseCfg = await resolveGitHubConfig();
+
+  let effectiveOwner = baseCfg.owner;
+  let effectiveRepo = baseCfg.repo;
+  if (override && (override.owner !== undefined || override.repo !== undefined)) {
+    const parsedOverride = parseOwnerAndRepoInput(
+      override.owner !== undefined ? override.owner : baseCfg.owner,
+      override.repo !== undefined ? override.repo : baseCfg.repo
+    );
+    effectiveOwner = parsedOverride.owner;
+    effectiveRepo = parsedOverride.repo;
+  }
+
+  const cleanOverrideTok = override?.token !== undefined ? sanitizeGitHubSlug(override.token) : '';
+  const effectiveToken = cleanOverrideTok || baseCfg.token;
+
+  const cfg: GitHubConfig = {
+    owner: effectiveOwner,
+    repo: effectiveRepo,
+    token: effectiveToken,
+    hasToken: effectiveToken.length > 0,
+    vault: baseCfg.vault,
+  };
+
+  const fullName = cfg.owner && cfg.repo ? `${cfg.owner}/${cfg.repo}` : '';
   const missingEnvVars: string[] = [];
+  if (!cfg.owner) missingEnvVars.push('GITHUB_OWNER');
+  if (!cfg.repo) missingEnvVars.push('GITHUB_REPO');
   if (!cfg.hasToken) missingEnvVars.push('GITHUB_TOKEN');
-  if (!(process.env.GITHUB_OWNER || '').trim()) missingEnvVars.push('GITHUB_OWNER');
-  if (!(process.env.GITHUB_REPO || '').trim()) missingEnvVars.push('GITHUB_REPO');
+
+  if (!cfg.owner || !cfg.repo) {
+    return {
+      configured: false,
+      hasToken: cfg.hasToken,
+      owner: cfg.owner,
+      repo: cfg.repo,
+      fullName: '',
+      exists: false,
+      isPrivate: null,
+      visibility: null,
+      defaultBranch: null,
+      canPublishReleases: false,
+      releasesReachable: false,
+      existingReleasesCount: 0,
+      rateLimitRemaining: null,
+      rateLimitResetAt: null,
+      missingEnvVars,
+      setupInstructionsAr:
+        'افتح قسم «⚙️ إعدادات GitHub Releases» وأدخل GITHUB_OWNER وGITHUB_REPO وGITHUB_TOKEN ثم اضغط «حفظ إعدادات GitHub».',
+      error: 'لم يتم تحديد اسم المالك أو اسم المستودع في إعدادات GitHub Releases بعد.',
+      vault: cfg.vault,
+    };
+  }
 
   const baseInstructions = !cfg.hasToken
-    ? `يرجى إضافة المتغير السري GITHUB_TOKEN (و GITHUB_OWNER="${cfg.owner}" و GITHUB_REPO="${cfg.repo}") في لوحة الأسرار (Secrets) داخل Google AI Studio أو متغيرات بيئة الخادم، باستخدام Fine-grained Personal Access Token مخصص للمستودع ${fullName} بصلاحية Contents: Read and write لإدارة الإصدارات (Releases) ورفع ملفات APK.`
+    ? `يرجى فتح قسم «⚙️ إعدادات GitHub Releases» وإدخال التوكن السري (GITHUB_TOKEN) بصلاحية Contents: Read and write للمستودع ${fullName} ثم حفظ الإعدادات.`
     : null;
 
   try {
@@ -136,8 +191,8 @@ export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositorySta
         rateLimitResetAt,
         missingEnvVars,
         setupInstructionsAr:
-          'رمز GITHUB_TOKEN الحالي غير صالح أو منتهي الصلاحية. يرجى تحديثه برمز Fine-grained PAT صالح بصلاحية Contents: Read and write.',
-        error: 'فشل التحقق من رمز GITHUB_TOKEN لدى GitHub (401 Unauthorized)',
+          'رمز GitHub الحالي غير صالح أو منتهي الصلاحية. يرجى تحديثه برمز Fine-grained PAT صالح بصلاحية Contents: Read and write.',
+        error: 'فشل التحقق من رمز GitHub لدى GitHub API (401 Unauthorized)',
       };
     }
 
@@ -159,11 +214,29 @@ export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositorySta
         rateLimitResetAt,
         missingEnvVars,
         setupInstructionsAr: baseInstructions,
-        error: 'تم تجاوز حد طلبات GitHub API مؤقتاً (Rate Limit). يرجى المحاولة بعد قليل أو التأكد من إعداد GITHUB_TOKEN.',
+        error: 'تم تجاوز حد طلبات GitHub API مؤقتاً (Rate Limit). يرجى المحاولة بعد قليل أو التأكد من إعداد رمز GitHub.',
       };
     }
 
     if (repoRes.status === 404) {
+      let swappedHint: string | null = null;
+      if (cfg.owner && cfg.repo && cfg.owner !== cfg.repo) {
+        try {
+          const swappedCheck = await fetch(
+            `${GITHUB_API_BASE}/repos/${encodeURIComponent(cfg.repo)}/${encodeURIComponent(cfg.owner)}`,
+            {
+              method: 'GET',
+              headers: buildGitHubHeaders(cfg.hasToken ? cfg.token : undefined),
+            }
+          );
+          if (swappedCheck.ok) {
+            swappedHint = `تنبيه: يبدو أنه تم عكس حقل المالك وحقل المستودع بالخطأ. ضع "${cfg.repo}" في حقل GITHUB_OWNER وضع "${cfg.owner}" في حقل GITHUB_REPO.`;
+          }
+        } catch {
+          // ignore secondary check failure
+        }
+      }
+
       return {
         configured: false,
         hasToken: cfg.hasToken,
@@ -180,10 +253,13 @@ export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositorySta
         rateLimitRemaining,
         rateLimitResetAt,
         missingEnvVars,
-        setupInstructionsAr: !cfg.hasToken
-          ? `المستودع ${fullName} غير مرئي للعامة أو خاص. يرجى إضافة GITHUB_TOKEN بصلاحية Contents: Read and write للوصول إليه.`
-          : `لم يتم العثور على المستودع ${fullName} أو أن الرمز لا يملك صلاحية الوصول إليه.`,
+        setupInstructionsAr:
+          swappedHint ||
+          (!cfg.hasToken
+            ? `المستودع ${fullName} غير مرئي للعامة أو خاص. يرجى إدخال التوكن (GITHUB_TOKEN) بصلاحية Contents: Read and write للوصول إليه.`
+            : `لم يتم العثور على المستودع ${fullName} أو أن الرمز لا يملك صلاحية الوصول إليه.`),
         error: `تعذر الوصول إلى المستودع ${fullName} (404)`,
+        vault: cfg.vault,
       };
     }
 
@@ -206,6 +282,7 @@ export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositorySta
         missingEnvVars,
         setupInstructionsAr: baseInstructions,
         error: `استجابة غير متوقعة من GitHub API (${repoRes.status})`,
+        vault: cfg.vault,
       };
     }
 
@@ -254,10 +331,11 @@ export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositorySta
           ? `رمز GITHUB_TOKEN الحالي لا يملك صلاحية الكتابة على الإصدارات في ${fullName}. يرجى منح صلاحية Contents: Read and write للرمز.`
           : null,
       error: !cfg.hasToken
-        ? 'لم يتم إعداد متغير البيئة السري GITHUB_TOKEN في الخادم بعد؛ القراءة العامة متاحة لكن الرفع والنشر يتطلبان إعداد الرمز.'
+        ? 'لم يتم حفظ GITHUB_TOKEN في إعدادات الخادم بعد؛ القراءة العامة متاحة لكن الرفع والنشر يتطلبان حفظ التوكن.'
         : !hasPushPerm
           ? 'رمز GITHUB_TOKEN لا يملك صلاحية إنشاء الإصدارات (Contents: Write)'
           : null,
+      vault: cfg.vault,
     };
   } catch (err: any) {
     return {
@@ -278,6 +356,7 @@ export async function checkGitHubRepositoryStatus(): Promise<GitHubRepositorySta
       missingEnvVars,
       setupInstructionsAr: baseInstructions,
       error: `فشل الاتصال بخدمة GitHub API: ${redactGitHubSecrets(err)}`,
+      vault: cfg.vault,
     };
   }
 }
@@ -476,10 +555,15 @@ export async function publishApkToGitHubRelease(params: {
   originalFileName: string;
   signal?: AbortSignal;
 }): Promise<PublishedGitHubReleaseResult> {
-  const cfg = getGitHubConfig();
+  const cfg = await resolveGitHubConfig();
+  if (!cfg.owner || !cfg.repo) {
+    throw new Error(
+      'لم يتم تحديد المستودع في إعدادات GitHub Releases. يرجى فتح قسم «⚙️ إعدادات GitHub Releases» وحفظ GITHUB_OWNER وGITHUB_REPO وGITHUB_TOKEN أولاً.'
+    );
+  }
   if (!cfg.hasToken) {
     throw new Error(
-      `بيانات اعتماد GitHub غير مضبوطة في الخادم. يرجى إضافة المتغير السري GITHUB_TOKEN (مع GITHUB_OWNER="${cfg.owner}" و GITHUB_REPO="${cfg.repo}") في لوحة الأسرار (Secrets) داخل AI Studio بصلاحية Contents: Read and write على المستودع ${cfg.owner}/${cfg.repo}.`
+      `التوكن السري (GITHUB_TOKEN) غير محفوظ على الخادم بعد. يرجى فتح قسم «⚙️ إعدادات GitHub Releases» وحفظ التوكن بصلاحية Contents: Read and write للمستودع ${cfg.owner}/${cfg.repo}.`
     );
   }
 
@@ -793,7 +877,7 @@ export async function verifyExistingGitHubReleaseAsset(params: {
   browserDownloadUrl?: string;
   isRepoPrivate?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
-  const cfg = getGitHubConfig();
+  const cfg = await resolveGitHubConfig();
   try {
     if (!params.isRepoPrivate && params.browserDownloadUrl && params.browserDownloadUrl.startsWith('https://github.com/')) {
       const probe = await fetch(params.browserDownloadUrl, {
@@ -810,11 +894,15 @@ export async function verifyExistingGitHubReleaseAsset(params: {
     }
 
     if (params.releaseId > 0) {
+      const sameConfiguredRepo =
+        cfg.hasToken &&
+        params.owner.toLowerCase() === cfg.owner.toLowerCase() &&
+        params.repo.toLowerCase() === cfg.repo.toLowerCase();
       const relRes = await fetch(
         `${GITHUB_API_BASE}/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/releases/${params.releaseId}`,
         {
           method: 'GET',
-          headers: buildGitHubHeaders(cfg.hasToken ? cfg.token : undefined),
+          headers: buildGitHubHeaders(sameConfiguredRepo ? cfg.token : undefined),
         }
       );
       if (!relRes.ok) {
@@ -855,7 +943,7 @@ export async function streamGitHubReleaseAssetToResponse(params: {
   rangeHeader?: string;
   res: Response;
 }): Promise<void> {
-  const cfg = getGitHubConfig();
+  const cfg = await resolveGitHubConfig();
   const {
     owner,
     repo,
@@ -872,7 +960,7 @@ export async function streamGitHubReleaseAssetToResponse(params: {
   if (isRepoPrivate && !cfg.hasToken) {
     res.status(503).json({
       error:
-        'تعذر تنزيل التحديث من المستودع الخاص لأن متغير GITHUB_TOKEN غير مضبوط في الخادم حالياً.',
+        'تعذر تنزيل التحديث من المستودع الخاص لأن GITHUB_TOKEN غير محفوظ على الخادم حالياً.',
     });
     return;
   }
@@ -881,12 +969,17 @@ export async function streamGitHubReleaseAssetToResponse(params: {
     'User-Agent': 'Sami-Cloud-Update-Server/1.3',
   };
 
+  const isSameActiveRepo =
+    cfg.hasToken &&
+    owner.toLowerCase() === cfg.owner.toLowerCase() &&
+    repo.toLowerCase() === cfg.repo.toLowerCase();
+
   let targetUrl = browserDownloadUrl;
-  if (isRepoPrivate || !browserDownloadUrl || assetId > 0 && cfg.hasToken) {
+  if (isRepoPrivate || !browserDownloadUrl || (assetId > 0 && isSameActiveRepo)) {
     targetUrl = `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases/assets/${assetId}`;
     upstreamHeaders.Accept = 'application/octet-stream';
     upstreamHeaders['X-GitHub-Api-Version'] = GITHUB_API_VERSION;
-    if (cfg.hasToken) {
+    if (cfg.hasToken && (isRepoPrivate || isSameActiveRepo)) {
       upstreamHeaders.Authorization = `Bearer ${cfg.token}`;
     }
   }
