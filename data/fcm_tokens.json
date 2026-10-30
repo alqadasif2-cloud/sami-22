@@ -1,0 +1,13 @@
+{
+  "fcm_tok_5_and_mock_device_99": {
+    "id": "fcm_tok_5_and_mock_device_99",
+    "token": "fcm_mock_token_sample_abc_123_test",
+    "userId": 5,
+    "username": "tester_b_14298",
+    "deviceId": "and_mock_device_99",
+    "platform": "android",
+    "deviceModel": "Android",
+    "updatedAt": 1793263177673,
+    "createdAt": 1793263177673
+  }
+}

@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.:]+$');
+    }
+
+    // 2. Users & Community Users (Strict per-user isolation)
+    // Client SDK cannot list or scrape the entire user database.
+    // Public queries and logins are securely processed via server endpoints (/api/auth, /api/users).
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /community_users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // 3. Channels & Community Channels
+    // Hidden channels and private passwords are never exposed to public list queries.
+    // Full RBAC membership checks are verified on the trusted server.
+    match /channels/{channelId} {
+      allow get: if resource.data.visibility != 'hidden' && (!('isPrivate' in resource.data) || resource.data.isPrivate == false);
+      allow list: if resource.data.visibility != 'hidden';
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow get, list: if get(/databases/$(database)/documents/channels/$(channelId)).data.visibility != 'hidden';
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /community_channels/{channelId} {
+      allow get: if resource.data.visibility != 'hidden' && (!('isPrivate' in resource.data) || resource.data.isPrivate == false);
+      allow list: if resource.data.visibility != 'hidden';
+      allow write: if false;
+    }
+
+    // 4. Flat Community Chat (Used for public trading chat on Android)
+    match /chat_messages/{messageId} {
+      allow get, list: if true;
+      allow create: if request.resource.data.text is string && request.resource.data.text.size() <= 2000;
+      allow update, delete: if false;
+    }
+
+    // 5. Direct Private Messages & Private Conversations
+    // Zero-Trust: Strictly restricted to sender and receiver.
+    // Public listing is forbidden.
+    match /private_messages/{messageId} {
+      allow get: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow list: if false;
+      allow write: if false;
+    }
+
+    match /private_conversations/{pairKey} {
+      allow get: if isSignedIn() && pairKey.matches('^[0-9]+_[0-9]+$') && pairKey.split('_').hasAny([request.auth.uid]);
+      allow list: if false;
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && pairKey.split('_').hasAny([request.auth.uid]);
+        allow list: if false;
+        allow write: if false;
+      }
+    }
+
+    // 6. User Challenges & 150 Milestone Stations (Managed securely via /api/challenge)
+    match /challenges/{challengeId} {
+      allow read, write: if false;
+
+      match /trades/{tradeId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /user_challenges/{userId} {
+      allow read, write: if false;
+    }
+
+    // 7. App Updates (Public read for version check, write strictly forbidden via client)
+    match /app_updates/{docId} {
+      allow get, list: if true;
+      allow write: if false;
+    }
+
+    // 8. Notifications & FCM Device Tokens (Write-only for device tokens, no public reading)
+    match /community_notifications/{docId} {
+      allow read: if false;
+      allow create, update: if request.resource.data.type == 'fcm_device_token';
+      allow delete: if false;
+    }
+
+    match /notifications/{docId} {
+      allow read, write: if false;
+    }
+
+    // 9. Files Metadata (Restricted to server proxy)
+    match /files/{fileId} {
+      allow read, write: if false;
+    }
+
+    // 10. System Health Ping
+    match /_system_health/{docId} {
+      allow get: if true;
+      allow write: if false;
+    }
+
+    // 11. User Warnings
+    match /user_warnings/{warningId} {
+      allow read, write: if false;
+    }
+  }
+}

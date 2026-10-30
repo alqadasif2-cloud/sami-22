@@ -1,0 +1,174 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access control and challenge status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Unique numeric ID of user" },
+        "username": { "type": "string", "maxLength": 64, "description": "Unique username" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Public display name" },
+        "role": { "type": "string", "enum": ["owner", "moderator", "user", "guest"], "description": "User RBAC role" },
+        "avatarUrl": { "type": "string", "maxLength": 512, "description": "Avatar image URL or path" },
+        "warningsCount": { "type": "number", "description": "Number of recorded community warnings" },
+        "createdAt": { "type": "number", "description": "Account creation timestamp" },
+        "updatedAt": { "type": "number", "description": "Account update timestamp" }
+      },
+      "required": ["id", "username", "role"]
+    },
+    "Channel": {
+      "title": "Channel",
+      "description": "Public or private discussion channel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64, "description": "Channel ID" },
+        "name": { "type": "string", "maxLength": 100, "description": "Channel title" },
+        "isOpenPublic": { "type": "boolean", "description": "Whether open to all public users" },
+        "visibility": { "type": "string", "enum": ["public", "hidden"], "description": "Channel visibility" },
+        "memberIds": { "type": "array", "description": "List of authorized member IDs" },
+        "displayMemberCount": { "type": "number", "description": "Cached member count" },
+        "updatedAt": { "type": "number", "description": "Last update timestamp" }
+      },
+      "required": ["id", "name"]
+    },
+    "ChannelMessage": {
+      "title": "ChannelMessage",
+      "description": "Individual chat message inside a channel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Message unique ID" },
+        "channelId": { "type": "string", "maxLength": 64, "description": "Channel ID" },
+        "senderId": { "type": "number", "description": "Numeric ID of author" },
+        "senderName": { "type": "string", "maxLength": 100, "description": "Sender display name" },
+        "senderRole": { "type": "string", "enum": ["owner", "moderator", "user", "guest"], "description": "Sender RBAC role" },
+        "text": { "type": "string", "maxLength": 4000, "description": "Text content" },
+        "imageUrl": { "type": "string", "maxLength": 512, "description": "Attached image URL" },
+        "fileUrl": { "type": "string", "maxLength": 512, "description": "Attached document URL" },
+        "fileName": { "type": "string", "maxLength": 256, "description": "Original file name" },
+        "audioUrl": { "type": "string", "maxLength": 512, "description": "Voice audio URL" },
+        "audioDuration": { "type": "number", "description": "Voice audio duration in seconds" },
+        "timestamp": { "type": "number", "description": "Message timestamp" }
+      },
+      "required": ["id", "senderId", "timestamp"]
+    },
+    "PrivateMessage": {
+      "title": "PrivateMessage",
+      "description": "Encrypted direct 1-to-1 message between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "description": "Message ID" },
+        "senderId": { "type": "number", "description": "Sender user ID" },
+        "receiverId": { "type": "number", "description": "Recipient user ID" },
+        "senderName": { "type": "string", "maxLength": 100, "description": "Sender name" },
+        "text": { "type": "string", "maxLength": 4000, "description": "Message content" },
+        "timestamp": { "type": "number", "description": "Message timestamp" }
+      },
+      "required": ["id", "senderId", "receiverId", "timestamp"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "Trading challenge state across 150 milestone stations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64, "description": "Challenge unique identifier" },
+        "userId": { "type": "number", "description": "Owner user ID" },
+        "userName": { "type": "string", "maxLength": 100, "description": "Trader display name" },
+        "initialCapitalCents": { "type": "number", "description": "Starting balance in cents" },
+        "currentBalanceCents": { "type": "number", "description": "Current balance in cents" },
+        "targetBalanceCents": { "type": "number", "description": "Target balance in cents" },
+        "tradeCount": { "type": "number", "description": "Total executed trades" },
+        "challengeStarted": { "type": "boolean", "description": "Whether challenge has begun" },
+        "updatedAt": { "type": "number", "description": "Last update timestamp" }
+      },
+      "required": ["id", "userId"]
+    },
+    "AppUpdate": {
+      "title": "AppUpdate",
+      "description": "Application version and GitHub Releases metadata for in-app updates",
+      "type": "object",
+      "properties": {
+        "versionName": { "type": "string", "maxLength": 32, "description": "Semantic version label" },
+        "versionCode": { "type": "number", "description": "Numeric Android versionCode" },
+        "description": { "type": "string", "maxLength": 4000, "description": "Arabic release notes" },
+        "fileSize": { "type": "number", "description": "APK file size in bytes" },
+        "fileName": { "type": "string", "maxLength": 256, "description": "Uploaded APK file name" },
+        "applicationId": { "type": "string", "maxLength": 128, "description": "Android applicationId" },
+        "storageSource": { "type": "string", "enum": ["github_releases"], "description": "Exclusive APK storage provider" },
+        "githubOwner": { "type": "string", "maxLength": 128, "description": "GitHub repository owner" },
+        "githubRepo": { "type": "string", "maxLength": 128, "description": "GitHub repository name" },
+        "githubReleaseId": { "type": "number", "description": "GitHub Release numeric ID" },
+        "releaseTag": { "type": "string", "maxLength": 64, "description": "Unique GitHub Release tag" },
+        "githubAssetId": { "type": "number", "description": "GitHub Release Asset numeric ID" },
+        "isRepoPrivate": { "type": "boolean", "description": "Whether the GitHub repository is private" },
+        "downloadUrl": { "type": "string", "maxLength": 1024, "description": "Direct GitHub Release Asset download URL when public, or secure server path when private" },
+        "secureDownloadPath": { "type": "string", "maxLength": 512, "description": "Authenticated server proxy download path" },
+        "sha256": { "type": "string", "maxLength": 64, "minLength": 64, "pattern": "^[a-fA-F0-9]{64}$", "description": "Hex SHA-256 digest of APK file" },
+        "signingCertSha256": { "type": "string", "maxLength": 128, "description": "SHA-256 fingerprint of APK X.509 signing certificate" },
+        "uploadedAt": { "type": "number", "description": "APK upload timestamp (ms)" },
+        "publishedAt": { "type": "number", "description": "Release publication timestamp (ms)" },
+        "updatedAt": { "type": "number", "description": "Last record update timestamp (ms)" },
+        "status": { "type": "string", "enum": ["draft", "published", "paused"], "description": "Release lifecycle status" },
+        "isMandatory": { "type": "boolean", "description": "Whether update is compulsory" },
+        "isActive": { "type": "boolean", "description": "Whether release is active and visible to users" }
+      },
+      "required": [
+        "versionName",
+        "versionCode",
+        "fileSize",
+        "fileName",
+        "applicationId",
+        "storageSource",
+        "githubOwner",
+        "githubRepo",
+        "githubReleaseId",
+        "releaseTag",
+        "githubAssetId",
+        "sha256",
+        "status",
+        "isMandatory"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Primary user profile document"
+    },
+    "/community_users/{userId}": {
+      "schema": "User",
+      "description": "Shared user mirror for cross-client discovery"
+    },
+    "/channels/{channelId}": {
+      "schema": "Channel",
+      "description": "Community chat room definition"
+    },
+    "/channels/{channelId}/messages/{messageId}": {
+      "schema": "ChannelMessage",
+      "description": "Channel chat messages subcollection"
+    },
+    "/chat_messages/{messageId}": {
+      "schema": "ChannelMessage",
+      "description": "Flat chat messages collection"
+    },
+    "/private_conversations/{pairKey}/messages/{messageId}": {
+      "schema": "PrivateMessage",
+      "description": "Direct message thread between user pair"
+    },
+    "/private_messages/{messageId}": {
+      "schema": "PrivateMessage",
+      "description": "Direct private message document"
+    },
+    "/challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "User trading challenge status"
+    },
+    "/user_challenges/{userId}": {
+      "schema": "Challenge",
+      "description": "User challenge document by user ID"
+    },
+    "/app_updates/{docId}": {
+      "schema": "AppUpdate",
+      "description": "App release and update document"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Sami 20 - Trading Challenge & APK CI/CD Center",
+  "description": "تطبيق سامي 20 المتكامل لمتابعة رحلة التداول (150 محطة)، المحادثات الفورية، وإدارة بناء وتوليد حزم Android Release APK عبر GitHub Actions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

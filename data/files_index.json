@@ -1,0 +1,14 @@
+{
+  "chat_files_1792892433_1792892549705_r52yl8": {
+    "id": "chat_files_1792892433_1792892549705_r52yl8",
+    "fileName": "test_doc.pdf",
+    "fileSize": 24,
+    "fileType": "application/pdf",
+    "fileUrl": "/api/files/chat_files_1792892433_1792892549705_r52yl8",
+    "storagePath": "chat_files/chat_files_1792892433_1792892549705_r52yl8_test_doc.pdf",
+    "uploaderId": 1792892433,
+    "channelId": "general_trading",
+    "isCloudStorage": false,
+    "createdAt": 1792892549705
+  }
+}

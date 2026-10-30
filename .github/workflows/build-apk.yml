@@ -1,0 +1,281 @@
+name: Build and Release Sami APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Verify Sami Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # 1. Checkout Source Code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Sync Pure Sami App Assets to Android (Never overwrite with dev Fix Center dist/)
+      - name: Sync Pure Sami Assets to Android
+        run: |
+          echo "Syncing pure Sami application assets to app/src/main/assets..."
+          mkdir -p app/src/main/assets/assets
+
+          # Priority 1: If public/ directory exists and has index.html, sync into Android assets
+          if [ -d "public" ] && [ -f "public/index.html" ]; then
+            echo "Copying assets from public/ folder..."
+            cp -r public/* app/src/main/assets/
+          # Priority 2: If app/src/main/assets/index.html is already committed in repository, preserve it
+          elif [ -f "app/src/main/assets/index.html" ]; then
+            echo "Preserving existing committed assets in app/src/main/assets/..."
+          # Priority 3: Fall back to sami.html or root index.html
+          elif [ -f "sami.html" ]; then
+            echo "Copying sami.html as Android assets entry..."
+            cp sami.html app/src/main/assets/index.html
+          elif [ -f "index.html" ]; then
+            echo "Copying root index.html as Android assets entry..."
+            cp index.html app/src/main/assets/index.html
+          else
+            echo "ERROR: Unable to locate any valid index.html for Android WebAssets!"
+            exit 1
+          fi
+
+          # Ensure CSS and JS bundles are present in app/src/main/assets/assets
+          if [ -d "public/assets" ]; then
+            cp -r public/assets/* app/src/main/assets/assets/ 2>/dev/null || true
+          fi
+
+          # Ensure public/ directory exists in runner workspace
+          if [ ! -d "public" ] || [ ! -f "public/index.html" ]; then
+            mkdir -p public
+            cp -r app/src/main/assets/* public/ 2>/dev/null || true
+          fi
+
+          # Remove any backup or developer-only files if present
+          rm -f app/src/main/assets/sami.html
+          rm -f app/src/main/assets/*fix-center*
+          find app/src/main/assets -name "*.bak" -delete 2>/dev/null || true
+
+          echo "Verifying Android WebAssets entry point before Gradle build..."
+          if ! grep -q "<title>Sami" app/src/main/assets/index.html; then
+            sed -i 's/<title>.*<\/title>/<title>Sami<\/title>/' app/src/main/assets/index.html
+          fi
+          grep -q "/assets/index-DoqMLvwt.js" app/src/main/assets/index.html
+          if grep -Eqi "src/main\.tsx|fix-center|GitHub Actions|مركز إصلاح" app/src/main/assets/index.html; then
+            echo "ERROR: Developer Fix Center markup detected in app/src/main/assets/index.html!"
+            exit 1
+          fi
+          echo "✅ Verified: app/src/main/assets/index.html is the pure Sami app."
+
+      # 2b. Sync Android FCM Resources from google-services.json (if file or secret is provided)
+      - name: Configure Android FCM Resources
+        env:
+          GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, xml.etree.ElementTree as ET
+
+          gs_data = None
+          secret_raw = os.environ.get("GOOGLE_SERVICES_JSON_SECRET", "").strip()
+          if secret_raw:
+              try:
+                  gs_data = json.loads(secret_raw)
+                  print("Loaded Android FCM config from GOOGLE_SERVICES_JSON secret.")
+              except Exception as exc:
+                  print(f"Warning: Could not parse GOOGLE_SERVICES_JSON secret: {exc}")
+
+          if gs_data is None and os.path.isfile("app/google-services.json"):
+              try:
+                  with open("app/google-services.json", "r", encoding="utf-8") as fh:
+                      gs_data = json.load(fh)
+                  print("Loaded Android FCM config from app/google-services.json.")
+              except Exception as exc:
+                  print(f"Warning: Could not parse app/google-services.json: {exc}")
+
+          if not gs_data:
+              print("No app/google-services.json or GOOGLE_SERVICES_JSON secret found; keeping existing strings.xml.")
+              raise SystemExit(0)
+
+          proj_info = gs_data.get("project_info") or {}
+          clients = gs_data.get("client") or []
+          selected_client = None
+          for c in clients:
+              pkg = (((c.get("client_info") or {}).get("android_client_info") or {}).get("package_name") or "").strip()
+              if pkg == "com.sami.tradingchallengetracker":
+                  selected_client = c
+                  break
+          if selected_client is None and clients:
+              selected_client = clients[0]
+
+          if not selected_client:
+              print("Warning: google-services.json contains no client entries; skipping strings.xml update.")
+              raise SystemExit(0)
+
+          app_id = ((selected_client.get("client_info") or {}).get("mobilesdk_app_id") or "").strip()
+          api_keys = selected_client.get("api_key") or []
+          api_key = (api_keys[0].get("current_key") if api_keys else "") or ""
+          api_key = api_key.strip()
+          sender_id = (proj_info.get("project_number") or "").strip()
+          project_id = (proj_info.get("project_id") or "").strip()
+          storage_bucket = (proj_info.get("storage_bucket") or "").strip()
+
+          if not (app_id and api_key and sender_id and project_id):
+              print("Warning: Incomplete fields in google-services.json; skipping strings.xml update.")
+              raise SystemExit(0)
+
+          strings_path = "app/src/main/res/values/strings.xml"
+          tree = ET.parse(strings_path)
+          root = tree.getroot()
+          updates = {
+              "google_app_id": app_id,
+              "gcm_defaultSenderId": sender_id,
+              "project_id": project_id,
+              "google_api_key": api_key,
+              "google_crash_reporting_api_key": api_key,
+          }
+          if storage_bucket:
+              updates["google_storage_bucket"] = storage_bucket
+
+          existing = {el.attrib.get("name"): el for el in root.findall("string")}
+          for k, v in updates.items():
+              if k in existing:
+                  existing[k].text = v
+              else:
+                  el = ET.SubElement(root, "string", {"name": k, "translatable": "false"})
+                  el.text = v
+
+          tree.write(strings_path, encoding="utf-8", xml_declaration=True)
+          print(f"✅ Updated {strings_path} with Android mobilesdk_app_id for project '{project_id}'.")
+          PYEOF
+
+      # 3. Setup Java 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # 4. Accept Android SDK Licenses & Setup
+      - name: Accept Android SDK Licenses
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses" || true
+          for SDK_BIN in "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"; do
+            if [ -x "$SDK_BIN" ]; then
+              echo "Accepting licenses using $SDK_BIN"
+              yes | "$SDK_BIN" --licenses || true
+              break
+            fi
+          done
+
+      # 5. Setup Gradle Wrapper Cache
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # 6. Verify & Ensure Root gradle.properties
+      - name: Verify & Ensure Root gradle.properties
+        run: |
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2560m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 -XX:+UseParallelGC
+          kotlin.daemon.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=512m
+          android.useAndroidX=true
+          android.enableJetifier=false
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          EOF
+          sed -i 's/^[[:space:]]*//' gradle.properties
+
+      # 7. Build & Inspect Final Android Release APK
+      - name: Build and Inspect Android Release APK
+        run: |
+          if [ ! -f "./gradlew" ] || [ ! -f "./gradle/wrapper/gradle-wrapper.jar" ]; then
+            gradle wrapper --gradle-version 8.6
+          fi
+          chmod +x ./gradlew
+
+          echo "========================================"
+          echo "Building Sami Release APK"
+          echo "========================================"
+          ./gradlew :app:assembleRelease \
+            -Pandroid.useAndroidX=true \
+            -Pandroid.enableJetifier=false \
+            --max-workers=2 \
+            --console=plain \
+            --stacktrace
+
+          APK_FILE=$(find app/build/outputs/apk/release/ -type f -name "*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ] || [ ! -f "$APK_FILE" ]; then
+            echo "ERROR: No release APK found in app/build/outputs/apk/release/"
+            exit 1
+          fi
+
+          echo "========================================"
+          echo "Inspecting Final Compiled APK Contents & Label"
+          echo "========================================"
+          # 1. Inspect embedded assets/index.html inside the APK zip
+          unzip -p "$APK_FILE" assets/index.html > /tmp/apk_index.html
+          grep -q "<title>Sami</title>" /tmp/apk_index.html
+          grep -q "/assets/index-DoqMLvwt.js" /tmp/apk_index.html
+          if grep -Eqi "src/main\.tsx|fix-center|sami\.html|GitHub Actions|مركز إصلاح" /tmp/apk_index.html; then
+            echo "ERROR: Fix Center detected inside compiled APK assets/index.html!"
+            exit 1
+          fi
+
+          # 2. Ensure no dev-fix-center files exist anywhere inside APK
+          if unzip -l "$APK_FILE" | grep -Eqi "fix-center|sami\.html|\.bak"; then
+            echo "ERROR: Unexpected developer/preview files found in APK!"
+            exit 1
+          fi
+
+          # 3. Verify compiled AndroidManifest label == 'Sami' via aapt2
+          AAPT2_BIN=$(find "$ANDROID_HOME/build-tools" -name "aapt2" | sort -V | tail -n 1)
+          if [ -n "$AAPT2_BIN" ] && [ -x "$AAPT2_BIN" ]; then
+            BADGING=$("$AAPT2_BIN" dump badging "$APK_FILE")
+            echo "$BADGING" | grep -E "package:|application-label"
+            echo "$BADGING" | grep -q "application-label:'Sami'"
+          fi
+
+          mkdir -p build-artifacts
+          cp "$APK_FILE" build-artifacts/Sami-Release.apk
+          sha256sum build-artifacts/Sami-Release.apk
+
+      # 10. Upload Release APK Artifact
+      - name: Upload Sami Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sami-Release
+          path: build-artifacts/Sami-Release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # 11. Publish Build Summary
+      - name: Publish Build Summary
+        if: always()
+        env:
+          BUILD_STATUS: ${{ job.status }}
+        run: |
+          echo "## 🚀 Sami Android Release Build Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BUILD_STATUS" = "success" ]; then
+            echo "### ✅ Build Status: SUCCESS" >> "$GITHUB_STEP_SUMMARY"
+            echo "Verified pure Sami UI, launcher name \`Sami\`, and signed Release APK." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ❌ Build Status: FAILED" >> "$GITHUB_STEP_SUMMARY"
+            echo "Please inspect the build logs above for troubleshooting." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **App Label**: \`Sami\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Artifact**: \`Sami-Release.apk\`" >> "$GITHUB_STEP_SUMMARY"

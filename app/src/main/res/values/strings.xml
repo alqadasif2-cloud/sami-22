@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sami</string>
+    <string name="google_app_id" translatable="false">1:462035009117:web:ef127abfd25d8ff2ec17b4</string>
+    <string name="gcm_defaultSenderId" translatable="false">462035009117</string>
+    <string name="project_id" translatable="false">majestic-interface-ksmzh</string>
+    <string name="google_api_key" translatable="false">AIzaSyCWSCiM0EVatqiBL5wUO8ZAfKcJHqud9dU</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyCWSCiM0EVatqiBL5wUO8ZAfKcJHqud9dU</string>
+    <string name="google_storage_bucket" translatable="false">majestic-interface-ksmzh.firebasestorage.app</string>
+</resources>
